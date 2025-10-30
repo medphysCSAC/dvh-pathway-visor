@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { DVHChart } from '@/components/DVHChart';
 import { StructureTable } from '@/components/StructureTable';
-import { DVHData } from '@/types/dvh';
-import { parseTomoTherapyDVH } from '@/utils/dvhParser';
+import { FilterBar } from '@/components/FilterBar';
+import { DVHData, StructureCategory } from '@/types/dvh';
+import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
 import { toast } from 'sonner';
 import { Activity } from 'lucide-react';
 const Index = () => {
   const [dvhData, setDvhData] = useState<DVHData | null>(null);
   const [selectedStructures, setSelectedStructures] = useState<string[]>([]);
+  const [activeFilter, setActiveFilter] = useState<StructureCategory | 'ALL'>('ALL');
   const handleFilesUploaded = async (relFile: File, absFile: File) => {
     try {
       const relContent = await relFile.text();
@@ -41,6 +43,29 @@ const Index = () => {
       }
     });
   };
+
+  const handleFilterChange = (category: StructureCategory | 'ALL') => {
+    setActiveFilter(category);
+    if (!dvhData) return;
+
+    if (category === 'ALL') {
+      setSelectedStructures([]);
+    } else {
+      const filtered = dvhData.structures
+        .filter(s => s.category === category)
+        .map(s => s.name);
+      setSelectedStructures(filtered);
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (!dvhData) return;
+    setSelectedStructures(dvhData.structures.map(s => s.name));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedStructures([]);
+  };
   return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
@@ -71,7 +96,7 @@ const Index = () => {
           {dvhData && <>
               {/* Patient Info */}
               <div className="bg-card border rounded-lg p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Patient ID</p>
                     <p className="text-lg font-semibold">{dvhData.patientId}</p>
@@ -84,8 +109,24 @@ const Index = () => {
                     <p className="text-sm text-muted-foreground">Sélectionnées</p>
                     <p className="text-lg font-semibold text-primary">{selectedStructures.length}</p>
                   </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Dose max globale</p>
+                    <p className="text-lg font-semibold text-accent">
+                      {findMaxDoseAcrossStructures(dvhData.structures).toFixed(2)} Gy
+                    </p>
+                  </div>
                 </div>
               </div>
+
+              {/* Filter Bar */}
+              <FilterBar
+                structures={dvhData.structures}
+                selectedStructures={selectedStructures}
+                onFilterChange={handleFilterChange}
+                onSelectAll={handleSelectAll}
+                onDeselectAll={handleDeselectAll}
+                activeFilter={activeFilter}
+              />
 
               {/* DVH Chart */}
               <DVHChart structures={dvhData.structures} selectedStructures={selectedStructures} />

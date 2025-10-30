@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
 import { Structure } from '@/types/dvh';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { calculateMetrics } from '@/utils/dvhParser';
+import { Target, Shield, Circle } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -22,6 +25,54 @@ export const StructureTable = ({
   selectedStructures, 
   onStructureToggle 
 }: StructureTableProps) => {
+  // Tri par catégorie: PTV > OAR > OTHER
+  const sortedStructures = useMemo(() => {
+    const categoryOrder = { PTV: 0, OAR: 1, OTHER: 2 };
+    return [...structures].sort((a, b) => {
+      return categoryOrder[a.category] - categoryOrder[b.category];
+    });
+  }, [structures]);
+
+  const getCategoryBadge = (category: Structure['category']) => {
+    switch (category) {
+      case 'PTV':
+        return (
+          <Badge variant="destructive" className="gap-1">
+            <Target className="w-3 h-3" />
+            PTV
+          </Badge>
+        );
+      case 'OAR':
+        return (
+          <Badge className="gap-1 bg-blue-500 hover:bg-blue-600">
+            <Shield className="w-3 h-3" />
+            OAR
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="secondary" className="gap-1">
+            <Circle className="w-3 h-3" />
+            Autre
+          </Badge>
+        );
+    }
+  };
+
+  const getRowClassName = (category: Structure['category'], isSelected: boolean) => {
+    const baseClass = 'cursor-pointer transition-colors';
+    if (isSelected) return `${baseClass} bg-primary/10`;
+    
+    switch (category) {
+      case 'PTV':
+        return `${baseClass} hover:bg-red-50 dark:hover:bg-red-950/20`;
+      case 'OAR':
+        return `${baseClass} hover:bg-blue-50 dark:hover:bg-blue-950/20`;
+      default:
+        return `${baseClass} hover:bg-muted/30`;
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -35,6 +86,7 @@ export const StructureTable = ({
                 <TableHead className="w-12">
                   <span className="sr-only">Sélection</span>
                 </TableHead>
+                <TableHead>Catégorie</TableHead>
                 <TableHead>Structure</TableHead>
                 <TableHead className="text-right">Volume (cc)</TableHead>
                 <TableHead className="text-right">D<sub>max</sub> (Gy)</TableHead>
@@ -44,7 +96,7 @@ export const StructureTable = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {structures.map((structure) => {
+              {sortedStructures.map((structure) => {
                 const metrics = calculateMetrics(structure);
                 if (!metrics) return null;
 
@@ -53,9 +105,7 @@ export const StructureTable = ({
                 return (
                   <TableRow 
                     key={structure.name}
-                    className={`cursor-pointer transition-colors ${
-                      isSelected ? 'bg-primary/5' : 'hover:bg-muted/30'
-                    }`}
+                    className={getRowClassName(structure.category, isSelected)}
                     onClick={() => onStructureToggle(structure.name)}
                   >
                     <TableCell>
@@ -63,6 +113,9 @@ export const StructureTable = ({
                         checked={isSelected}
                         onCheckedChange={() => onStructureToggle(structure.name)}
                       />
+                    </TableCell>
+                    <TableCell>
+                      {getCategoryBadge(structure.category)}
                     </TableCell>
                     <TableCell className="font-medium">{structure.name}</TableCell>
                     <TableCell className="text-right">

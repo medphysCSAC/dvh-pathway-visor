@@ -1,4 +1,52 @@
-import { DVHData, Structure, DVHPoint } from '@/types/dvh';
+import { DVHData, Structure, DVHPoint, StructureCategory } from '@/types/dvh';
+
+export const classifyStructure = (name: string): StructureCategory => {
+  // PTV: GTV, CTV, PTV
+  if (/\b(GTV|CTV|PTV)\b/i.test(name)) {
+    return 'PTV';
+  }
+  
+  // OAR: liste des organes à risque courants (français et anglais)
+  const oarKeywords = [
+    'bladder', 'vessie',
+    'rectum',
+    'femur', 'femoral',
+    'bowel', 'intestin',
+    'kidney', 'rein',
+    'liver', 'foie',
+    'lung', 'poumon',
+    'heart', 'coeur', 'cœur',
+    'spinal', 'moelle',
+    'brain', 'cerveau',
+    'parotid', 'parotide',
+    'skin', 'peau',
+    'eye', 'oeil', 'œil',
+    'esophagus', 'oesophage', 'œsophage',
+    'stomach', 'estomac',
+    'cord', 'cordon'
+  ];
+  
+  if (oarKeywords.some(keyword => name.toLowerCase().includes(keyword))) {
+    return 'OAR';
+  }
+  
+  return 'OTHER';
+};
+
+export const findMaxDoseAcrossStructures = (structures: Structure[]): number => {
+  let maxDose = 0;
+  
+  structures.forEach(structure => {
+    if (structure.relativeVolume.length > 0) {
+      const structureMaxDose = Math.max(...structure.relativeVolume.map(p => p.dose));
+      if (structureMaxDose > maxDose) {
+        maxDose = structureMaxDose;
+      }
+    }
+  });
+  
+  return maxDose;
+};
 
 export const parseTomoTherapyDVH = (relContent: string, absContent: string): DVHData => {
   const relLines = relContent.trim().split('\n');
@@ -46,6 +94,7 @@ export const parseTomoTherapyDVH = (relContent: string, absContent: string): DVH
     structures.push({
       name: structureName,
       type: 'STANDARD',
+      category: classifyStructure(structureName),
       relativeVolume,
       absoluteVolume,
       totalVolume

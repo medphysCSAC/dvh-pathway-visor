@@ -1,20 +1,47 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Structure } from '@/types/dvh';
+import { useMemo, useState } from 'react';
+import { Structure, DVHPoint } from '@/types/dvh';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { findMaxDoseAcrossStructures } from '@/utils/dvhParser';
 
 interface DVHChartProps {
   structures: Structure[];
   selectedStructures: string[];
 }
 
-const COLORS = [
-  '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
-  '#EC4899', '#14B8A6', '#F97316', '#06B6D4', '#84CC16'
-];
+const getColorForStructure = (structure: Structure, index: number): string => {
+  const ptvColors = ['#EF4444', '#F59E0B', '#DC2626', '#FB923C', '#EA580C'];
+  const oarColors = ['#3B82F6', '#10B981', '#14B8A6', '#06B6D4', '#8B5CF6'];
+  const otherColors = ['#64748B', '#94A3B8', '#475569', '#CBD5E1'];
+
+  if (structure.category === 'PTV') {
+    return ptvColors[index % ptvColors.length];
+  } else if (structure.category === 'OAR') {
+    return oarColors[index % oarColors.length];
+  } else {
+    return otherColors[index % otherColors.length];
+  }
+};
 
 export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
-  // Prepare data for chart
-  const prepareChartData = () => {
+  const [viewMode, setViewMode] = useState<'optimal' | 'full'>('optimal');
+
+  // Calculer la dose maximale globale
+  const maxDoseGlobal = useMemo(() => {
+    return findMaxDoseAcrossStructures(structures);
+  }, [structures]);
+
+  // Domaine X selon le mode de vue
+  const xDomain: [number, number] | undefined = useMemo(() => {
+    if (viewMode === 'full' || maxDoseGlobal === 0) {
+      return undefined;
+    }
+    // Vue optimale: 0 à 120% de la dose maximale
+    return [0, Math.ceil(maxDoseGlobal * 1.2)];
+  }, [viewMode, maxDoseGlobal]);
+
+  const prepareChartData = useMemo(() => {
     const filteredStructures = structures.filter(s => 
       selectedStructures.includes(s.name)
     );
@@ -61,9 +88,11 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
       
       return dataPoint;
     });
-  };
+  }, [structures, selectedStructures]);
 
-  const chartData = prepareChartData();
+  const selectedFilteredStructures = useMemo(() => {
+    return structures.filter(s => selectedStructures.includes(s.name));
+  }, [structures, selectedStructures]);
 
   if (selectedStructures.length === 0) {
     return (
@@ -80,20 +109,47 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Courbes Dose-Volume Histogram</CardTitle>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <CardTitle>Courbes Dose-Volume-Histogrammes (DVH)</CardTitle>
+            {maxDoseGlobal > 0 && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Dose maximale globale: {maxDoseGlobal.toFixed(2)} Gy
+              </p>
+            )}
+          </div>
+          
+          <div className="flex gap-2">
+            <Button 
+              variant={viewMode === 'optimal' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('optimal')}
+            >
+              Vue optimale
+            </Button>
+            <Button 
+              variant={viewMode === 'full' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('full')}
+            >
+              Vue complète
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+          <LineChart data={prepareChartData}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis 
-              dataKey="dose" 
+              dataKey="dose"
+              domain={xDomain}
               label={{ value: 'Dose (Gy)', position: 'insideBottom', offset: -5 }}
-              stroke="hsl(var(--foreground))"
+              className="text-sm"
             />
             <YAxis 
               label={{ value: 'Volume (%)', angle: -90, position: 'insideLeft' }}
-              stroke="hsl(var(--foreground))"
+              className="text-sm"
             />
             <Tooltip 
               contentStyle={{ 
@@ -102,18 +158,27 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
                 borderRadius: '8px'
               }}
             />
-            <Legend />
-            {selectedStructures.map((structureName, idx) => (
-              <Line
-                key={structureName}
-                type="monotone"
-                dataKey={structureName}
-                stroke={COLORS[idx % COLORS.length]}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4 }}
-              />
-            ))}
+            <Legend 
+              wrapperStyle={{ paddingTop: '20px' }}
+              iconType="line"
+            />
+            {selectedFilteredStructures.map((structure, index) => {
+              const categoryIndex = selectedFilteredStructures
+                .filter(s => s.category === structure.category)
+                .findIndex(s => s.name === structure.name);
+              
+              return (
+                <Line
+                  key={structure.name}
+                  type="monotone"
+                  dataKey={structure.name}
+                  stroke={getColorForStructure(structure, categoryIndex)}
+                  strokeWidth={structure.category === 'PTV' ? 3 : 2}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+              );
+            })}
           </LineChart>
         </ResponsiveContainer>
       </CardContent>

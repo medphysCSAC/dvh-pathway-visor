@@ -3,9 +3,12 @@ export interface DVHPoint {
   volume: number;
 }
 
+export type StructureCategory = 'PTV' | 'OAR' | 'OTHER';
+
 export interface Structure {
   name: string;
   type: string;
+  category: StructureCategory;
   relativeVolume: DVHPoint[];
   absoluteVolume?: DVHPoint[];
   totalVolume?: number;
