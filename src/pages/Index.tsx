@@ -3,10 +3,12 @@ import { FileUpload } from '@/components/FileUpload';
 import { DVHChart } from '@/components/DVHChart';
 import { StructureTable } from '@/components/StructureTable';
 import { FilterBar } from '@/components/FilterBar';
+import { PlanEvaluation } from '@/components/PlanEvaluation';
 import { DVHData, StructureCategory } from '@/types/dvh';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
 import { toast } from 'sonner';
 import { Activity } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 const Index = () => {
   const [dvhData, setDvhData] = useState<DVHData | null>(null);
   const [selectedStructures, setSelectedStructures] = useState<string[]>([]);
@@ -118,21 +120,37 @@ const Index = () => {
                 </div>
               </div>
 
-              {/* Filter Bar */}
-              <FilterBar
-                structures={dvhData.structures}
-                selectedStructures={selectedStructures}
-                onFilterChange={handleFilterChange}
-                onSelectAll={handleSelectAll}
-                onDeselectAll={handleDeselectAll}
-                activeFilter={activeFilter}
-              />
+              {/* Tabs pour basculer entre Analyse DVH et Évaluation de plan */}
+              <Tabs defaultValue="dvh" className="w-full">
+                <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+                  <TabsTrigger value="dvh">Analyse DVH</TabsTrigger>
+                  <TabsTrigger value="evaluation">Évaluation de plan</TabsTrigger>
+                </TabsList>
 
-              {/* DVH Chart */}
-              <DVHChart structures={dvhData.structures} selectedStructures={selectedStructures} />
+                {/* Onglet Analyse DVH */}
+                <TabsContent value="dvh" className="space-y-8">
+                  {/* Filter Bar */}
+                  <FilterBar
+                    structures={dvhData.structures}
+                    selectedStructures={selectedStructures}
+                    onFilterChange={handleFilterChange}
+                    onSelectAll={handleSelectAll}
+                    onDeselectAll={handleDeselectAll}
+                    activeFilter={activeFilter}
+                  />
 
-              {/* Structure Table */}
-              <StructureTable structures={dvhData.structures} selectedStructures={selectedStructures} onStructureToggle={handleStructureToggle} />
+                  {/* DVH Chart */}
+                  <DVHChart structures={dvhData.structures} selectedStructures={selectedStructures} />
+
+                  {/* Structure Table */}
+                  <StructureTable structures={dvhData.structures} selectedStructures={selectedStructures} onStructureToggle={handleStructureToggle} />
+                </TabsContent>
+
+                {/* Onglet Évaluation de plan */}
+                <TabsContent value="evaluation">
+                  <PlanEvaluation structures={dvhData.structures} />
+                </TabsContent>
+              </Tabs>
             </>}
         </div>
       </main>
