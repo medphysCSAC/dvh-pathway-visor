@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Structure } from '@/types/dvh';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -18,13 +19,16 @@ import {
   PTVQualityMetrics,
   OARMetrics
 } from '@/utils/planQualityMetrics';
-import { Target, Shield, Award, AlertCircle, CheckCircle } from 'lucide-react';
+import { Target, Shield, Award, AlertCircle, CheckCircle, Download, FileJson } from 'lucide-react';
+import { exportMetricsToCSV, exportMetricsToJSON } from '@/utils/exportUtils';
+import { toast } from 'sonner';
 
 interface PlanEvaluationProps {
   structures: Structure[];
+  patientId?: string;
 }
 
-export const PlanEvaluation = ({ structures }: PlanEvaluationProps) => {
+export const PlanEvaluation = ({ structures, patientId = 'UNKNOWN' }: PlanEvaluationProps) => {
   // Trouver le PTV principal et la dose de prescription
   const primaryPTV = useMemo(() => findPrimaryPTV(structures), [structures]);
   const prescriptionDose = useMemo(() => {
@@ -80,8 +84,30 @@ export const PlanEvaluation = ({ structures }: PlanEvaluationProps) => {
     return acceptable ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-red-600 dark:text-red-400 font-semibold';
   };
 
+  const handleExportCSV = () => {
+    exportMetricsToCSV(ptvMetrics, oarMetrics, patientId);
+    toast.success('Métriques exportées en CSV');
+  };
+
+  const handleExportJSON = () => {
+    exportMetricsToJSON(ptvMetrics, oarMetrics, patientId);
+    toast.success('Métriques exportées en JSON');
+  };
+
   return (
     <div className="space-y-6">
+      {/* Boutons d'export */}
+      <div className="flex gap-3 justify-end">
+        <Button onClick={handleExportCSV} variant="outline">
+          <Download className="w-4 h-4 mr-2" />
+          Exporter CSV
+        </Button>
+        <Button onClick={handleExportJSON} variant="outline">
+          <FileJson className="w-4 h-4 mr-2" />
+          Exporter JSON
+        </Button>
+      </div>
+
       {/* Résumé du plan */}
       <Card>
         <CardHeader>

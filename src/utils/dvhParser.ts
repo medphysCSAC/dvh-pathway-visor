@@ -1,12 +1,20 @@
 import { DVHData, Structure, DVHPoint, StructureCategory } from '@/types/dvh';
 
 export const classifyStructure = (name: string): StructureCategory => {
-  // PTV: GTV, CTV, PTV
-  if (/\b(GTV|CTV|PTV)\b/i.test(name)) {
+  const nameUpper = name.toUpperCase();
+  const nameLower = name.toLowerCase();
+  
+  // PTV: AMÉLIORATION - toute structure commençant par PTV
+  if (nameUpper.startsWith('PTV')) {
     return 'PTV';
   }
   
-  // OAR: liste des organes à risque courants (français et anglais)
+  // PTV: GTV, CTV comme fallback
+  if (/\b(GTV|CTV)\b/i.test(name)) {
+    return 'PTV';
+  }
+  
+  // OAR: liste étendue des organes à risque (français et anglais)
   const oarKeywords = [
     'bladder', 'vessie',
     'rectum',
@@ -23,10 +31,16 @@ export const classifyStructure = (name: string): StructureCategory => {
     'eye', 'oeil', 'œil',
     'esophagus', 'oesophage', 'œsophage',
     'stomach', 'estomac',
-    'cord', 'cordon'
+    'cord', 'cordon',
+    'lens', 'cristallin',
+    'optic', 'optique',
+    'chiasm', 'chiasma',
+    'mandible', 'mandibule',
+    'cochlea', 'cochlee',
+    'breast', 'sein'
   ];
   
-  if (oarKeywords.some(keyword => name.toLowerCase().includes(keyword))) {
+  if (oarKeywords.some(keyword => nameLower.includes(keyword))) {
     return 'OAR';
   }
   

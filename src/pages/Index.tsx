@@ -4,6 +4,7 @@ import { DVHChart } from '@/components/DVHChart';
 import { StructureTable } from '@/components/StructureTable';
 import { FilterBar } from '@/components/FilterBar';
 import { PlanEvaluation } from '@/components/PlanEvaluation';
+import { DoseCalculator } from '@/components/DoseCalculator';
 import { DVHData, StructureCategory } from '@/types/dvh';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
 import { toast } from 'sonner';
@@ -67,6 +68,17 @@ const Index = () => {
 
   const handleDeselectAll = () => {
     setSelectedStructures([]);
+  };
+
+  const handleCategoryChange = (structureName: string, newCategory: StructureCategory) => {
+    if (!dvhData) return;
+    
+    setDvhData({
+      ...dvhData,
+      structures: dvhData.structures.map(s =>
+        s.name === structureName ? { ...s, category: newCategory } : s
+      )
+    });
   };
   return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       {/* Header */}
@@ -142,13 +154,21 @@ const Index = () => {
                   {/* DVH Chart */}
                   <DVHChart structures={dvhData.structures} selectedStructures={selectedStructures} />
 
+                  {/* Calculateur de dose */}
+                  <DoseCalculator structures={dvhData.structures} />
+
                   {/* Structure Table */}
-                  <StructureTable structures={dvhData.structures} selectedStructures={selectedStructures} onStructureToggle={handleStructureToggle} />
+                  <StructureTable 
+                    structures={dvhData.structures} 
+                    selectedStructures={selectedStructures} 
+                    onStructureToggle={handleStructureToggle}
+                    onCategoryChange={handleCategoryChange}
+                  />
                 </TabsContent>
 
                 {/* Onglet Évaluation de plan */}
                 <TabsContent value="evaluation">
-                  <PlanEvaluation structures={dvhData.structures} />
+                  <PlanEvaluation structures={dvhData.structures} patientId={dvhData.patientId} />
                 </TabsContent>
               </Tabs>
             </>}
