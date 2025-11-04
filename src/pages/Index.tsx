@@ -5,6 +5,8 @@ import { StructureTable } from '@/components/StructureTable';
 import { FilterBar } from '@/components/FilterBar';
 import { PlanEvaluation } from '@/components/PlanEvaluation';
 import { DoseCalculator } from '@/components/DoseCalculator';
+import ProtocolValidation from '@/components/ProtocolValidation';
+import ProtocolManager from '@/components/ProtocolManager';
 import { DVHData, StructureCategory } from '@/types/dvh';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
 import { toast } from 'sonner';
@@ -132,11 +134,13 @@ const Index = () => {
                 </div>
               </div>
 
-              {/* Tabs pour basculer entre Analyse DVH et Évaluation de plan */}
+              {/* Tabs pour basculer entre Analyse DVH, Évaluation de plan et Validation */}
               <Tabs defaultValue="dvh" className="w-full">
-                <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+                <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4">
                   <TabsTrigger value="dvh">Analyse DVH</TabsTrigger>
                   <TabsTrigger value="evaluation">Évaluation de plan</TabsTrigger>
+                  <TabsTrigger value="validation">Validation Protocole</TabsTrigger>
+                  <TabsTrigger value="protocols">Gestion Protocoles</TabsTrigger>
                 </TabsList>
 
                 {/* Onglet Analyse DVH */}
@@ -169,6 +173,16 @@ const Index = () => {
                 {/* Onglet Évaluation de plan */}
                 <TabsContent value="evaluation">
                   <PlanEvaluation structures={dvhData.structures} patientId={dvhData.patientId} />
+                </TabsContent>
+
+                {/* Onglet Validation Protocole */}
+                <TabsContent value="validation">
+                  <ProtocolValidation structures={dvhData.structures} patientId={dvhData.patientId} />
+                </TabsContent>
+
+                {/* Onglet Gestion Protocoles */}
+                <TabsContent value="protocols">
+                  <ProtocolManager />
                 </TabsContent>
               </Tabs>
             </>}
