@@ -317,19 +317,11 @@ export function generateHTMLReport(report: ValidationReport): string {
               <th>Contrainte</th>
               <th>Valeur Mesurée</th>
               <th>Seuil</th>
-              <th>Priorité</th>
-              <th>Statut</th>
+              <th>Observation</th>
             </tr>
           </thead>
           <tbody>
             ${constraintResults.map(cr => {
-              const statusClass = cr.status === 'PASS' ? 'status-pass' : 
-                                  cr.status === 'FAIL' ? 'status-fail' :
-                                  cr.status === 'WARNING' ? 'status-warning' : 'status-not-evaluated';
-              const statusText = cr.status === 'PASS' ? '✅ PASS' : 
-                                 cr.status === 'FAIL' ? '❌ FAIL' :
-                                 cr.status === 'WARNING' ? '⚠️ WARNING' : '⊘ N/A';
-              
               const constraintDesc = cr.constraint.constraintType === 'Vx' 
                 ? `V${cr.constraint.target}Gy`
                 : cr.constraint.constraintType === 'Dx'
@@ -342,8 +334,7 @@ export function generateHTMLReport(report: ValidationReport): string {
                   <td>${constraintDesc}</td>
                   <td>${cr.measuredValue.toFixed(1)} ${cr.constraint.unit}</td>
                   <td>&lt; ${cr.constraint.value} ${cr.constraint.unit}</td>
-                  <td>${cr.constraint.priority === 'mandatory' ? '🔴 Obligatoire' : cr.constraint.priority === 'optimal' ? '🟡 Optimal' : '🟢 Souhaitable'}</td>
-                  <td class="${statusClass}">${statusText}</td>
+                  <td>${cr.message || ''}</td>
                 </tr>
               `;
             }).join('')}

@@ -184,9 +184,8 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle>
                     Résultats de la Validation
-                    {getStatusBadge(report.overallStatus)}
                   </CardTitle>
                   <CardDescription>
                     Protocole : {report.protocolName} • Patient : {report.patientId}
@@ -287,8 +286,7 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
                       <th className="text-left p-2">Contrainte</th>
                       <th className="text-left p-2">Mesuré</th>
                       <th className="text-left p-2">Seuil</th>
-                      <th className="text-left p-2">Priorité</th>
-                      <th className="text-left p-2">Statut</th>
+                      <th className="text-left p-2">Observation</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -316,19 +314,7 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
                             &lt; {cr.constraint.value} {cr.constraint.unit}
                           </td>
                           <td className="p-2">
-                            <Badge 
-                              variant={
-                                cr.constraint.priority === 'mandatory' ? 'destructive' :
-                                cr.constraint.priority === 'optimal' ? 'default' : 'secondary'
-                              }
-                              className="text-xs"
-                            >
-                              {cr.constraint.priority === 'mandatory' ? 'Obligatoire' :
-                               cr.constraint.priority === 'optimal' ? 'Optimal' : 'Souhaitable'}
-                            </Badge>
-                          </td>
-                          <td className="p-2">
-                            {getStatusBadge(cr.status)}
+                            {cr.message}
                           </td>
                         </tr>
                       );

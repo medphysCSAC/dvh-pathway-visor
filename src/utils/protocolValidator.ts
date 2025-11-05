@@ -126,10 +126,9 @@ export function validateConstraint(
         break;
     }
     
-    // Gestion des priorités
+    // Gestion des priorités (pour status seulement, pas d'affichage)
     if (status === 'FAIL' && priority !== 'mandatory') {
       status = 'WARNING';
-      message += ` (${priority === 'optimal' ? 'Optimal' : 'Souhaitable'} non atteint)`;
     }
     
   } catch (error) {
