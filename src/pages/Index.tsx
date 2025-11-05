@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
+import { MultiFileUpload } from '@/components/MultiFileUpload';
+import { ProtocolDocumentConverter } from '@/components/ProtocolDocumentConverter';
 import { DVHChart } from '@/components/DVHChart';
 import { StructureTable } from '@/components/StructureTable';
 import { FilterBar } from '@/components/FilterBar';
@@ -7,7 +9,8 @@ import { PlanEvaluation } from '@/components/PlanEvaluation';
 import { DoseCalculator } from '@/components/DoseCalculator';
 import ProtocolValidation from '@/components/ProtocolValidation';
 import ProtocolManager from '@/components/ProtocolManager';
-import { DVHData, StructureCategory } from '@/types/dvh';
+import { DVHData, StructureCategory, PlanData } from '@/types/dvh';
+import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
 import { toast } from 'sonner';
 import { Activity } from 'lucide-react';
@@ -16,6 +19,8 @@ const Index = () => {
   const [dvhData, setDvhData] = useState<DVHData | null>(null);
   const [selectedStructures, setSelectedStructures] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<StructureCategory | 'ALL'>('ALL');
+  const [multiPlans, setMultiPlans] = useState<PlanData[]>([]);
+  const [multiPlanMode, setMultiPlanMode] = useState<'summation' | 'comparison' | 'multi-patient' | null>(null);
   const handleFilesUploaded = async (relFile: File, absFile: File) => {
     try {
       const relContent = await relFile.text();
@@ -82,6 +87,37 @@ const Index = () => {
       )
     });
   };
+
+  const handleMultiPlansLoaded = (plans: PlanData[], mode: 'summation' | 'comparison' | 'multi-patient') => {
+    setMultiPlans(plans);
+    setMultiPlanMode(mode);
+    
+    if (mode === 'summation') {
+      // Sommer automatiquement les plans
+      try {
+        const summated = summatePlans(plans);
+        setDvhData({
+          patientId: summated.patientId,
+          structures: summated.structures
+        });
+        setSelectedStructures([]);
+        toast.success('Plans sommés avec succès', {
+          description: `${plans.length} plans combinés`
+        });
+      } catch (error) {
+        console.error('Erreur lors de la sommation:', error);
+        toast.error('Erreur lors de la sommation des plans');
+      }
+    } else {
+      // Pour comparaison, charger le premier plan
+      setDvhData({
+        patientId: plans[0].patientId,
+        structures: plans[0].structures
+      });
+      setSelectedStructures([]);
+      toast.success(`${plans.length} plans chargés en mode ${mode}`);
+    }
+  };
   return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
@@ -104,8 +140,26 @@ const Index = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="space-y-8">
           {/* File Upload Section */}
-          {!dvhData && <div className="max-w-4xl mx-auto">
-              <FileUpload onFilesUploaded={handleFilesUploaded} />
+          {!dvhData && <div className="max-w-4xl mx-auto space-y-6">
+              <Tabs defaultValue="single" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="single">Plan Simple</TabsTrigger>
+                  <TabsTrigger value="multi">Multi-Plans</TabsTrigger>
+                  <TabsTrigger value="converter">Convertisseur Protocole</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="single" className="mt-6">
+                  <FileUpload onFilesUploaded={handleFilesUploaded} />
+                </TabsContent>
+                
+                <TabsContent value="multi" className="mt-6">
+                  <MultiFileUpload onPlansLoaded={handleMultiPlansLoaded} />
+                </TabsContent>
+                
+                <TabsContent value="converter" className="mt-6">
+                  <ProtocolDocumentConverter />
+                </TabsContent>
+              </Tabs>
             </div>}
 
           {/* Analysis Section */}
@@ -136,11 +190,12 @@ const Index = () => {
 
               {/* Tabs pour basculer entre Analyse DVH, Évaluation de plan et Validation */}
               <Tabs defaultValue="dvh" className="w-full">
-                <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4">
+                <TabsList className="grid w-full max-w-5xl mx-auto grid-cols-5">
                   <TabsTrigger value="dvh">Analyse DVH</TabsTrigger>
                   <TabsTrigger value="evaluation">Évaluation de plan</TabsTrigger>
                   <TabsTrigger value="validation">Validation Protocole</TabsTrigger>
                   <TabsTrigger value="protocols">Gestion Protocoles</TabsTrigger>
+                  <TabsTrigger value="converter">Convertisseur</TabsTrigger>
                 </TabsList>
 
                 {/* Onglet Analyse DVH */}
@@ -183,6 +238,11 @@ const Index = () => {
                 {/* Onglet Gestion Protocoles */}
                 <TabsContent value="protocols">
                   <ProtocolManager />
+                </TabsContent>
+
+                {/* Onglet Convertisseur */}
+                <TabsContent value="converter">
+                  <ProtocolDocumentConverter />
                 </TabsContent>
               </Tabs>
             </>}

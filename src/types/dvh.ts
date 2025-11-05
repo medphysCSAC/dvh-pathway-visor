@@ -27,3 +27,26 @@ export interface DVHMetrics {
   v20Gy?: number;
   v40Gy?: number;
 }
+
+// Multi-plan types
+export interface PlanData {
+  id: string;
+  name: string;
+  patientId: string;
+  structures: Structure[];
+  uploadDate: Date;
+}
+
+export interface MultiPlanSession {
+  sessionId: string;
+  patientIds: string[];
+  plans: PlanData[];
+  mode: 'summation' | 'comparison' | 'multi-patient';
+}
+
+export interface FilePair {
+  relFile: File;
+  absFile: File;
+  planName: string;
+  detected: boolean;
+}
