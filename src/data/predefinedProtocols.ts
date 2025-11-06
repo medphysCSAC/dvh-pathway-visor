@@ -537,6 +537,187 @@ export const predefinedProtocols: TreatmentProtocol[] = [
     createdAt: new Date('2024-01-01'),
     modifiedAt: new Date('2024-01-01'),
     isCustom: false
+  },
+
+  // ====================================
+  // SEIN DROIT BOOST CMI SC
+  // ====================================
+  {
+    id: 'breast-right-boost-45-50-66',
+    name: 'Sein Droit Boost CMI SC (45-50-66Gy/25-33fx)',
+    location: 'Sein droit',
+    prescriptions: [
+      {
+        ptvName: 'PTV_Sein',
+        totalDose: 45,
+        numberOfFractions: 25,
+        dosePerFraction: 1.8
+      },
+      {
+        ptvName: 'PTV_Boost_CMI',
+        totalDose: 50,
+        numberOfFractions: 28,
+        dosePerFraction: 1.79
+      },
+      {
+        ptvName: 'PTV_Boost_SC',
+        totalDose: 66,
+        numberOfFractions: 33,
+        dosePerFraction: 2
+      }
+    ],
+    oarConstraints: [
+      // Cœur
+      {
+        organName: 'Coeur',
+        constraintType: 'Dmean',
+        value: 5,
+        unit: 'Gy',
+        priority: 'mandatory',
+        description: 'Dose moyenne au cœur < 5 Gy'
+      },
+      {
+        organName: 'Coeur',
+        constraintType: 'Vx',
+        value: 10,
+        target: 25,
+        unit: '%',
+        priority: 'optimal',
+        description: 'V25Gy < 10% du volume cardiaque'
+      },
+      // Poumon droit
+      {
+        organName: 'Poumon_D',
+        constraintType: 'Vx',
+        value: 15,
+        target: 20,
+        unit: '%',
+        priority: 'mandatory',
+        description: 'V20Gy < 15% du poumon droit'
+      },
+      {
+        organName: 'Poumon_D',
+        constraintType: 'Dmean',
+        value: 15,
+        unit: 'Gy',
+        priority: 'optimal',
+        description: 'Dose moyenne poumon droit < 15 Gy'
+      },
+      // Poumon gauche
+      {
+        organName: 'Poumon_G',
+        constraintType: 'Dmean',
+        value: 5,
+        unit: 'Gy',
+        priority: 'desirable',
+        description: 'Dose moyenne poumon gauche < 5 Gy'
+      },
+      // Moelle épinière
+      {
+        organName: 'Moelle',
+        constraintType: 'Dmax',
+        value: 45,
+        unit: 'Gy',
+        priority: 'mandatory',
+        description: 'Dmax moelle < 45 Gy'
+      }
+    ],
+    createdAt: new Date('2024-01-01'),
+    modifiedAt: new Date('2024-01-01'),
+    isCustom: false
+  },
+
+  // ====================================
+  // RECTUM
+  // ====================================
+  {
+    id: 'rectum-45-50',
+    name: 'Rectum (45-50Gy/25fx)',
+    location: 'Rectum',
+    prescriptions: [
+      {
+        ptvName: 'PTV_Pelvis',
+        totalDose: 45,
+        numberOfFractions: 25,
+        dosePerFraction: 1.8
+      },
+      {
+        ptvName: 'PTV_Rectum',
+        totalDose: 50,
+        numberOfFractions: 25,
+        dosePerFraction: 2
+      }
+    ],
+    oarConstraints: [
+      // Intestin grêle
+      {
+        organName: 'Intestin_Grele',
+        constraintType: 'Vx',
+        value: 195,
+        target: 15,
+        unit: 'cc',
+        priority: 'mandatory',
+        description: 'V15Gy < 195 cc (diarrhée aiguë)'
+      },
+      {
+        organName: 'Intestin_Grele',
+        constraintType: 'Vx',
+        value: 120,
+        target: 45,
+        unit: 'cc',
+        priority: 'mandatory',
+        description: 'V45Gy < 120 cc (toxicité sévère)'
+      },
+      // Vessie
+      {
+        organName: 'Vessie',
+        constraintType: 'Vx',
+        value: 50,
+        target: 50,
+        unit: '%',
+        priority: 'optimal',
+        description: 'V50Gy < 50% de la vessie'
+      },
+      {
+        organName: 'Vessie',
+        constraintType: 'Dmean',
+        value: 45,
+        unit: 'Gy',
+        priority: 'optimal',
+        description: 'Dose moyenne vessie < 45 Gy'
+      },
+      // Têtes fémorales
+      {
+        organName: 'Tete_Femorale_D',
+        constraintType: 'Vx',
+        value: 5,
+        target: 50,
+        unit: '%',
+        priority: 'mandatory',
+        description: 'V50Gy < 5% de la tête fémorale droite'
+      },
+      {
+        organName: 'Tete_Femorale_G',
+        constraintType: 'Vx',
+        value: 5,
+        target: 50,
+        unit: '%',
+        priority: 'mandatory',
+        description: 'V50Gy < 5% de la tête fémorale gauche'
+      },
+      // Canal anal
+      {
+        organName: 'Canal_Anal',
+        constraintType: 'Dmax',
+        value: 55,
+        unit: 'Gy',
+        priority: 'optimal',
+        description: 'Dmax canal anal < 55 Gy'
+      }
+    ],
+    createdAt: new Date('2024-01-01'),
+    modifiedAt: new Date('2024-01-01'),
+    isCustom: false
   }
 ];
 
