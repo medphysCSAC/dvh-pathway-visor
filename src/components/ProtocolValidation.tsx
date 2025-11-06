@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Structure } from '@/types/dvh';
 import { TreatmentProtocol, ValidationReport, StructureMapping as StructureMappingType } from '@/types/protocol';
 import { getAllProtocols } from '@/data/predefinedProtocols';
-import { generateValidationReport } from '@/utils/protocolValidator';
+import { generateValidationReport, findBestStructureMatch } from '@/utils/protocolValidator';
 import { downloadHTMLReport, downloadPDFReport } from '@/utils/reportGenerator';
 import { calculatePTVQualityMetrics } from '@/utils/planQualityMetrics';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -283,51 +283,101 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-2">PTV</th>
-                        <th className="text-left p-2">D95%</th>
-                        <th className="text-left p-2">D98%</th>
-                        <th className="text-left p-2">D50%</th>
-                        <th className="text-left p-2">D2%</th>
-                        <th className="text-left p-2">HI</th>
-                        <th className="text-left p-2">CI</th>
-                        <th className="text-left p-2">CN</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedProtocol.prescriptions.map((prescription, idx) => {
-                        const ptvStructure = structures.find(s => 
-                          s.name.toLowerCase().includes(prescription.ptvName.toLowerCase()) ||
-                          prescription.ptvName.toLowerCase().includes(s.name.toLowerCase())
-                        );
-                        
-                        if (!ptvStructure) return null;
-                        
-                        const metrics = calculatePTVQualityMetrics(
-                          ptvStructure,
-                          structures,
-                          prescription.totalDose
-                        );
-                        
-                        return (
-                          <tr key={idx} className="border-b">
-                            <td className="p-2 font-medium">{metrics.structureName}</td>
-                            <td className="p-2 font-mono">{metrics.d95.toFixed(2)} Gy</td>
-                            <td className="p-2 font-mono">{metrics.d98.toFixed(2)} Gy</td>
-                            <td className="p-2 font-mono">{metrics.d50.toFixed(2)} Gy</td>
-                            <td className="p-2 font-mono">{metrics.d2.toFixed(2)} Gy</td>
-                            <td className="p-2 font-mono">{metrics.hi.toFixed(3)}</td>
-                            <td className="p-2 font-mono">{metrics.ci.toFixed(3)}</td>
-                            <td className="p-2 font-mono">{metrics.cn.toFixed(3)}</td>
+                {(() => {
+                  const ptvResults = selectedProtocol.prescriptions.map((prescription, idx) => {
+                    const ptvStructure = findBestStructureMatch(
+                      prescription.ptvName,
+                      structures,
+                      mappings
+                    );
+                    
+                    if (!ptvStructure) {
+                      return {
+                        prescription,
+                        structure: null,
+                        metrics: null
+                      };
+                    }
+                    
+                    const metrics = calculatePTVQualityMetrics(
+                      ptvStructure,
+                      structures,
+                      prescription.totalDose
+                    );
+                    
+                    return {
+                      prescription,
+                      structure: ptvStructure,
+                      metrics
+                    };
+                  });
+                  
+                  const foundPTVs = ptvResults.filter(r => r.structure !== null);
+                  
+                  if (foundPTVs.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <AlertTriangle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                        <p className="font-medium">Aucun PTV trouvé</p>
+                        <p className="text-sm mt-1">
+                          Les PTVs du protocole ({selectedProtocol.prescriptions.map(p => p.ptvName).join(', ')}) 
+                          n'ont pas été trouvés dans les structures DVH.
+                        </p>
+                        <p className="text-sm mt-2">
+                          Utilisez le mapping manuel ci-dessous pour associer les structures.
+                        </p>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left p-2">PTV</th>
+                            <th className="text-left p-2">D95%</th>
+                            <th className="text-left p-2">D98%</th>
+                            <th className="text-left p-2">D50%</th>
+                            <th className="text-left p-2">D2%</th>
+                            <th className="text-left p-2">HI</th>
+                            <th className="text-left p-2">CI</th>
+                            <th className="text-left p-2">CN</th>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                        </thead>
+                        <tbody>
+                          {ptvResults.map((result, idx) => {
+                            if (!result.metrics || !result.structure) {
+                              return (
+                                <tr key={idx} className="border-b bg-destructive/5">
+                                  <td className="p-2 font-medium text-destructive" colSpan={8}>
+                                    <div className="flex items-center gap-2">
+                                      <XCircle className="h-4 w-4" />
+                                      {result.prescription.ptvName} - Non trouvé
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            }
+                            
+                            return (
+                              <tr key={idx} className="border-b">
+                                <td className="p-2 font-medium">{result.metrics.structureName}</td>
+                                <td className="p-2 font-mono">{result.metrics.d95.toFixed(2)} Gy</td>
+                                <td className="p-2 font-mono">{result.metrics.d98.toFixed(2)} Gy</td>
+                                <td className="p-2 font-mono">{result.metrics.d50.toFixed(2)} Gy</td>
+                                <td className="p-2 font-mono">{result.metrics.d2.toFixed(2)} Gy</td>
+                                <td className="p-2 font-mono">{result.metrics.hi.toFixed(3)}</td>
+                                <td className="p-2 font-mono">{result.metrics.ci.toFixed(3)}</td>
+                                <td className="p-2 font-mono">{result.metrics.cn.toFixed(3)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           )}
