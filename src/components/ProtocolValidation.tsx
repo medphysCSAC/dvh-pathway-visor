@@ -4,12 +4,13 @@ import { TreatmentProtocol, ValidationReport, StructureMapping as StructureMappi
 import { getAllProtocols } from '@/data/predefinedProtocols';
 import { generateValidationReport } from '@/utils/protocolValidator';
 import { downloadHTMLReport, downloadPDFReport } from '@/utils/reportGenerator';
+import { calculatePTVQualityMetrics } from '@/utils/planQualityMetrics';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { FileDown, FileText, AlertTriangle, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { FileDown, FileText, AlertTriangle, CheckCircle2, XCircle, AlertCircle, Target } from 'lucide-react';
 import StructureMapping from './StructureMapping';
 
 interface ProtocolValidationProps {
@@ -273,6 +274,64 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
             </CardContent>
           </Card>
 
+          {selectedProtocol && selectedProtocol.prescriptions.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  Évaluation des PTVs
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2">PTV</th>
+                        <th className="text-left p-2">D95%</th>
+                        <th className="text-left p-2">D98%</th>
+                        <th className="text-left p-2">D50%</th>
+                        <th className="text-left p-2">D2%</th>
+                        <th className="text-left p-2">HI</th>
+                        <th className="text-left p-2">CI</th>
+                        <th className="text-left p-2">CN</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedProtocol.prescriptions.map((prescription, idx) => {
+                        const ptvStructure = structures.find(s => 
+                          s.name.toLowerCase().includes(prescription.ptvName.toLowerCase()) ||
+                          prescription.ptvName.toLowerCase().includes(s.name.toLowerCase())
+                        );
+                        
+                        if (!ptvStructure) return null;
+                        
+                        const metrics = calculatePTVQualityMetrics(
+                          ptvStructure,
+                          structures,
+                          prescription.totalDose
+                        );
+                        
+                        return (
+                          <tr key={idx} className="border-b">
+                            <td className="p-2 font-medium">{metrics.structureName}</td>
+                            <td className="p-2 font-mono">{metrics.d95.toFixed(2)} Gy</td>
+                            <td className="p-2 font-mono">{metrics.d98.toFixed(2)} Gy</td>
+                            <td className="p-2 font-mono">{metrics.d50.toFixed(2)} Gy</td>
+                            <td className="p-2 font-mono">{metrics.d2.toFixed(2)} Gy</td>
+                            <td className="p-2 font-mono">{metrics.hi.toFixed(3)}</td>
+                            <td className="p-2 font-mono">{metrics.ci.toFixed(3)}</td>
+                            <td className="p-2 font-mono">{metrics.cn.toFixed(3)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>🛡️ Contraintes OAR (Organes à Risque)</CardTitle>
@@ -314,7 +373,10 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
                             &lt; {cr.constraint.value} {cr.constraint.unit}
                           </td>
                           <td className="p-2">
-                            {cr.message}
+                            <div className="flex items-center gap-2">
+                              {getStatusIcon(cr.status)}
+                              <span>{cr.status} - {cr.message}</span>
+                            </div>
                           </td>
                         </tr>
                       );
