@@ -718,6 +718,84 @@ export const predefinedProtocols: TreatmentProtocol[] = [
     createdAt: new Date('2024-01-01'),
     modifiedAt: new Date('2024-01-01'),
     isCustom: false
+  },
+  {
+    id: 'prostate-chhip-44-60-20fx',
+    name: 'Prostate CHHiP (44-57.6-60Gy/20fx)',
+    location: 'Prostate',
+    prescriptions: [
+      { ptvName: 'PTV1', totalDose: 60.00, numberOfFractions: 20, dosePerFraction: 3.00 },
+      { ptvName: 'PTV2', totalDose: 57.60, numberOfFractions: 20, dosePerFraction: 2.88 },
+      { ptvName: 'PTV3', totalDose: 44.00, numberOfFractions: 20, dosePerFraction: 2.20 },
+    ],
+    oarConstraints: [
+      { organName: 'Bulbe pénien', constraintType: 'Vx', target: 44, value: 90, unit: '%', priority: 'desirable' },
+      { organName: 'Bulbe pénien', constraintType: 'Vx', target: 60, value: 70, unit: '%', priority: 'desirable' },
+      { organName: 'Rectum', constraintType: 'Vx', target: 40.8, value: 60, unit: '%', priority: 'mandatory' },
+      { organName: 'Rectum', constraintType: 'Vx', target: 48.6, value: 50, unit: '%', priority: 'mandatory' },
+      { organName: 'Rectum', constraintType: 'Vx', target: 57, value: 15, unit: '%', priority: 'mandatory' },
+      { organName: 'Rectum', constraintType: 'Vx', target: 60, value: 3, unit: '%', priority: 'mandatory' },
+      { organName: 'Vessie', constraintType: 'Vx', target: 40.8, value: 50, unit: '%', priority: 'desirable' },
+      { organName: 'Vessie', constraintType: 'Vx', target: 48.6, value: 25, unit: '%', priority: 'desirable' },
+    ],
+    createdAt: new Date(),
+    modifiedAt: new Date(),
+    isCustom: false
+  },
+  {
+    id: 'prostate-54-66-76-38fx',
+    name: 'Prostate (54-66-76Gy/38fx)',
+    location: 'Prostate',
+    prescriptions: [
+      { ptvName: 'PTV T', totalDose: 76.00, numberOfFractions: 38, dosePerFraction: 2.00 },
+      { ptvName: 'PTV VS', totalDose: 66.00, numberOfFractions: 38, dosePerFraction: 1.74 },
+      { ptvName: 'PTV N', totalDose: 54.00, numberOfFractions: 38, dosePerFraction: 1.42 },
+    ],
+    oarConstraints: [
+      { organName: 'Rectum', constraintType: 'Vx', target: 50, value: 50, unit: '%', priority: 'mandatory' },
+      { organName: 'Rectum', constraintType: 'Vx', target: 60, value: 35, unit: '%', priority: 'mandatory' },
+      { organName: 'Rectum', constraintType: 'Vx', target: 70, value: 20, unit: '%', priority: 'mandatory' },
+      { organName: 'Vessie', constraintType: 'Vx', target: 50, value: 70, unit: '%', priority: 'desirable' },
+      { organName: 'Vessie', constraintType: 'Vx', target: 60, value: 50, unit: '%', priority: 'desirable' },
+    ],
+    createdAt: new Date(),
+    modifiedAt: new Date(),
+    isCustom: false
+  },
+  {
+    id: 'endometre-45-50-25fx-v2',
+    name: 'Endomètre (45-50Gy/25fx) v2',
+    location: 'Endomètre',
+    prescriptions: [
+      { ptvName: 'PTV T', totalDose: 50.00, numberOfFractions: 25, dosePerFraction: 2.00 },
+      { ptvName: 'PTV N', totalDose: 45.00, numberOfFractions: 25, dosePerFraction: 1.80 },
+    ],
+    oarConstraints: [
+      { organName: 'Intestin', constraintType: 'Vx', target: 30, value: 500, unit: 'cc', priority: 'mandatory' },
+      { organName: 'Intestin', constraintType: 'Vx', target: 40, value: 200, unit: 'cc', priority: 'mandatory' },
+      { organName: 'Rectum', constraintType: 'Vx', target: 35, value: 50, unit: '%', priority: 'mandatory' },
+      { organName: 'Vessie', constraintType: 'Vx', target: 35, value: 50, unit: '%', priority: 'desirable' },
+    ],
+    createdAt: new Date(),
+    modifiedAt: new Date(),
+    isCustom: false
+  },
+  {
+    id: 'glioblastome-60-30fx-v2',
+    name: 'Glioblastome (60Gy/30fx) v2',
+    location: 'Encéphale',
+    prescriptions: [
+      { ptvName: 'PTV T', totalDose: 60.00, numberOfFractions: 30, dosePerFraction: 2.00 },
+    ],
+    oarConstraints: [
+      { organName: 'Chiasma optique', constraintType: 'Dmax', value: 54, unit: 'Gy', priority: 'mandatory' },
+      { organName: 'Moelle épinière', constraintType: 'Dmax', value: 45, unit: 'Gy', priority: 'mandatory' },
+      { organName: 'Tronc cérébral', constraintType: 'Dmax', value: 54, unit: 'Gy', priority: 'mandatory' },
+      { organName: 'Encephale', constraintType: 'Vx', target: 60, value: 30, unit: '%', priority: 'desirable' },
+    ],
+    createdAt: new Date(),
+    modifiedAt: new Date(),
+    isCustom: false
   }
 ];
 

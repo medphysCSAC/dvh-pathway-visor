@@ -98,7 +98,9 @@ export const StructureTable = ({
                 <TableHead className="text-right">D<sub>max</sub> (Gy)</TableHead>
                 <TableHead className="text-right">D<sub>mean</sub> (Gy)</TableHead>
                 <TableHead className="text-right">V<sub>20Gy</sub> (%)</TableHead>
+                <TableHead className="text-right">V<sub>20Gy</sub> (cc)</TableHead>
                 <TableHead className="text-right">V<sub>40Gy</sub> (%)</TableHead>
+                <TableHead className="text-right">V<sub>40Gy</sub> (cc)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -174,7 +176,17 @@ export const StructureTable = ({
                       {metrics.v20Gy?.toFixed(2) || 'N/A'}
                     </TableCell>
                     <TableCell className="text-right">
+                      {metrics.v20Gy && structure.totalVolume 
+                        ? ((metrics.v20Gy / 100) * structure.totalVolume).toFixed(2) 
+                        : 'N/A'}
+                    </TableCell>
+                    <TableCell className="text-right">
                       {metrics.v40Gy?.toFixed(2) || 'N/A'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {metrics.v40Gy && structure.totalVolume 
+                        ? ((metrics.v40Gy / 100) * structure.totalVolume).toFixed(2) 
+                        : 'N/A'}
                     </TableCell>
                   </TableRow>
                 );

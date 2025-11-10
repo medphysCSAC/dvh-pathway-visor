@@ -2,6 +2,7 @@ import { useMemo, useState, useRef } from 'react';
 import { Structure } from '@/types/dvh';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { findMaxDoseAcrossStructures } from '@/utils/dvhParser';
 import { Eye, Maximize2, Download, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
@@ -26,9 +27,12 @@ const getColorForStructure = (structure: Structure, index: number): string => {
   }
 };
 
+type DVHType = 'cumulative-relative' | 'differential-relative' | 'cumulative-absolute' | 'differential-absolute';
+
 export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
   const [viewMode, setViewMode] = useState<'optimal' | 'full'>('optimal');
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [dvhType, setDvhType] = useState<DVHType>('cumulative-relative');
   const chartRef = useRef<HTMLDivElement>(null);
 
   const handleExportPNG = () => {
@@ -140,6 +144,17 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
           </div>
           
           <div className="flex gap-2 flex-wrap">
+            <Select value={dvhType} onValueChange={(val) => setDvhType(val as DVHType)}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cumulative-relative">DVH Cumulatif Relatif</SelectItem>
+                <SelectItem value="differential-relative">DVH Différentiel Relatif</SelectItem>
+                <SelectItem value="cumulative-absolute">DVH Cumulatif Absolu</SelectItem>
+                <SelectItem value="differential-absolute">DVH Différentiel Absolu</SelectItem>
+              </SelectContent>
+            </Select>
             <div className="flex gap-1">
               <Button
                 variant="outline"
@@ -209,10 +224,19 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
                 domain={xDomain}
                 label={{ value: 'Dose (Gy)', position: 'insideBottom', offset: -5 }}
                 className="text-sm"
+                ticks={(() => {
+                  const max = xDomain ? xDomain[1] : Math.ceil(maxDoseGlobal * 1.2);
+                  return Array.from({ length: Math.floor(max / 5) + 1 }, (_, i) => i * 5);
+                })()}
               />
               <YAxis 
-                label={{ value: 'Volume (%)', angle: -90, position: 'insideLeft' }}
+                label={{ 
+                  value: dvhType.includes('absolute') ? 'Volume (cc)' : 'Volume (%)', 
+                  angle: -90, 
+                  position: 'insideLeft' 
+                }}
                 className="text-sm"
+                ticks={dvhType.includes('absolute') ? undefined : [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]}
               />
               <Tooltip 
                 contentStyle={{ 

@@ -162,6 +162,16 @@ const Index = () => {
               </Tabs>
             </div>}
 
+          {/* Tabs Section - Always visible with or without DVH */}
+          <Tabs defaultValue={dvhData ? "dvh" : "protocols"} className="w-full">
+            <TabsList className="grid w-full max-w-5xl mx-auto grid-cols-5">
+              <TabsTrigger value="dvh" disabled={!dvhData}>Analyse DVH</TabsTrigger>
+              <TabsTrigger value="evaluation" disabled={!dvhData}>Évaluation de plan</TabsTrigger>
+              <TabsTrigger value="validation" disabled={!dvhData}>Validation Protocole</TabsTrigger>
+              <TabsTrigger value="protocols">Gestion Protocoles</TabsTrigger>
+              <TabsTrigger value="converter">Convertisseur</TabsTrigger>
+            </TabsList>
+
           {/* Analysis Section */}
           {dvhData && <>
               {/* Patient Info */}
@@ -187,16 +197,6 @@ const Index = () => {
                   </div>
                 </div>
               </div>
-
-              {/* Tabs pour basculer entre Analyse DVH, Évaluation de plan et Validation */}
-              <Tabs defaultValue="dvh" className="w-full">
-                <TabsList className="grid w-full max-w-5xl mx-auto grid-cols-5">
-                  <TabsTrigger value="dvh">Analyse DVH</TabsTrigger>
-                  <TabsTrigger value="evaluation">Évaluation de plan</TabsTrigger>
-                  <TabsTrigger value="validation">Validation Protocole</TabsTrigger>
-                  <TabsTrigger value="protocols">Gestion Protocoles</TabsTrigger>
-                  <TabsTrigger value="converter">Convertisseur</TabsTrigger>
-                </TabsList>
 
                 {/* Onglet Analyse DVH */}
                 <TabsContent value="dvh" className="space-y-8">
@@ -244,8 +244,17 @@ const Index = () => {
                 <TabsContent value="converter">
                   <ProtocolDocumentConverter />
                 </TabsContent>
-              </Tabs>
-            </>}
+              </>}
+
+              {/* Onglets toujours disponibles sans DVH */}
+              <TabsContent value="protocols">
+                <ProtocolManager />
+              </TabsContent>
+
+              <TabsContent value="converter">
+                <ProtocolDocumentConverter />
+              </TabsContent>
+            </Tabs>
         </div>
       </main>
 
