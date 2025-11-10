@@ -9,6 +9,7 @@ import { PlanEvaluation } from '@/components/PlanEvaluation';
 import { DoseCalculator } from '@/components/DoseCalculator';
 import ProtocolValidation from '@/components/ProtocolValidation';
 import ProtocolManager from '@/components/ProtocolManager';
+import DVHMetricsCalculator from '@/components/DVHMetricsCalculator';
 import { DVHData, StructureCategory, PlanData } from '@/types/dvh';
 import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
@@ -212,6 +213,9 @@ const Index = () => {
 
                   {/* DVH Chart */}
                   <DVHChart structures={dvhData.structures} selectedStructures={selectedStructures} />
+
+                  {/* Calculateur de métriques DVH */}
+                  <DVHMetricsCalculator structures={dvhData.structures} />
 
                   {/* Calculateur de dose */}
                   <DoseCalculator structures={dvhData.structures} />

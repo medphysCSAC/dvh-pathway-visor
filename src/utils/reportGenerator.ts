@@ -5,11 +5,12 @@ import { ValidationReport } from '@/types/protocol';
 /**
  * Génère un rapport HTML standalone pour impression
  */
-export function generateHTMLReport(report: ValidationReport): string {
-  const { protocolName, patientId, evaluationDate, prescriptionResults, constraintResults, overallStatus } = report;
+export function generateHTMLReport(report: ValidationReport, overallStatus?: 'PASS' | 'FAIL', doctorName?: string): string {
+  const finalStatus = overallStatus || report.overallStatus;
+  const { protocolName, patientId, evaluationDate, prescriptionResults, constraintResults } = report;
   
-  const statusColor = overallStatus === 'PASS' ? '#22c55e' : overallStatus === 'FAIL' ? '#ef4444' : '#f59e0b';
-  const statusIcon = overallStatus === 'PASS' ? '✅' : overallStatus === 'FAIL' ? '❌' : '⚠️';
+  const statusColor = finalStatus === 'PASS' ? '#22c55e' : '#ef4444';
+  const statusIcon = finalStatus === 'PASS' ? '✅' : '❌';
   
   const html = `
 <!DOCTYPE html>
@@ -264,9 +265,17 @@ export function generateHTMLReport(report: ValidationReport): string {
         </div>
         <div class="info-item">
           <span class="info-label">Statut Global</span>
-          <span class="status-badge">${statusIcon} ${overallStatus}</span>
+          <span class="status-badge">${statusIcon} ${finalStatus}</span>
         </div>
       </div>
+      
+      ${doctorName ? `
+      <div style="margin: 1.5rem 0; padding: 1rem; background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px;">
+        <p style="margin: 0; font-size: 1rem; color: #166534;">
+          <strong>✓ Validé par Dr ${doctorName}</strong>
+        </p>
+      </div>
+      ` : ''}
       
       <div class="section">
         <h2 class="section-title">📋 Prescriptions de Dose</h2>
@@ -334,7 +343,9 @@ export function generateHTMLReport(report: ValidationReport): string {
                   <td>${constraintDesc}</td>
                   <td>${cr.measuredValue.toFixed(1)} ${cr.constraint.unit}</td>
                   <td>&lt; ${cr.constraint.value} ${cr.constraint.unit}</td>
-                  <td>${cr.message || ''}</td>
+                  <td class="${cr.status === 'PASS' ? 'status-pass' : 'status-fail'}">
+                    ${cr.status === 'PASS' ? '✅ PASS' : '❌ FAIL'}
+                  </td>
                 </tr>
               `;
             }).join('')}
@@ -375,9 +386,9 @@ export function generateHTMLReport(report: ValidationReport): string {
 /**
  * Génère un rapport PDF
  */
-export async function generatePDFReport(report: ValidationReport): Promise<Blob> {
+export async function generatePDFReport(report: ValidationReport, overallStatus?: 'PASS' | 'FAIL', doctorName?: string): Promise<Blob> {
   // Créer un élément HTML temporaire
-  const htmlContent = generateHTMLReport(report);
+  const htmlContent = generateHTMLReport(report, overallStatus, doctorName);
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = htmlContent;
   tempDiv.style.position = 'absolute';
@@ -446,18 +457,18 @@ export function downloadFile(blob: Blob, filename: string): void {
 /**
  * Télécharge le rapport HTML
  */
-export function downloadHTMLReport(report: ValidationReport): void {
-  const html = generateHTMLReport(report);
+export function downloadHTMLReport(report: ValidationReport, overallStatus?: 'PASS' | 'FAIL', doctorName?: string): void {
+  const html = generateHTMLReport(report, overallStatus, doctorName);
   const blob = new Blob([html], { type: 'text/html' });
-  const filename = `Rapport_Validation_${report.protocolName.replace(/\s+/g, '_')}_${report.patientId}_${new Date().toISOString().split('T')[0]}.html`;
+  const filename = `${report.patientId}_${report.protocolName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.html`;
   downloadFile(blob, filename);
 }
 
 /**
  * Télécharge le rapport PDF
  */
-export async function downloadPDFReport(report: ValidationReport): Promise<void> {
-  const blob = await generatePDFReport(report);
-  const filename = `Rapport_Validation_${report.protocolName.replace(/\s+/g, '_')}_${report.patientId}_${new Date().toISOString().split('T')[0]}.pdf`;
+export async function downloadPDFReport(report: ValidationReport, overallStatus?: 'PASS' | 'FAIL', doctorName?: string): Promise<void> {
+  const blob = await generatePDFReport(report, overallStatus, doctorName);
+  const filename = `${report.patientId}_${report.protocolName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
   downloadFile(blob, filename);
 }

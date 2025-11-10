@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { FileDown, FileText, AlertTriangle, CheckCircle2, XCircle, AlertCircle, Target } from 'lucide-react';
 import StructureMapping from './StructureMapping';
+import ExportReportDialog from './ExportReportDialog';
 
 interface ProtocolValidationProps {
   structures: Structure[];
@@ -25,6 +26,7 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
   const [report, setReport] = useState<ValidationReport | null>(null);
   const [mappings, setMappings] = useState<StructureMappingType[]>([]);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   useEffect(() => {
     const allProtocols = getAllProtocols();
@@ -62,30 +64,33 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
     });
   };
 
-  const handleExportHTML = () => {
-    if (!report) return;
-    downloadHTMLReport(report);
-  };
-
-  const handleExportPDF = async () => {
+  const handleExport = async (format: 'html' | 'pdf', overallStatus: 'PASS' | 'FAIL', doctorName: string) => {
     if (!report) return;
     
-    setIsExportingPDF(true);
-    toast({
-      title: 'Génération du PDF...',
-      description: 'Veuillez patienter',
-    });
-
     try {
-      await downloadPDFReport(report);
-      toast({
-        title: 'PDF exporté',
-        description: 'Le rapport PDF a été téléchargé avec succès',
-      });
+      if (format === 'pdf') {
+        setIsExportingPDF(true);
+        toast({
+          title: 'Génération du PDF...',
+          description: 'Veuillez patienter',
+        });
+        await downloadPDFReport(report, overallStatus, doctorName);
+        toast({
+          title: 'PDF exporté',
+          description: 'Le rapport PDF a été téléchargé avec succès',
+        });
+      } else {
+        downloadHTMLReport(report, overallStatus, doctorName);
+        toast({
+          title: 'HTML exporté',
+          description: 'Le rapport HTML a été téléchargé avec succès',
+        });
+      }
+      setExportDialogOpen(false);
     } catch (error) {
       toast({
         title: 'Erreur d\'export',
-        description: 'Impossible de générer le PDF',
+        description: 'Impossible de générer le rapport',
         variant: 'destructive',
       });
     } finally {
@@ -192,21 +197,14 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
                     Protocole : {report.protocolName} • Patient : {report.patientId}
                   </CardDescription>
                 </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleExportHTML} variant="outline" size="sm">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Export HTML
-                  </Button>
-                  <Button 
-                    onClick={handleExportPDF} 
-                    variant="outline" 
-                    size="sm"
-                    disabled={isExportingPDF}
-                  >
-                    <FileDown className="h-4 w-4 mr-2" />
-                    {isExportingPDF ? 'Génération...' : 'Export PDF'}
-                  </Button>
-                </div>
+                <Button 
+                  onClick={() => setExportDialogOpen(true)} 
+                  variant="default"
+                  size="sm"
+                >
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Exporter le Rapport
+                </Button>
               </div>
             </CardHeader>
           </Card>
@@ -464,6 +462,14 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
           )}
         </>
       )}
+
+      <ExportReportDialog
+        report={report}
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        onExport={handleExport}
+        isExporting={isExportingPDF}
+      />
     </div>
   );
 }

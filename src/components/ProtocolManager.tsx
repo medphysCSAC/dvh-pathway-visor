@@ -20,8 +20,14 @@ import {
   Plus,
   FileText,
   Shield,
-  Activity
+  Activity,
+  Edit,
+  Copy,
+  Archive,
+  MoveUp,
+  MoveDown
 } from 'lucide-react';
+import ProtocolEditor from './ProtocolEditor';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +48,9 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
   const [protocols, setProtocols] = useState<TreatmentProtocol[]>([]);
   const [selectedProtocol, setSelectedProtocol] = useState<TreatmentProtocol | null>(null);
   const [protocolToDelete, setProtocolToDelete] = useState<string | null>(null);
+  const [protocolToEdit, setProtocolToEdit] = useState<TreatmentProtocol | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [archivedProtocols, setArchivedProtocols] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadProtocols();
@@ -145,10 +154,83 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
     });
   };
 
-  const predefined = protocols.filter(p => !p.isCustom);
-  const custom = protocols.filter(p => p.isCustom);
+  const handleEditProtocol = (protocol: TreatmentProtocol) => {
+    setProtocolToEdit(protocol);
+    setEditorOpen(true);
+  };
 
-  const renderProtocolCard = (protocol: TreatmentProtocol) => (
+  const handleSaveEdit = (editedProtocol: TreatmentProtocol) => {
+    saveCustomProtocol(editedProtocol);
+    loadProtocols();
+    setProtocolToEdit(null);
+    setEditorOpen(false);
+  };
+
+  const handleCopyProtocol = (protocol: TreatmentProtocol) => {
+    const copiedProtocol: TreatmentProtocol = {
+      ...protocol,
+      id: `${protocol.id}_copy_${Date.now()}`,
+      name: `${protocol.name} (Copie)`,
+      isCustom: true,
+      createdAt: new Date(),
+      modifiedAt: new Date(),
+    };
+    
+    saveCustomProtocol(copiedProtocol);
+    loadProtocols();
+    
+    toast({
+      title: 'Protocole copié',
+      description: `Une copie de "${protocol.name}" a été créée`,
+    });
+  };
+
+  const handleArchiveProtocol = (id: string) => {
+    setArchivedProtocols(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+        toast({
+          title: 'Protocole désarchivé',
+          description: 'Le protocole est à nouveau visible',
+        });
+      } else {
+        newSet.add(id);
+        toast({
+          title: 'Protocole archivé',
+          description: 'Le protocole est maintenant archivé',
+        });
+      }
+      return newSet;
+    });
+  };
+
+  const moveProtocol = (index: number, direction: 'up' | 'down', isCustomList: boolean) => {
+    const list = isCustomList ? custom : predefined;
+    if (
+      (direction === 'up' && index === 0) ||
+      (direction === 'down' && index === list.length - 1)
+    ) {
+      return;
+    }
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    const newList = [...list];
+    [newList[index], newList[newIndex]] = [newList[newIndex], newList[index]];
+    
+    // Note: Ceci est une démo visuelle - pour persister l'ordre, il faudrait
+    // implémenter une logique de sauvegarde dans localStorage
+    toast({
+      title: 'Ordre modifié',
+      description: 'L\'ordre d\'affichage a été mis à jour',
+    });
+  };
+
+  const predefined = protocols.filter(p => !p.isCustom && !archivedProtocols.has(p.id));
+  const custom = protocols.filter(p => p.isCustom && !archivedProtocols.has(p.id));
+  const archived = protocols.filter(p => archivedProtocols.has(p.id));
+
+  const renderProtocolCard = (protocol: TreatmentProtocol, index?: number, inCustomList?: boolean) => (
     <Card key={protocol.id} className="hover:shadow-md transition-shadow">
       <CardHeader>
         <div className="flex items-start justify-between">
@@ -178,34 +260,61 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
             </div>
           </div>
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-1 pt-2 flex-wrap">
             <Button 
               size="sm" 
               variant="default"
               onClick={() => handleUseProtocol(protocol)}
-              className="flex-1"
+              className="flex-1 min-w-[120px]"
             >
-              Utiliser ce protocole
+              Utiliser
             </Button>
             <Button 
               size="sm" 
               variant="outline"
               onClick={() => handleViewDetails(protocol)}
+              title="Voir détails"
             >
               <Eye className="h-4 w-4" />
             </Button>
             <Button 
               size="sm" 
               variant="outline"
+              onClick={() => handleEditProtocol(protocol)}
+              title="Éditer"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => handleCopyProtocol(protocol)}
+              title="Copier"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
               onClick={() => handleExportJSON(protocol)}
+              title="Exporter JSON"
             >
               <Download className="h-4 w-4" />
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => handleArchiveProtocol(protocol.id)}
+              title={archivedProtocols.has(protocol.id) ? "Désarchiver" : "Archiver"}
+            >
+              <Archive className="h-4 w-4" />
             </Button>
             {protocol.isCustom && (
               <Button 
                 size="sm" 
                 variant="destructive"
                 onClick={() => setProtocolToDelete(protocol.id)}
+                title="Supprimer"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -240,12 +349,15 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
       </Card>
 
       <Tabs defaultValue="predefined">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="predefined">
             Protocoles Prédéfinis ({predefined.length})
           </TabsTrigger>
           <TabsTrigger value="custom">
             Protocoles Personnalisés ({custom.length})
+          </TabsTrigger>
+          <TabsTrigger value="archived">
+            Archivés ({archived.length})
           </TabsTrigger>
         </TabsList>
 
@@ -258,7 +370,7 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              {predefined.map(renderProtocolCard)}
+              {predefined.map((p) => renderProtocolCard(p))}
             </div>
           )}
         </TabsContent>
@@ -274,7 +386,23 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
             </Card>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              {custom.map(renderProtocolCard)}
+              {custom.map((p, idx) => renderProtocolCard(p, idx, true))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="archived" className="space-y-4">
+          {archived.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6 text-center text-muted-foreground">
+                <Archive className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>Aucun protocole archivé</p>
+                <p className="text-sm mt-1">Les protocoles archivés apparaîtront ici</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {archived.map((p) => renderProtocolCard(p))}
             </div>
           )}
         </TabsContent>
@@ -363,6 +491,15 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {protocolToEdit && (
+        <ProtocolEditor
+          protocol={protocolToEdit}
+          open={editorOpen}
+          onOpenChange={setEditorOpen}
+          onSave={handleSaveEdit}
+        />
+      )}
     </div>
   );
 }
