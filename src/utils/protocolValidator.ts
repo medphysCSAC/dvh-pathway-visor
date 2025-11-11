@@ -85,7 +85,7 @@ export function validateConstraint(
   constraint: OARConstraint,
   structure: Structure
 ): ConstraintValidationResult {
-  const { constraintType, value, target, priority } = constraint;
+  const { constraintType, value, target, targetUnit, priority } = constraint;
   let measuredValue = 0;
   let status: 'PASS' | 'FAIL' | 'WARNING' | 'NOT_EVALUATED' = 'NOT_EVALUATED';
   let message = '';
@@ -116,13 +116,14 @@ export function validateConstraint(
         break;
         
       case 'Dx':
-        // Dx = dose reçue par x% du volume
+        // Dx = dose reçue par x% ou x cc du volume
         if (target === undefined) {
           throw new Error('Target volume manquant pour contrainte Dx');
         }
-        measuredValue = calculateDx(structure, target);
+        const unit = targetUnit || '%';
+        measuredValue = calculateDx(structure, target, unit);
         status = measuredValue <= value ? 'PASS' : 'FAIL';
-        message = `D${target}% mesuré: ${measuredValue.toFixed(1)} Gy, seuil: ${value} Gy`;
+        message = `D${target}${unit} mesuré: ${measuredValue.toFixed(1)} Gy, seuil: ${value} Gy`;
         break;
     }
     

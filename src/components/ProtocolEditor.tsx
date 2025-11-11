@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, Save } from 'lucide-react';
+import { Plus, Trash2, Save, MoveUp, MoveDown } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ProtocolEditorProps {
@@ -107,6 +107,37 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
     setEditedProtocol({ ...editedProtocol, oarConstraints: newConstraints });
   };
 
+  const movePrescription = (index: number, direction: 'up' | 'down') => {
+    if ((direction === 'up' && index === 0) || (direction === 'down' && index === editedProtocol.prescriptions.length - 1)) {
+      return;
+    }
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    const newPrescriptions = [...editedProtocol.prescriptions];
+    [newPrescriptions[index], newPrescriptions[newIndex]] = [newPrescriptions[newIndex], newPrescriptions[index]];
+    setEditedProtocol({ ...editedProtocol, prescriptions: newPrescriptions });
+  };
+
+  const moveConstraint = (index: number, direction: 'up' | 'down') => {
+    if ((direction === 'up' && index === 0) || (direction === 'down' && index === editedProtocol.oarConstraints.length - 1)) {
+      return;
+    }
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    const newConstraints = [...editedProtocol.oarConstraints];
+    [newConstraints[index], newConstraints[newIndex]] = [newConstraints[newIndex], newConstraints[index]];
+    setEditedProtocol({ ...editedProtocol, oarConstraints: newConstraints });
+  };
+
+  // Tri alphabétique des prescriptions et contraintes
+  const sortPrescriptionsAlphabetically = () => {
+    const sorted = [...editedProtocol.prescriptions].sort((a, b) => a.ptvName.localeCompare(b.ptvName));
+    setEditedProtocol({ ...editedProtocol, prescriptions: sorted });
+  };
+
+  const sortConstraintsAlphabetically = () => {
+    const sorted = [...editedProtocol.oarConstraints].sort((a, b) => a.organName.localeCompare(b.organName));
+    setEditedProtocol({ ...editedProtocol, oarConstraints: sorted });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
@@ -151,17 +182,40 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
               </TabsList>
 
               <TabsContent value="prescriptions" className="space-y-4 mt-4">
+                <div className="flex justify-end mb-2">
+                  <Button onClick={sortPrescriptionsAlphabetically} variant="outline" size="sm">
+                    Trier alphabétiquement
+                  </Button>
+                </div>
                 {editedProtocol.prescriptions.map((presc, idx) => (
                   <div key={idx} className="border rounded-lg p-4 space-y-3 bg-muted/50">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold">Prescription {idx + 1}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removePrescription(idx)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => movePrescription(idx, 'up')}
+                          disabled={idx === 0}
+                        >
+                          <MoveUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => movePrescription(idx, 'down')}
+                          disabled={idx === editedProtocol.prescriptions.length - 1}
+                        >
+                          <MoveDown className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removePrescription(idx)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div>
@@ -208,17 +262,40 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
               </TabsContent>
 
               <TabsContent value="constraints" className="space-y-4 mt-4">
+                <div className="flex justify-end mb-2">
+                  <Button onClick={sortConstraintsAlphabetically} variant="outline" size="sm">
+                    Trier alphabétiquement
+                  </Button>
+                </div>
                 {editedProtocol.oarConstraints.map((constraint, idx) => (
                   <div key={idx} className="border rounded-lg p-4 space-y-3 bg-muted/50">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold">Contrainte {idx + 1}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeConstraint(idx)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => moveConstraint(idx, 'up')}
+                          disabled={idx === 0}
+                        >
+                          <MoveUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => moveConstraint(idx, 'down')}
+                          disabled={idx === editedProtocol.oarConstraints.length - 1}
+                        >
+                          <MoveDown className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeConstraint(idx)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div>
@@ -247,15 +324,34 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
                         </Select>
                       </div>
                       {(constraint.constraintType === 'Vx' || constraint.constraintType === 'Dx') && (
-                        <div>
-                          <Label>{constraint.constraintType === 'Vx' ? 'Dose (Gy)' : 'Volume (%)'}</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={constraint.target || 0}
-                            onChange={(e) => updateConstraint(idx, 'target', parseFloat(e.target.value))}
-                          />
-                        </div>
+                        <>
+                          <div>
+                            <Label>{constraint.constraintType === 'Vx' ? 'Dose (Gy)' : 'Volume'}</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={constraint.target || 0}
+                              onChange={(e) => updateConstraint(idx, 'target', parseFloat(e.target.value))}
+                            />
+                          </div>
+                          {constraint.constraintType === 'Dx' && (
+                            <div>
+                              <Label>Unité du volume</Label>
+                              <Select
+                                value={constraint.targetUnit || '%'}
+                                onValueChange={(v) => updateConstraint(idx, 'targetUnit', v)}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="%">% (pourcentage)</SelectItem>
+                                  <SelectItem value="cc">cc (volume absolu)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                        </>
                       )}
                       <div>
                         <Label>Valeur seuil</Label>

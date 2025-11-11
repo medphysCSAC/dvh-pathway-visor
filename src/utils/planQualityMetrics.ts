@@ -1,13 +1,23 @@
 import { Structure, DVHPoint } from '@/types/dvh';
 
 /**
- * Calcule la dose reçue par x% du volume (Dx%)
- * Par exemple: D95 = dose reçue par 95% du volume
+ * Calcule la dose reçue par x% du volume (Dx%) OU par x cc du volume
+ * Par exemple: D95% = dose reçue par 95% du volume
+ *              D2cc = dose reçue par 2 cc du volume
  */
-export const calculateDx = (structure: Structure, volumePercent: number): number => {
+export const calculateDx = (structure: Structure, volumeValue: number, unit: '%' | 'cc' = '%'): number => {
   if (!structure.relativeVolume.length) return 0;
   
   const points = structure.relativeVolume;
+  
+  // Convertir en pourcentage si l'unité est en cc
+  let volumePercent = volumeValue;
+  if (unit === 'cc' && structure.totalVolume && structure.totalVolume > 0) {
+    volumePercent = (volumeValue / structure.totalVolume) * 100;
+  } else if (unit === 'cc') {
+    // Pas de volume total disponible, impossible de calculer
+    return 0;
+  }
   
   // Trouver les deux points qui encadrent le volume cible
   for (let i = 0; i < points.length - 1; i++) {

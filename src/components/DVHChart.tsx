@@ -29,6 +29,31 @@ const getColorForStructure = (structure: Structure, index: number): string => {
 
 type DVHType = 'cumulative-relative' | 'differential-relative' | 'cumulative-absolute' | 'differential-absolute';
 
+// Helper to calculate differential from cumulative DVH
+const calculateDifferentialDVH = (cumulativePoints: { dose: number; volume: number }[]): { dose: number; volume: number }[] => {
+  if (cumulativePoints.length === 0) return [];
+  
+  const differential: { dose: number; volume: number }[] = [];
+  const sortedPoints = [...cumulativePoints].sort((a, b) => a.dose - b.dose);
+  
+  for (let i = 0; i < sortedPoints.length - 1; i++) {
+    const currentPoint = sortedPoints[i];
+    const nextPoint = sortedPoints[i + 1];
+    
+    // Le volume différentiel est la différence de volume divisée par la différence de dose
+    const volumeDiff = Math.abs(nextPoint.volume - currentPoint.volume);
+    const doseDiff = nextPoint.dose - currentPoint.dose;
+    
+    if (doseDiff > 0) {
+      differential.push({
+        dose: currentPoint.dose,
+        volume: volumeDiff / doseDiff // dV/dD
+      });
+    }
+  }
+  
+  return differential;
+};
 export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
   const [viewMode, setViewMode] = useState<'optimal' | 'full'>('optimal');
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -72,10 +97,17 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
 
     if (filteredStructures.length === 0) return [];
 
+    const isDifferential = dvhType.includes('differential');
+    const isAbsolute = dvhType.includes('absolute');
+
     // Get all unique dose points
     const allDoses = new Set<number>();
     filteredStructures.forEach(structure => {
-      structure.relativeVolume.forEach(point => {
+      const dataSource = isAbsolute && structure.absoluteVolume
+        ? structure.absoluteVolume
+        : structure.relativeVolume;
+      
+      dataSource.forEach(point => {
         allDoses.add(parseFloat(point.dose.toFixed(2)));
       });
     });
@@ -87,8 +119,18 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
       const dataPoint: any = { dose };
       
       filteredStructures.forEach(structure => {
+        // Sélectionner la source de données (absolu ou relatif)
+        let dataSource = isAbsolute && structure.absoluteVolume
+          ? structure.absoluteVolume
+          : structure.relativeVolume;
+        
+        // Si DVH différentiel, calculer le différentiel à partir du cumulatif
+        if (isDifferential) {
+          dataSource = calculateDifferentialDVH(dataSource);
+        }
+        
         // Find the volume for this dose (interpolate if needed)
-        const point = structure.relativeVolume.find(p => 
+        const point = dataSource.find(p => 
           Math.abs(p.dose - dose) < 0.01
         );
         
@@ -96,10 +138,10 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
           dataPoint[structure.name] = point.volume;
         } else {
           // Linear interpolation
-          const before = structure.relativeVolume
+          const before = dataSource
             .filter(p => p.dose < dose)
             .sort((a, b) => b.dose - a.dose)[0];
-          const after = structure.relativeVolume
+          const after = dataSource
             .filter(p => p.dose > dose)
             .sort((a, b) => a.dose - b.dose)[0];
           
@@ -112,7 +154,7 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
       
       return dataPoint;
     });
-  }, [structures, selectedStructures]);
+  }, [structures, selectedStructures, dvhType]);
 
   const selectedFilteredStructures = useMemo(() => {
     return structures.filter(s => selectedStructures.includes(s.name));
@@ -226,17 +268,28 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
                 className="text-sm"
                 ticks={(() => {
                   const max = xDomain ? xDomain[1] : Math.ceil(maxDoseGlobal * 1.2);
-                  return Array.from({ length: Math.floor(max / 5) + 1 }, (_, i) => i * 5);
+                  const ticks = [];
+                  for (let i = 0; i <= max; i += 5) {
+                    ticks.push(i);
+                  }
+                  return ticks;
                 })()}
               />
               <YAxis 
                 label={{ 
-                  value: dvhType.includes('absolute') ? 'Volume (cc)' : 'Volume (%)', 
+                  value: dvhType === 'cumulative-absolute' 
+                    ? 'Volume (cc)' 
+                    : dvhType === 'differential-absolute'
+                    ? 'dV/dD (cc/Gy)'
+                    : dvhType === 'differential-relative'
+                    ? 'dV/dD (%/Gy)'
+                    : 'Volume (%)', 
                   angle: -90, 
                   position: 'insideLeft' 
                 }}
                 className="text-sm"
-                ticks={dvhType.includes('absolute') ? undefined : [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]}
+                domain={dvhType === 'cumulative-relative' ? [0, 100] : [0, 'auto']}
+                ticks={dvhType === 'cumulative-relative' ? [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100] : undefined}
               />
               <Tooltip 
                 contentStyle={{ 

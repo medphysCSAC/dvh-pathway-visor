@@ -25,8 +25,12 @@ import {
   Copy,
   Archive,
   MoveUp,
-  MoveDown
+  MoveDown,
+  ArrowUpDown
 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import ProtocolEditor from './ProtocolEditor';
 import {
   AlertDialog,
@@ -50,11 +54,28 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
   const [protocolToDelete, setProtocolToDelete] = useState<string | null>(null);
   const [protocolToEdit, setProtocolToEdit] = useState<TreatmentProtocol | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [archivedProtocols, setArchivedProtocols] = useState<Set<string>>(new Set());
+  const [archivedProtocols, setArchivedProtocols] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('archived-protocols');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
+  const [deletePassword, setDeletePassword] = useState('');
+  const [sortBy, setSortBy] = useState<'alphabetical' | 'recent' | 'mostUsed'>('alphabetical');
+  const [protocolUsage, setProtocolUsage] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('protocol-usage');
+    return saved ? JSON.parse(saved) : {};
+  });
 
   useEffect(() => {
     loadProtocols();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('archived-protocols', JSON.stringify([...archivedProtocols]));
+  }, [archivedProtocols]);
+
+  useEffect(() => {
+    localStorage.setItem('protocol-usage', JSON.stringify(protocolUsage));
+  }, [protocolUsage]);
 
   const loadProtocols = () => {
     const allProtocols = getAllProtocols();
@@ -129,12 +150,22 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
   };
 
   const handleDelete = (id: string) => {
+    if (deletePassword !== 'abc123') {
+      toast({
+        title: 'Mot de passe incorrect',
+        description: 'Le mot de passe saisi est incorrect',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     deleteCustomProtocol(id);
     loadProtocols();
     if (selectedProtocol?.id === id) {
       setSelectedProtocol(null);
     }
     setProtocolToDelete(null);
+    setDeletePassword('');
 
     toast({
       title: 'Protocole supprimé',
@@ -147,6 +178,12 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
   };
 
   const handleUseProtocol = (protocol: TreatmentProtocol) => {
+    // Incrémenter le compteur d'utilisation
+    setProtocolUsage(prev => ({
+      ...prev,
+      [protocol.id]: (prev[protocol.id] || 0) + 1
+    }));
+    
     onProtocolSelect?.(protocol);
     toast({
       title: 'Protocole sélectionné',
@@ -226,9 +263,24 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
     });
   };
 
-  const predefined = protocols.filter(p => !p.isCustom && !archivedProtocols.has(p.id));
-  const custom = protocols.filter(p => p.isCustom && !archivedProtocols.has(p.id));
-  const archived = protocols.filter(p => archivedProtocols.has(p.id));
+  const sortProtocols = (protocolList: TreatmentProtocol[]) => {
+    const sorted = [...protocolList];
+    
+    switch (sortBy) {
+      case 'alphabetical':
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      case 'recent':
+        return sorted.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
+      case 'mostUsed':
+        return sorted.sort((a, b) => (protocolUsage[b.id] || 0) - (protocolUsage[a.id] || 0));
+      default:
+        return sorted;
+    }
+  };
+
+  const predefined = sortProtocols(protocols.filter(p => !p.isCustom && !archivedProtocols.has(p.id)));
+  const custom = sortProtocols(protocols.filter(p => p.isCustom && !archivedProtocols.has(p.id)));
+  const archived = sortProtocols(protocols.filter(p => archivedProtocols.has(p.id)));
 
   const renderProtocolCard = (protocol: TreatmentProtocol, index?: number, inCustomList?: boolean) => (
     <Card key={protocol.id} className="hover:shadow-md transition-shadow">
@@ -335,7 +387,7 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button onClick={handleImportJSON} variant="outline">
               <Upload className="h-4 w-4 mr-2" />
               Importer un protocole JSON
@@ -344,6 +396,22 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
               <Plus className="h-4 w-4 mr-2" />
               Créer un nouveau protocole
             </Button>
+            <div className="ml-auto flex items-center gap-2">
+              <Label htmlFor="sort-select" className="text-sm font-medium">
+                <ArrowUpDown className="h-4 w-4 inline mr-1" />
+                Trier par:
+              </Label>
+              <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+                <SelectTrigger id="sort-select" className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="alphabetical">Ordre alphabétique</SelectItem>
+                  <SelectItem value="recent">Dernière modification</SelectItem>
+                  <SelectItem value="mostUsed">Plus utilisés</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -472,16 +540,30 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
         </Card>
       )}
 
-      <AlertDialog open={!!protocolToDelete} onOpenChange={() => setProtocolToDelete(null)}>
+      <AlertDialog open={!!protocolToDelete} onOpenChange={() => {
+        setProtocolToDelete(null);
+        setDeletePassword('');
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
               Êtes-vous sûr de vouloir supprimer ce protocole personnalisé ? Cette action est irréversible.
+              <div className="mt-4">
+                <Label htmlFor="delete-password">Mot de passe requis</Label>
+                <Input
+                  id="delete-password"
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="Entrez le mot de passe"
+                  className="mt-2"
+                />
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setDeletePassword('')}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => protocolToDelete && handleDelete(protocolToDelete)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

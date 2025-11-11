@@ -15,6 +15,7 @@ export interface OARConstraint {
   value: number;           // Valeur de la contrainte (seuil)
   unit: string;            // 'Gy' ou '%'
   target?: number;         // Pour Vx (dose en Gy) ou Dx (volume en %)
+  targetUnit?: '%' | 'cc'; // Unité pour le volume cible (% ou cc)
   priority: 'mandatory' | 'optimal' | 'desirable';
   description?: string;
 }

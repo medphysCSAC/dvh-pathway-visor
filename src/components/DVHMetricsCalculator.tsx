@@ -34,23 +34,33 @@ export default function DVHMetricsCalculator({ structures }: DVHMetricsCalculato
     const dose = parseFloat(targetDose);
     if (isNaN(dose)) return;
 
-    // Trouver le volume (%) qui reçoit >= dose
+    // Utiliser les points du DVH relatif cumulatif (décroissant)
     let volumePercent = 0;
     const sortedPoints = [...structure.relativeVolume].sort((a, b) => a.dose - b.dose);
     
-    for (let i = 0; i < sortedPoints.length; i++) {
-      if (sortedPoints[i].dose >= dose) {
-        if (i === 0) {
-          volumePercent = sortedPoints[0].volume;
-        } else {
-          // Interpolation linéaire
-          const p1 = sortedPoints[i - 1];
-          const p2 = sortedPoints[i];
-          const ratio = (dose - p1.dose) / (p2.dose - p1.dose);
-          volumePercent = p1.volume - ratio * (p1.volume - p2.volume);
-        }
+    // Trouver le volume qui reçoit >= dose (DVH cumulatif)
+    let found = false;
+    for (let i = 0; i < sortedPoints.length - 1; i++) {
+      const p1 = sortedPoints[i];
+      const p2 = sortedPoints[i + 1];
+      
+      if (p1.dose <= dose && p2.dose >= dose) {
+        // Interpolation linéaire entre p1 et p2
+        const ratio = (dose - p1.dose) / (p2.dose - p1.dose);
+        volumePercent = p1.volume - ratio * (p1.volume - p2.volume);
+        found = true;
         break;
       }
+    }
+    
+    // Si la dose est inférieure à la dose minimale
+    if (!found && dose < sortedPoints[0].dose) {
+      volumePercent = sortedPoints[0].volume;
+    }
+    
+    // Si la dose est supérieure à la dose maximale
+    if (!found && dose > sortedPoints[sortedPoints.length - 1].dose) {
+      volumePercent = sortedPoints[sortedPoints.length - 1].volume;
     }
 
     // Convertir en volume absolu (cc)
