@@ -175,12 +175,14 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
         </CardContent>
       </Card>
 
-      {selectedProtocol && report && report.unmatchedStructures.length > 0 && (
+      {selectedProtocol && (
         <StructureMapping
-          unmatchedStructures={report.unmatchedStructures}
+          unmatchedStructures={report ? report.unmatchedStructures : []}
           availableStructures={structures}
           onMappingsChange={setMappings}
           protocolId={selectedProtocolId}
+          protocol={selectedProtocol}
+          currentMappings={mappings}
         />
       )}
 

@@ -93,8 +93,9 @@ export function validateConstraint(
   try {
     switch (constraintType) {
       case 'Dmax':
-        // Dmax = dose maximale réelle (premier point du DVH)
-        measuredValue = structure.relativeVolume.length > 0 ? structure.relativeVolume[0].dose : 0;
+        // Dmax = dose maximale réelle (chercher la plus grande valeur dans tous les points DVH)
+        const doses = structure.relativeVolume.map(p => p.dose);
+        measuredValue = doses.length > 0 ? Math.max(...doses) : 0;
         status = measuredValue <= value ? 'PASS' : 'FAIL';
         message = `Dmax mesuré: ${measuredValue.toFixed(1)} Gy, seuil: ${value} Gy`;
         break;
@@ -162,45 +163,91 @@ export function findBestStructureMatch(
     if (mapped) return mapped;
   }
   
-  // Normalisation du nom recherché
-  const normalizedSearch = protocolStructureName.toLowerCase().trim();
-  
-  // Recherche exacte
-  const exactMatch = availableStructures.find(
-    s => s.name.toLowerCase().trim() === normalizedSearch
-  );
-  if (exactMatch) return exactMatch;
-  
-  // Recherche partielle améliorée pour les PTV
-  // Normaliser les underscores, tirets et espaces
+  // Normalisation avancée qui gère les PTVs
   const normalizeForComparison = (str: string) => {
     return str.toLowerCase()
-      .replace(/[_-]/g, ' ')
-      .replace(/\s+/g, ' ')
+      .replace(/[_-]/g, ' ')  // Convertir _ et - en espaces
+      .replace(/\s+/g, ' ')    // Normaliser les espaces multiples
       .trim();
   };
   
-  const normalizedForMatch = normalizeForComparison(normalizedSearch);
+  const normalizedSearch = normalizeForComparison(protocolStructureName);
   
-  // Essayer plusieurs variantes
+  // 1. Recherche exacte après normalisation
+  const exactMatch = availableStructures.find(
+    s => normalizeForComparison(s.name) === normalizedSearch
+  );
+  if (exactMatch) return exactMatch;
+  
+  // 2. Pour les PTVs : recherche intelligente
+  // Si le nom du protocole commence par "PTV", chercher parmi les structures PTV
+  if (protocolStructureName.toLowerCase().startsWith('ptv')) {
+    // Filtrer d'abord les structures qui sont des PTVs (catégorie ou nom commence par PTV)
+    const ptvStructures = availableStructures.filter(s => 
+      s.category === 'PTV' || s.name.toLowerCase().startsWith('ptv')
+    );
+    
+    // Extraire les parties significatives du nom recherché
+    // Ex: "PTV_Sein" -> ["sein"], "PTV 50" -> ["50"], "PTV_SC" -> ["sc"]
+    const searchParts = normalizedSearch
+      .replace(/^ptv[\s_-]*/i, '') // Enlever le préfixe PTV
+      .split(/[\s_-]+/)             // Diviser par espaces, underscores, tirets
+      .filter(part => part.length > 0);
+    
+    // Chercher une structure PTV qui contient toutes les parties significatives
+    for (const ptvStruct of ptvStructures) {
+      const structNormalized = normalizeForComparison(ptvStruct.name);
+      const structParts = structNormalized
+        .replace(/^ptv[\s_-]*/i, '')
+        .split(/[\s_-]+/)
+        .filter(part => part.length > 0);
+      
+      // Vérifier si toutes les parties du protocole sont dans la structure
+      const allPartsMatch = searchParts.every(searchPart => 
+        structParts.some(structPart => 
+          structPart.includes(searchPart) || searchPart.includes(structPart)
+        )
+      );
+      
+      if (allPartsMatch) return ptvStruct;
+    }
+    
+    // Si pas de match exact, chercher une correspondance partielle
+    for (const ptvStruct of ptvStructures) {
+      const structNormalized = normalizeForComparison(ptvStruct.name);
+      
+      // Vérifier si au moins une partie significative correspond
+      const hasPartialMatch = searchParts.some(searchPart => 
+        structNormalized.includes(searchPart)
+      );
+      
+      if (hasPartialMatch && searchParts.length > 0) return ptvStruct;
+    }
+  }
+  
+  // 3. Recherche partielle générique avec variantes
   const variants = [
+    protocolStructureName.toLowerCase(),
     normalizedSearch,
-    normalizedSearch.replace(/[_-]/g, ' '),
-    normalizedSearch.replace(/[_-]/g, ''),
-    normalizedSearch.replace(/\s+/g, '_'),
     normalizedSearch.replace(/\s+/g, ''),
+    normalizedSearch.replace(/\s+/g, '_'),
     normalizedSearch.replace(/\s+/g, '-'),
   ];
   
-  // Recherche partielle avec variantes
   for (const variant of variants) {
-    const partialMatch = availableStructures.find(
-      s => {
-        const normalizedStructName = normalizeForComparison(s.name);
-        return normalizedStructName.includes(normalizeForComparison(variant)) ||
-               normalizeForComparison(variant).includes(normalizedStructName);
-      }
-    );
+    const partialMatch = availableStructures.find(s => {
+      const sNormalized = normalizeForComparison(s.name);
+      const sVariants = [
+        s.name.toLowerCase(),
+        sNormalized,
+        sNormalized.replace(/\s+/g, ''),
+      ];
+      
+      return sVariants.some(sv => 
+        sv.includes(variant) || variant.includes(sv)
+      );
+    });
+    
     if (partialMatch) return partialMatch;
   }
   
