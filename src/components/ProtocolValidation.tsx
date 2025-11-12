@@ -211,68 +211,6 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
             </CardHeader>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>📋 Prescriptions de Dose</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Volume Cible (PTV)</th>
-                      <th className="text-left p-2">Dose Totale</th>
-                      <th className="text-left p-2">Fractions</th>
-                      <th className="text-left p-2">Dose/Fraction</th>
-                      <th className="text-left p-2">Statut</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {report.prescriptionResults.map((pr, idx) => (
-                      <tr key={idx} className="border-b">
-                        <td className="p-2 font-medium">{pr.prescription.ptvName}</td>
-                        <td className="p-2">{pr.prescription.totalDose} Gy</td>
-                        <td className="p-2">{pr.prescription.numberOfFractions}</td>
-                        <td className="p-2">{pr.prescription.dosePerFraction} Gy</td>
-                        <td className="p-2">
-                          {pr.isCoherent ? (
-                            <Badge variant="default" className="gap-1">
-                              <CheckCircle2 className="h-3 w-3" />
-                              Cohérent
-                            </Badge>
-                          ) : (
-                            <Badge variant="destructive" className="gap-1">
-                              <XCircle className="h-3 w-3" />
-                              Incohérent
-                            </Badge>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {report.prescriptionResults.some(pr => pr.warnings.length > 0) && (
-                <div className="mt-4 space-y-2">
-                  {report.prescriptionResults.map((pr, idx) =>
-                    pr.warnings.length > 0 ? (
-                      <div key={idx} className="bg-warning/10 border border-warning/20 p-3 rounded-lg">
-                        <div className="flex items-start gap-2">
-                          <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
-                          <div className="space-y-1">
-                            {pr.warnings.map((warning, wIdx) => (
-                              <p key={wIdx} className="text-sm">{warning}</p>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ) : null
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
           {selectedProtocol && selectedProtocol.prescriptions.length > 0 && (
             <Card>
@@ -424,8 +362,26 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
                           </td>
                           <td className="p-2">
                             <div className="flex items-center gap-2">
-                              {getStatusIcon(cr.status)}
-                              <span>{cr.status} - {cr.message}</span>
+                              <Badge 
+                                variant={
+                                  cr.status === 'PASS' ? 'default' : 
+                                  cr.status === 'FAIL' ? 'destructive' : 
+                                  'secondary'
+                                }
+                                className={`gap-1 ${
+                                  cr.status === 'PASS' ? 'bg-green-600 hover:bg-green-700 text-white' : 
+                                  cr.status === 'WARNING' ? 'bg-orange-500 hover:bg-orange-600 text-white' : 
+                                  ''
+                                }`}
+                              >
+                                {getStatusIcon(cr.status)}
+                                {cr.status}
+                              </Badge>
+                              {cr.status === 'WARNING' && (
+                                <span className="text-xs text-muted-foreground">
+                                  (contrainte optimale)
+                                </span>
+                              )}
                             </div>
                           </td>
                         </tr>

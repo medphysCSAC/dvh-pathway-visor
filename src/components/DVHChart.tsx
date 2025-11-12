@@ -265,7 +265,6 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
                 dataKey="dose"
                 domain={xDomain}
                 label={{ value: 'Dose (Gy)', position: 'insideBottom', offset: -5 }}
-                className="text-sm"
                 ticks={(() => {
                   const max = xDomain ? xDomain[1] : Math.ceil(maxDoseGlobal * 1.2);
                   const ticks = [];
@@ -287,9 +286,17 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
                   angle: -90, 
                   position: 'insideLeft' 
                 }}
-                className="text-sm"
                 domain={dvhType === 'cumulative-relative' ? [0, 100] : [0, 'auto']}
-                ticks={dvhType === 'cumulative-relative' ? [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100] : undefined}
+                ticks={(() => {
+                  if (dvhType === 'cumulative-relative') {
+                    const ticks = [];
+                    for (let i = 0; i <= 100; i += 5) {
+                      ticks.push(i);
+                    }
+                    return ticks;
+                  }
+                  return undefined;
+                })()}
               />
               <Tooltip 
                 contentStyle={{ 

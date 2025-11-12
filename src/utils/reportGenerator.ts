@@ -342,45 +342,6 @@ export function generateHTMLReport(report: ValidationReport, overallStatus?: 'PA
       </div>
       ` : ''}
       
-      <div class="section">
-        <h2 class="section-title">📋 Prescriptions de Dose</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Volume Cible (PTV)</th>
-              <th>Dose Totale</th>
-              <th>Nombre de Fractions</th>
-              <th>Dose/Fraction</th>
-              <th>Statut</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${prescriptionResults.map(pr => `
-              <tr>
-                <td>${pr.prescription.ptvName}</td>
-                <td>${pr.prescription.totalDose} Gy</td>
-                <td>${pr.prescription.numberOfFractions}</td>
-                <td>${pr.prescription.dosePerFraction} Gy</td>
-                <td class="${pr.isCoherent ? 'status-pass' : 'status-fail'}">
-                  ${pr.isCoherent ? '✅ Cohérent' : '❌ Incohérent'}
-                </td>
-              </tr>
-              ${pr.warnings.length > 0 ? `
-                <tr>
-                  <td colspan="5">
-                    <div class="warning-box">
-                      <strong>⚠️ Alertes:</strong>
-                      <ul>
-                        ${pr.warnings.map(w => `<li>${w}</li>`).join('')}
-                      </ul>
-                    </div>
-                  </td>
-                </tr>
-              ` : ''}
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
       
       <div class="section">
         <h2 class="section-title">🛡️ Contraintes OAR (Organes à Risque)</h2>
@@ -408,8 +369,18 @@ export function generateHTMLReport(report: ValidationReport, overallStatus?: 'PA
                   <td>${constraintDesc}</td>
                   <td>${cr.measuredValue.toFixed(1)} ${cr.constraint.unit}</td>
                   <td>&lt; ${cr.constraint.value} ${cr.constraint.unit}</td>
-                  <td class="${cr.status === 'PASS' ? 'status-pass' : 'status-fail'}">
-                    ${cr.status === 'PASS' ? '✅ PASS' : '❌ FAIL'}
+                  <td class="${
+                    cr.status === 'PASS' ? 'status-pass' : 
+                    cr.status === 'WARNING' ? 'status-warning' : 
+                    cr.status === 'FAIL' ? 'status-fail' : 
+                    'status-not-evaluated'
+                  }">
+                    ${
+                      cr.status === 'PASS' ? '✅ PASS' : 
+                      cr.status === 'WARNING' ? '⚠️ WARNING' : 
+                      cr.status === 'FAIL' ? '❌ FAIL' : 
+                      'Non évalué'
+                    }
                   </td>
                 </tr>
               `;
