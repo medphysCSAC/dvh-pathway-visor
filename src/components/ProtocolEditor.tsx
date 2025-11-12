@@ -127,6 +127,26 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
     setEditedProtocol({ ...editedProtocol, oarConstraints: newConstraints });
   };
 
+  const moveConstraintToPosition = (fromIndex: number, toPosition: number) => {
+    const newPosition = Math.max(1, Math.min(toPosition, editedProtocol.oarConstraints.length)) - 1;
+    if (fromIndex === newPosition) return;
+    
+    const newConstraints = [...editedProtocol.oarConstraints];
+    const [removed] = newConstraints.splice(fromIndex, 1);
+    newConstraints.splice(newPosition, 0, removed);
+    setEditedProtocol({ ...editedProtocol, oarConstraints: newConstraints });
+  };
+
+  const movePrescriptionToPosition = (fromIndex: number, toPosition: number) => {
+    const newPosition = Math.max(1, Math.min(toPosition, editedProtocol.prescriptions.length)) - 1;
+    if (fromIndex === newPosition) return;
+    
+    const newPrescriptions = [...editedProtocol.prescriptions];
+    const [removed] = newPrescriptions.splice(fromIndex, 1);
+    newPrescriptions.splice(newPosition, 0, removed);
+    setEditedProtocol({ ...editedProtocol, prescriptions: newPrescriptions });
+  };
+
   // Tri alphabétique des prescriptions et contraintes
   const sortPrescriptionsAlphabetically = () => {
     const sorted = [...editedProtocol.prescriptions].sort((a, b) => a.ptvName.localeCompare(b.ptvName));
@@ -190,7 +210,20 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
                 {editedProtocol.prescriptions.map((presc, idx) => (
                   <div key={idx} className="border rounded-lg p-4 space-y-3 bg-muted/50">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold">Prescription {idx + 1}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">Prescription</span>
+                        <Input
+                          type="number"
+                          min="1"
+                          max={editedProtocol.prescriptions.length}
+                          value={idx + 1}
+                          onChange={(e) => {
+                            const newPos = parseInt(e.target.value);
+                            if (!isNaN(newPos)) movePrescriptionToPosition(idx, newPos);
+                          }}
+                          className="w-16 h-8 text-center"
+                        />
+                      </div>
                       <div className="flex gap-1">
                         <Button
                           variant="ghost"
@@ -270,7 +303,20 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
                 {editedProtocol.oarConstraints.map((constraint, idx) => (
                   <div key={idx} className="border rounded-lg p-4 space-y-3 bg-muted/50">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold">Contrainte {idx + 1}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">Contrainte</span>
+                        <Input
+                          type="number"
+                          min="1"
+                          max={editedProtocol.oarConstraints.length}
+                          value={idx + 1}
+                          onChange={(e) => {
+                            const newPos = parseInt(e.target.value);
+                            if (!isNaN(newPos)) moveConstraintToPosition(idx, newPos);
+                          }}
+                          className="w-16 h-8 text-center"
+                        />
+                      </div>
                       <div className="flex gap-1">
                         <Button
                           variant="ghost"

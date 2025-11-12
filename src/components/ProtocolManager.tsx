@@ -4,7 +4,8 @@ import {
   getAllProtocols, 
   saveCustomProtocol, 
   deleteCustomProtocol,
-  predefinedProtocols 
+  predefinedProtocols,
+  convertCustomToPredefined
 } from '@/data/predefinedProtocols';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -242,6 +243,16 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
     });
   };
 
+  const handleConvertToPredefined = (protocol: TreatmentProtocol) => {
+    convertCustomToPredefined(protocol);
+    loadProtocols();
+    
+    toast({
+      title: 'Protocole converti',
+      description: `"${protocol.name}" est maintenant un protocole prédéfini`,
+    });
+  };
+
   const moveProtocol = (index: number, direction: 'up' | 'down', isCustomList: boolean) => {
     const list = isCustomList ? custom : predefined;
     if (
@@ -362,14 +373,24 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
               <Archive className="h-4 w-4" />
             </Button>
             {protocol.isCustom && (
-              <Button 
-                size="sm" 
-                variant="destructive"
-                onClick={() => setProtocolToDelete(protocol.id)}
-                title="Supprimer"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <>
+                <Button 
+                  size="sm" 
+                  variant="secondary"
+                  onClick={() => handleConvertToPredefined(protocol)}
+                  title="Convertir en protocole prédéfini"
+                >
+                  <MoveUp className="h-4 w-4" />
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="destructive"
+                  onClick={() => setProtocolToDelete(protocol.id)}
+                  title="Supprimer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </>
             )}
           </div>
         </div>

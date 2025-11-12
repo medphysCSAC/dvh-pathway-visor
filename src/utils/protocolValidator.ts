@@ -8,7 +8,7 @@ import {
   ValidationReport,
   StructureMapping
 } from '@/types/protocol';
-import { calculateDx, calculateVx } from './planQualityMetrics';
+import { calculateDx, calculateVx, calculatePTVQualityMetrics, findPrimaryPTV } from './planQualityMetrics';
 
 /**
  * Valide la cohérence d'une prescription de dose
@@ -93,8 +93,8 @@ export function validateConstraint(
   try {
     switch (constraintType) {
       case 'Dmax':
-        // Dmax ≈ D0.1% (dose reçue par 0.1% du volume)
-        measuredValue = calculateDx(structure, 0.1);
+        // Dmax = dose maximale réelle (premier point du DVH)
+        measuredValue = structure.relativeVolume.length > 0 ? structure.relativeVolume[0].dose : 0;
         status = measuredValue <= value ? 'PASS' : 'FAIL';
         message = `Dmax mesuré: ${measuredValue.toFixed(1)} Gy, seuil: ${value} Gy`;
         break;
@@ -171,27 +171,37 @@ export function findBestStructureMatch(
   );
   if (exactMatch) return exactMatch;
   
-  // Recherche partielle (contient)
-  const partialMatch = availableStructures.find(
-    s => s.name.toLowerCase().includes(normalizedSearch) ||
-         normalizedSearch.includes(s.name.toLowerCase())
-  );
-  if (partialMatch) return partialMatch;
+  // Recherche partielle améliorée pour les PTV
+  // Normaliser les underscores, tirets et espaces
+  const normalizeForComparison = (str: string) => {
+    return str.toLowerCase()
+      .replace(/[_-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
   
-  // Recherche avec variantes communes
+  const normalizedForMatch = normalizeForComparison(normalizedSearch);
+  
+  // Essayer plusieurs variantes
   const variants = [
     normalizedSearch,
     normalizedSearch.replace(/[_-]/g, ' '),
+    normalizedSearch.replace(/[_-]/g, ''),
     normalizedSearch.replace(/\s+/g, '_'),
+    normalizedSearch.replace(/\s+/g, ''),
     normalizedSearch.replace(/\s+/g, '-'),
   ];
   
+  // Recherche partielle avec variantes
   for (const variant of variants) {
-    const match = availableStructures.find(
-      s => s.name.toLowerCase().includes(variant) ||
-           variant.includes(s.name.toLowerCase())
+    const partialMatch = availableStructures.find(
+      s => {
+        const normalizedStructName = normalizeForComparison(s.name);
+        return normalizedStructName.includes(normalizeForComparison(variant)) ||
+               normalizeForComparison(variant).includes(normalizedStructName);
+      }
     );
-    if (match) return match;
+    if (partialMatch) return partialMatch;
   }
   
   return null;
@@ -234,6 +244,20 @@ export function generateValidationReport(
     constraintResults.push(result);
   }
   
+  // Calcul du résumé du plan
+  const primaryPTV = findPrimaryPTV(structures);
+  const prescriptionDose = primaryPTV ? calculateDx(primaryPTV, 50) : 0;
+  const ptvCount = structures.filter(s => s.category === 'PTV').length;
+  const oarCount = structures.filter(s => s.category === 'OAR').length;
+  
+  // Calcul des métriques de qualité PTV
+  const ptvQualityMetrics = protocol.prescriptions.map(prescription => {
+    const ptvStructure = findBestStructureMatch(prescription.ptvName, structures, mappings);
+    if (!ptvStructure) return null;
+    
+    return calculatePTVQualityMetrics(ptvStructure, structures, prescription.totalDose);
+  }).filter(m => m !== null);
+  
   // Calcul du statut global
   let overallStatus: 'PASS' | 'FAIL' | 'WARNING' = 'PASS';
   
@@ -256,6 +280,13 @@ export function generateValidationReport(
     prescriptionResults,
     constraintResults,
     overallStatus,
-    unmatchedStructures
+    unmatchedStructures,
+    planSummary: {
+      primaryPTV: primaryPTV?.name || 'N/A',
+      prescriptionDose,
+      ptvCount,
+      oarCount
+    },
+    ptvQualityMetrics
   };
 }

@@ -57,6 +57,24 @@ export interface ValidationReport {
   constraintResults: ConstraintValidationResult[];
   overallStatus: 'PASS' | 'FAIL' | 'WARNING';
   unmatchedStructures: string[];  // Structures du protocole non trouvées
+  // Nouvelles informations du plan
+  planSummary?: {
+    primaryPTV: string;
+    prescriptionDose: number;
+    ptvCount: number;
+    oarCount: number;
+  };
+  ptvQualityMetrics?: Array<{
+    structureName: string;
+    d95: number;
+    d98: number;
+    d50: number;
+    d2: number;
+    v95: number;
+    hi: number;
+    ci: number;
+    cn: number;
+  }>;
 }
 
 // Mapping manuel de structures

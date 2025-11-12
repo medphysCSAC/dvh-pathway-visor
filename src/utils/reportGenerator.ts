@@ -277,6 +277,71 @@ export function generateHTMLReport(report: ValidationReport, overallStatus?: 'PA
       </div>
       ` : ''}
       
+      ${report.planSummary ? `
+      <div class="section">
+        <h2 class="section-title">📊 Résumé du plan de traitement</h2>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">PTV principal</span>
+            <span class="info-value">${report.planSummary.primaryPTV}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Dose de prescription (D50)</span>
+            <span class="info-value">${report.planSummary.prescriptionDose.toFixed(2)} Gy</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Nombre de structures</span>
+            <span class="info-value">${report.planSummary.ptvCount} PTV • ${report.planSummary.oarCount} OAR</span>
+          </div>
+        </div>
+      </div>
+      ` : ''}
+      
+      ${report.ptvQualityMetrics && report.ptvQualityMetrics.length > 0 ? `
+      <div class="section">
+        <h2 class="section-title">🎯 Qualité des volumes cibles (PTV)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Structure</th>
+              <th>D<sub>95%</sub></th>
+              <th>D<sub>98%</sub></th>
+              <th>D<sub>50%</sub></th>
+              <th>D<sub>2%</sub></th>
+              <th>V<sub>95%</sub></th>
+              <th>HI</th>
+              <th>CI</th>
+              <th>CN</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${report.ptvQualityMetrics.map(m => `
+              <tr>
+                <td><strong>${m.structureName}</strong></td>
+                <td>${m.d95.toFixed(2)} Gy</td>
+                <td>${m.d98.toFixed(2)} Gy</td>
+                <td>${m.d50.toFixed(2)} Gy</td>
+                <td>${m.d2.toFixed(2)} Gy</td>
+                <td class="${m.v95 >= 95 ? 'status-pass' : 'status-fail'}">${m.v95.toFixed(1)}%</td>
+                <td class="${m.hi < 0.15 ? 'status-pass' : 'status-fail'}">${m.hi.toFixed(3)}</td>
+                <td class="${Math.abs(1 - m.ci) < 0.1 ? 'status-pass' : 'status-fail'}">${m.ci.toFixed(3)}</td>
+                <td>${m.cn.toFixed(3)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div style="margin-top: 1rem; padding: 1rem; background: #f3f4f6; border-radius: 4px; font-size: 0.875rem;">
+          <p><strong>Indices de qualité :</strong></p>
+          <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+            <li><strong>HI (Homogeneity Index)</strong> : (D2% - D98%) / D50%. Idéal &lt; 0.1</li>
+            <li><strong>CI (Conformity Index)</strong> : V95% / 95%. Idéal ≈ 1</li>
+            <li><strong>CN (Conformation Number)</strong> : Mesure la conformation 3D. Idéal ≈ 1</li>
+            <li><strong>V95%</strong> : Volume recevant 95% de la dose. Objectif ≥ 95%</li>
+          </ul>
+        </div>
+      </div>
+      ` : ''}
+      
       <div class="section">
         <h2 class="section-title">📋 Prescriptions de Dose</h2>
         <table>
@@ -368,7 +433,7 @@ export function generateHTMLReport(report: ValidationReport, overallStatus?: 'PA
       
       <div class="footer">
         <p>Rapport généré le ${new Date().toLocaleString('fr-FR')}</p>
-        <p style="margin-top: 0.5rem;">DVH Analyzer - Outil de validation de plans radiothérapiques</p>
+        <p style="margin-top: 0.5rem;">DVH Analyzer - Outil de validation de plans - Centre Sidi Abdellah</p>
       </div>
     </div>
   </div>

@@ -807,11 +807,31 @@ export function getProtocolById(id: string): TreatmentProtocol | undefined {
 }
 
 /**
- * Récupère tous les protocoles (prédéfinis + personnalisés du localStorage)
+ * Charge les protocoles prédéfinis ajoutés depuis le localStorage
+ */
+export function loadAddedPredefinedProtocols(): TreatmentProtocol[] {
+  const saved = localStorage.getItem('added-predefined-protocols');
+  if (!saved) return [];
+  
+  const protocols = JSON.parse(saved);
+  return protocols.map((p: any) => ({
+    ...p,
+    createdAt: new Date(p.createdAt),
+    modifiedAt: new Date(p.modifiedAt)
+  }));
+}
+
+/**
+ * Récupère tous les protocoles (prédéfinis + personnalisés + ajoutés)
  */
 export function getAllProtocols(): TreatmentProtocol[] {
   const customProtocols = loadCustomProtocols();
-  return [...predefinedProtocols, ...customProtocols];
+  const addedPredefined = loadAddedPredefinedProtocols();
+  
+  // Combiner les protocoles prédéfinis originaux avec ceux ajoutés
+  const allPredefined = [...predefinedProtocols, ...addedPredefined];
+  
+  return [...allPredefined, ...customProtocols];
 }
 
 /**
@@ -858,4 +878,25 @@ export function deleteCustomProtocol(id: string): void {
   const customProtocols = loadCustomProtocols();
   const filtered = customProtocols.filter(p => p.id !== id);
   localStorage.setItem('custom-protocols', JSON.stringify(filtered));
+}
+
+/**
+ * Convertit un protocole personnalisé en protocole prédéfini
+ */
+export function convertCustomToPredefined(customProtocol: TreatmentProtocol): void {
+  // Supprimer de la liste des protocoles personnalisés
+  deleteCustomProtocol(customProtocol.id);
+  
+  // Ajouter aux protocoles prédéfinis sauvegardés
+  const savedPredefined = localStorage.getItem('added-predefined-protocols');
+  const addedProtocols: TreatmentProtocol[] = savedPredefined ? JSON.parse(savedPredefined) : [];
+  
+  const updatedProtocol = {
+    ...customProtocol,
+    isCustom: false,
+    modifiedAt: new Date()
+  };
+  
+  addedProtocols.push(updatedProtocol);
+  localStorage.setItem('added-predefined-protocols', JSON.stringify(addedProtocols));
 }
