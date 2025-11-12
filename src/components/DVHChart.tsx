@@ -263,8 +263,11 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
                 dataKey="dose"
-                domain={xDomain}
+                domain={xDomain ? xDomain : [0, 'auto']}
                 label={{ value: 'Dose (Gy)', position: 'insideBottom', offset: -5 }}
+                type="number"
+                tickCount={Math.ceil((xDomain ? xDomain[1] : maxDoseGlobal * 1.2) / 5) + 1}
+                interval={0}
                 ticks={(() => {
                   const max = xDomain ? xDomain[1] : Math.ceil(maxDoseGlobal * 1.2);
                   const ticks = [];
@@ -286,7 +289,10 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
                   angle: -90, 
                   position: 'insideLeft' 
                 }}
+                type="number"
                 domain={dvhType === 'cumulative-relative' ? [0, 100] : [0, 'auto']}
+                tickCount={dvhType === 'cumulative-relative' ? 21 : undefined}
+                interval={0}
                 ticks={(() => {
                   if (dvhType === 'cumulative-relative') {
                     const ticks = [];

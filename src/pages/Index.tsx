@@ -10,6 +10,7 @@ import { DoseCalculator } from '@/components/DoseCalculator';
 import UnifiedMetricsCalculator from '@/components/UnifiedMetricsCalculator';
 import ProtocolValidation from '@/components/ProtocolValidation';
 import ProtocolManager from '@/components/ProtocolManager';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { DVHData, StructureCategory, PlanData } from '@/types/dvh';
 import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
@@ -123,16 +124,19 @@ const Index = () => {
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-gradient-to-br from-primary to-accent p-2.5">
-              <Activity className="w-6 h-6 text-primary-foreground" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-gradient-to-br from-primary to-accent p-2.5">
+                <Activity className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  DVH Analyzer
+                </h1>
+                <p className="text-sm text-muted-foreground">Analyse des courbes Dose-Volume-Histogrames pour radiothérapie</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                DVH Analyzer
-              </h1>
-              <p className="text-sm text-muted-foreground">Analyse des courbes Dose-Volume-Histogrames pour radiothérapie</p>
-            </div>
+            <ThemeToggle />
           </div>
         </div>
       </header>

@@ -372,6 +372,16 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
             >
               <Archive className="h-4 w-4" />
             </Button>
+            {archivedProtocols.has(protocol.id) && (
+              <Button 
+                size="sm" 
+                variant="destructive"
+                onClick={() => setProtocolToDelete(protocol.id)}
+                title="Supprimer définitivement"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
             {protocol.isCustom && (
               <>
                 <Button 
