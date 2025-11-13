@@ -10,6 +10,7 @@ import { DoseCalculator } from '@/components/DoseCalculator';
 import UnifiedMetricsCalculator from '@/components/UnifiedMetricsCalculator';
 import ProtocolValidation from '@/components/ProtocolValidation';
 import ProtocolManager from '@/components/ProtocolManager';
+import AnalysisHistory from '@/components/AnalysisHistory';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { DVHData, StructureCategory, PlanData } from '@/types/dvh';
 import { summatePlans } from '@/utils/planSummation';
@@ -169,12 +170,13 @@ const Index = () => {
 
           {/* Tabs Section - Always visible with or without DVH */}
           <Tabs defaultValue={dvhData ? "dvh" : "protocols"} className="w-full">
-            <TabsList className="grid w-full max-w-5xl mx-auto grid-cols-5">
+            <TabsList className="grid w-full max-w-5xl mx-auto grid-cols-6">
               <TabsTrigger value="dvh" disabled={!dvhData}>Analyse DVH</TabsTrigger>
               <TabsTrigger value="evaluation" disabled={!dvhData}>Évaluation de plan</TabsTrigger>
               <TabsTrigger value="validation" disabled={!dvhData}>Validation Protocole</TabsTrigger>
               <TabsTrigger value="protocols">Gestion Protocoles</TabsTrigger>
               <TabsTrigger value="converter">Convertisseur</TabsTrigger>
+              <TabsTrigger value="history">Historique</TabsTrigger>
             </TabsList>
 
           {/* Analysis Section */}
@@ -259,10 +261,14 @@ const Index = () => {
                 <ProtocolManager />
               </TabsContent>
 
-              <TabsContent value="converter">
-                <ProtocolDocumentConverter />
-              </TabsContent>
-            </Tabs>
+            <TabsContent value="converter">
+              <ProtocolDocumentConverter />
+            </TabsContent>
+
+            <TabsContent value="history">
+              <AnalysisHistory />
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
 

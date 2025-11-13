@@ -27,12 +27,17 @@ import {
   Archive,
   MoveUp,
   MoveDown,
-  ArrowUpDown
+  ArrowUpDown,
+  Star,
+  EyeOff,
+  Search
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ProtocolEditor from './ProtocolEditor';
+import { useFavorites } from '@/hooks/useFavorites';
+import { useHiddenProtocols } from '@/hooks/useHiddenProtocols';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +55,8 @@ interface ProtocolManagerProps {
 
 export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerProps) {
   const { toast } = useToast();
+  const { favorites, toggleFavorite, isFavorite } = useFavorites();
+  const { hiddenProtocols, toggleHidden, isHidden } = useHiddenProtocols();
   const [protocols, setProtocols] = useState<TreatmentProtocol[]>([]);
   const [selectedProtocol, setSelectedProtocol] = useState<TreatmentProtocol | null>(null);
   const [protocolToDelete, setProtocolToDelete] = useState<string | null>(null);
@@ -60,11 +67,13 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
   const [deletePassword, setDeletePassword] = useState('');
-  const [sortBy, setSortBy] = useState<'alphabetical' | 'recent' | 'mostUsed'>('alphabetical');
+  const [sortBy, setSortBy] = useState<'alphabetical' | 'recent' | 'mostUsed' | 'favorites'>('alphabetical');
   const [protocolUsage, setProtocolUsage] = useState<Record<string, number>>(() => {
     const saved = localStorage.getItem('protocol-usage');
     return saved ? JSON.parse(saved) : {};
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showHidden, setShowHidden] = useState(false);
 
   useEffect(() => {
     loadProtocols();
@@ -150,28 +159,50 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
     });
   };
 
-  const handleDelete = (id: string) => {
-    if (deletePassword !== 'abc123') {
+  const handleDelete = async () => {
+    if (!protocolToDelete) return;
+    
+    const protocol = protocols.find(p => p.id === protocolToDelete);
+    if (!protocol) return;
+
+    // Protection des protocoles prédéfinis
+    if (!protocol.isCustom) {
       toast({
-        title: 'Mot de passe incorrect',
-        description: 'Le mot de passe saisi est incorrect',
+        title: 'Action interdite',
+        description: 'Les protocoles prédéfinis ne peuvent pas être supprimés. Créez une copie pour la modifier.',
+        variant: 'destructive',
+      });
+      setProtocolToDelete(null);
+      return;
+    }
+
+    // Vérification du mot de passe pour suppression
+    if (deletePassword !== 'DELETE') {
+      toast({
+        title: 'Erreur',
+        description: 'Mot de passe incorrect',
         variant: 'destructive',
       });
       return;
     }
 
-    deleteCustomProtocol(id);
-    loadProtocols();
-    if (selectedProtocol?.id === id) {
-      setSelectedProtocol(null);
+    try {
+      await deleteCustomProtocol(protocolToDelete);
+      await loadProtocols();
+      toast({
+        title: 'Protocole supprimé',
+        description: `Le protocole "${protocol.name}" a été supprimé`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de supprimer le protocole',
+        variant: 'destructive',
+      });
     }
+
     setProtocolToDelete(null);
     setDeletePassword('');
-
-    toast({
-      title: 'Protocole supprimé',
-      description: 'Le protocole a été supprimé avec succès',
-    });
   };
 
   const handleViewDetails = (protocol: TreatmentProtocol) => {
@@ -193,6 +224,15 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
   };
 
   const handleEditProtocol = (protocol: TreatmentProtocol) => {
+    // Protection des protocoles prédéfinis
+    if (!protocol.isCustom) {
+      toast({
+        title: 'Action interdite',
+        description: 'Les protocoles prédéfinis ne peuvent pas être modifiés. Créez une copie pour la modifier.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setProtocolToEdit(protocol);
     setEditorOpen(true);
   };
@@ -223,17 +263,29 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
     });
   };
 
-  const handleArchiveProtocol = (id: string) => {
+  const handleArchiveProtocol = (protocolId: string) => {
+    const protocol = protocols.find(p => p.id === protocolId);
+    
+    // Protection des protocoles prédéfinis
+    if (protocol && !protocol.isCustom) {
+      toast({
+        title: 'Action interdite',
+        description: 'Les protocoles prédéfinis ne peuvent pas être archivés. Créez une copie si nécessaire.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setArchivedProtocols(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
+      if (newSet.has(protocolId)) {
+        newSet.delete(protocolId);
         toast({
           title: 'Protocole désarchivé',
           description: 'Le protocole est à nouveau visible',
         });
       } else {
-        newSet.add(id);
+        newSet.add(protocolId);
         toast({
           title: 'Protocole archivé',
           description: 'Le protocole est maintenant archivé',
@@ -275,134 +327,185 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
   };
 
   const sortProtocols = (protocolList: TreatmentProtocol[]) => {
-    const sorted = [...protocolList];
-    
     switch (sortBy) {
       case 'alphabetical':
-        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+        return [...protocolList].sort((a, b) => a.name.localeCompare(b.name));
       case 'recent':
-        return sorted.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
+        return [...protocolList].sort((a, b) => 
+          new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime()
+        );
       case 'mostUsed':
-        return sorted.sort((a, b) => (protocolUsage[b.id] || 0) - (protocolUsage[a.id] || 0));
+        return [...protocolList].sort((a, b) => 
+          (protocolUsage[b.id] || 0) - (protocolUsage[a.id] || 0)
+        );
+      case 'favorites':
+        return [...protocolList].sort((a, b) => {
+          const aFav = isFavorite(a.id) ? 1 : 0;
+          const bFav = isFavorite(b.id) ? 1 : 0;
+          return bFav - aFav;
+        });
       default:
-        return sorted;
+        return protocolList;
     }
   };
 
-  const predefined = sortProtocols(protocols.filter(p => !p.isCustom && !archivedProtocols.has(p.id)));
-  const custom = sortProtocols(protocols.filter(p => p.isCustom && !archivedProtocols.has(p.id)));
-  const archived = sortProtocols(protocols.filter(p => archivedProtocols.has(p.id)));
+  const filterProtocols = (protocolList: TreatmentProtocol[]) => {
+    let filtered = protocolList;
+
+    // Filtrer par recherche
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.name.toLowerCase().includes(query) ||
+        p.location.toLowerCase().includes(query)
+      );
+    }
+
+    // Filtrer les protocoles cachés (sauf si showHidden est activé)
+    if (!showHidden) {
+      filtered = filtered.filter(p => !isHidden(p.id));
+    }
+
+    return filtered;
+  };
+
+  // Séparation et filtrage des protocoles
+  const predefined = filterProtocols(sortProtocols(protocols.filter(p => !p.isCustom && !archivedProtocols.has(p.id))));
+  const custom = filterProtocols(sortProtocols(protocols.filter(p => p.isCustom && !archivedProtocols.has(p.id))));
+  const archived = filterProtocols(sortProtocols(protocols.filter(p => archivedProtocols.has(p.id))));
 
   const renderProtocolCard = (protocol: TreatmentProtocol, index?: number, inCustomList?: boolean) => (
     <Card key={protocol.id} className="hover:shadow-md transition-shadow">
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="text-lg">{protocol.name}</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              {protocol.name}
+              {isFavorite(protocol.id) && (
+                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+              )}
+              {isHidden(protocol.id) && (
+                <EyeOff className="h-4 w-4 text-muted-foreground" />
+              )}
+            </CardTitle>
             <CardDescription className="flex items-center gap-2 mt-1">
               <span>{protocol.location}</span>
+              {!protocol.isCustom && (
+                <Badge variant="secondary" className="text-xs">
+                  <Shield className="h-3 w-3 mr-1" />
+                  Prédéfini
+                </Badge>
+              )}
               {protocol.isCustom && (
-                <Badge variant="secondary" className="text-xs">Personnalisé</Badge>
+                <Badge variant="outline" className="text-xs">Personnalisé</Badge>
+              )}
+              {protocolUsage[protocol.id] && (
+                <Badge variant="outline" className="text-xs">
+                  <Activity className="h-3 w-3 mr-1" />
+                  {protocolUsage[protocol.id]}
+                </Badge>
               )}
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-1">
-              <Activity className="h-4 w-4 text-primary" />
-              <span className="font-medium">{protocol.prescriptions.length}</span>
-              <span className="text-muted-foreground">PTV</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Shield className="h-4 w-4 text-destructive" />
-              <span className="font-medium">{protocol.oarConstraints.length}</span>
-              <span className="text-muted-foreground">Contraintes OAR</span>
-            </div>
-          </div>
+        <div className="space-y-2 mb-4">
+          <p className="text-sm">
+            <span className="font-semibold">Prescriptions:</span> {protocol.prescriptions.length} PTV
+          </p>
+          <p className="text-sm">
+            <span className="font-semibold">Contraintes OAR:</span> {protocol.oarConstraints.length}
+          </p>
+        </div>
+        
+        <div className="flex flex-wrap gap-2">
+          <Button 
+            variant={isFavorite(protocol.id) ? "default" : "outline"}
+            size="sm"
+            onClick={() => toggleFavorite(protocol.id)}
+          >
+            <Star className={`h-4 w-4 mr-1 ${isFavorite(protocol.id) ? 'fill-current' : ''}`} />
+            {isFavorite(protocol.id) ? 'Favori' : 'Favoris'}
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => toggleHidden(protocol.id)}
+          >
+            <EyeOff className="h-4 w-4 mr-1" />
+            {isHidden(protocol.id) ? 'Afficher' : 'Masquer'}
+          </Button>
 
-          <div className="flex gap-1 pt-2 flex-wrap">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setSelectedProtocol(protocol)}
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            Détails
+          </Button>
+
+          <Button 
+            variant="default" 
+            size="sm"
+            onClick={() => handleUseProtocol(protocol)}
+          >
+            <Activity className="h-4 w-4 mr-1" />
+            Utiliser
+          </Button>
+
+          {protocol.isCustom && (
             <Button 
-              size="sm" 
-              variant="default"
-              onClick={() => handleUseProtocol(protocol)}
-              className="flex-1 min-w-[120px]"
-            >
-              Utiliser
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => handleViewDetails(protocol)}
-              title="Voir détails"
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
+              variant="outline" 
+              size="sm"
               onClick={() => handleEditProtocol(protocol)}
-              title="Éditer"
             >
-              <Edit className="h-4 w-4" />
+              <Edit className="h-4 w-4 mr-1" />
+              Modifier
             </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => handleCopyProtocol(protocol)}
-              title="Copier"
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => handleExportJSON(protocol)}
-              title="Exporter JSON"
-            >
-              <Download className="h-4 w-4" />
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => handleArchiveProtocol(protocol.id)}
-              title={archivedProtocols.has(protocol.id) ? "Désarchiver" : "Archiver"}
-            >
-              <Archive className="h-4 w-4" />
-            </Button>
-            {archivedProtocols.has(protocol.id) && (
+          )}
+
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleCopyProtocol(protocol)}
+          >
+            <Copy className="h-4 w-4 mr-1" />
+            Copier
+          </Button>
+
+          {protocol.isCustom && (
+            <>
               <Button 
-                size="sm" 
-                variant="destructive"
-                onClick={() => setProtocolToDelete(protocol.id)}
-                title="Supprimer définitivement"
+                variant="outline" 
+                size="sm"
+                onClick={() => handleArchiveProtocol(protocol.id)}
               >
-                <Trash2 className="h-4 w-4" />
+                <Archive className="h-4 w-4 mr-1" />
+                {archivedProtocols.has(protocol.id) ? 'Désarchiver' : 'Archiver'}
               </Button>
-            )}
-            {protocol.isCustom && (
-              <>
-                <Button 
-                  size="sm" 
-                  variant="secondary"
-                  onClick={() => handleConvertToPredefined(protocol)}
-                  title="Convertir en protocole prédéfini"
-                >
-                  <MoveUp className="h-4 w-4" />
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="destructive"
-                  onClick={() => setProtocolToDelete(protocol.id)}
-                  title="Supprimer"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-          </div>
+              
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={() => setProtocolToDelete(protocol.id)}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                Supprimer
+              </Button>
+            </>
+          )}
+
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => handleExportJSON(protocol)}
+          >
+            <Download className="h-4 w-4 mr-1" />
+            JSON
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -418,30 +521,56 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2 flex-wrap">
-            <Button onClick={handleImportJSON} variant="outline">
-              <Upload className="h-4 w-4 mr-2" />
-              Importer un protocole JSON
-            </Button>
-            <Button variant="outline" disabled>
-              <Plus className="h-4 w-4 mr-2" />
-              Créer un nouveau protocole
-            </Button>
-            <div className="ml-auto flex items-center gap-2">
-              <Label htmlFor="sort-select" className="text-sm font-medium">
-                <ArrowUpDown className="h-4 w-4 inline mr-1" />
-                Trier par:
-              </Label>
-              <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-                <SelectTrigger id="sort-select" className="w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="alphabetical">Ordre alphabétique</SelectItem>
-                  <SelectItem value="recent">Dernière modification</SelectItem>
-                  <SelectItem value="mostUsed">Plus utilisés</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="mb-6 space-y-4">
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <Label htmlFor="search">Rechercher</Label>
+                <div className="relative mt-2">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    id="search"
+                    placeholder="Nom ou localisation..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex-1">
+                <Label htmlFor="sort-by">Trier par</Label>
+                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="alphabetical">Ordre alphabétique</SelectItem>
+                    <SelectItem value="recent">Plus récents</SelectItem>
+                    <SelectItem value="mostUsed">Plus utilisés</SelectItem>
+                    <SelectItem value="favorites">Favoris en premier</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex gap-2 items-center">
+              <Button onClick={handleImportJSON} variant="outline">
+                <Upload className="h-4 w-4 mr-2" />
+                Importer JSON
+              </Button>
+              
+              <Button 
+                onClick={() => setShowHidden(!showHidden)} 
+                variant={showHidden ? "default" : "outline"}
+              >
+                <EyeOff className="h-4 w-4 mr-2" />
+                {showHidden ? 'Masquer cachés' : 'Afficher cachés'}
+              </Button>
+              
+              <div className="ml-auto text-sm text-muted-foreground">
+                {favorites.length > 0 && `${favorites.length} favoris · `}
+                {hiddenProtocols.length > 0 && `${hiddenProtocols.length} masqués`}
+              </div>
             </div>
           </div>
         </CardContent>
@@ -596,7 +725,7 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setDeletePassword('')}>Annuler</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => protocolToDelete && handleDelete(protocolToDelete)}
+              onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Supprimer
