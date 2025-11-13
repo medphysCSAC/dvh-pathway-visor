@@ -29,13 +29,16 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   useEffect(() => {
-    const allProtocols = getAllProtocols();
-    // Récupérer les protocoles archivés depuis localStorage
-    const archivedProtocolIds = localStorage.getItem('archived-protocols');
-    const archivedSet = archivedProtocolIds ? new Set(JSON.parse(archivedProtocolIds)) : new Set();
-    // Filtrer les protocoles archivés
-    const nonArchivedProtocols = allProtocols.filter(p => !archivedSet.has(p.id));
-    setProtocols(nonArchivedProtocols);
+    const loadProtocols = async () => {
+      const allProtocols = await getAllProtocols();
+      // Récupérer les protocoles archivés depuis localStorage
+      const archivedProtocolIds = localStorage.getItem('archived-protocols');
+      const archivedSet = archivedProtocolIds ? new Set(JSON.parse(archivedProtocolIds)) : new Set();
+      // Filtrer les protocoles archivés
+      const nonArchivedProtocols = allProtocols.filter(p => !archivedSet.has(p.id));
+      setProtocols(nonArchivedProtocols);
+    };
+    loadProtocols();
   }, []);
 
   const handleProtocolChange = (protocolId: string) => {

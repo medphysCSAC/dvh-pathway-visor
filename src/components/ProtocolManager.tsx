@@ -78,8 +78,8 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
     localStorage.setItem('protocol-usage', JSON.stringify(protocolUsage));
   }, [protocolUsage]);
 
-  const loadProtocols = () => {
-    const allProtocols = getAllProtocols();
+  const loadProtocols = async () => {
+    const allProtocols = await getAllProtocols();
     setProtocols(allProtocols);
   };
 
