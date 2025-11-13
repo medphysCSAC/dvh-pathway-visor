@@ -1,0 +1,269 @@
+{
+  "id": "breast-right-boost-45-50-66_copy_1762849239740",
+  "name": "Sein GH BOOST CMI SC (45-50-66Gy/25-33fx)",
+  "location": "Sein gauche (classique)",
+  "prescriptions": [
+    {
+      "ptvName": "PTV_Sein",
+      "totalDose": 50,
+      "numberOfFractions": 25,
+      "dosePerFraction": 2
+    },
+    {
+      "ptvName": "PTV_CMI",
+      "totalDose": 50,
+      "numberOfFractions": 25,
+      "dosePerFraction": 2
+    },
+    {
+      "ptvName": "PTV_SC",
+      "totalDose": 45,
+      "numberOfFractions": 25,
+      "dosePerFraction": 1.8
+    },
+    {
+      "ptvName": "PTV_BOOST",
+      "totalDose": 66,
+      "numberOfFractions": 33,
+      "dosePerFraction": 2
+    }
+  ],
+  "oarConstraints": [
+    {
+      "organName": "Coeur",
+      "constraintType": "Dmean",
+      "value": 5,
+      "unit": "Gy",
+      "priority": "mandatory",
+      "description": "Dose moyenne au cœur < 5 Gy"
+    },
+    {
+      "organName": "Coeur",
+      "constraintType": "Vx",
+      "value": 20,
+      "unit": "%",
+      "priority": "mandatory",
+      "target": 15,
+      "description": "Coeur V15<20%"
+    },
+    {
+      "organName": "Coeur",
+      "constraintType": "Vx",
+      "value": 20,
+      "unit": "%",
+      "priority": "mandatory",
+      "target": 20,
+      "description": "Coeur V20<15%"
+    },
+    {
+      "organName": "Coeur",
+      "constraintType": "Vx",
+      "value": 10,
+      "target": 25,
+      "unit": "%",
+      "priority": "optimal",
+      "description": "V25Gy < 10% du volume cardiaque"
+    },
+    {
+      "organName": "Larynx",
+      "constraintType": "Vx",
+      "value": 60,
+      "unit": "%",
+      "priority": "mandatory",
+      "target": 30,
+      "description": "Larynx V30<60%"
+    },
+    {
+      "organName": "Larynx",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "mandatory",
+      "target": 45,
+      "description": "Larynx V45<50%"
+    },
+    {
+      "organName": "Larynx",
+      "constraintType": "Dmean",
+      "value": 43.5,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Moelle",
+      "constraintType": "Dmax",
+      "value": 28,
+      "unit": "Gy",
+      "priority": "mandatory",
+      "description": "Dmax moelle < 28 Gy"
+    },
+    {
+      "organName": "Oesophage",
+      "constraintType": "Vx",
+      "value": 35,
+      "unit": "%",
+      "priority": "mandatory",
+      "target": 30,
+      "description": "Oesophage V30<35%"
+    },
+    {
+      "organName": "Oesophage",
+      "constraintType": "Vx",
+      "value": 40,
+      "unit": "%",
+      "priority": "mandatory",
+      "target": 45,
+      "description": "Oesophage V45<40%"
+    },
+    {
+      "organName": "Poumon_DT",
+      "constraintType": "Vx",
+      "value": 15,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 15,
+      "description": "V15<15% du poumon contrelateral"
+    },
+    {
+      "organName": "Poumon_DT",
+      "constraintType": "Vx",
+      "value": 15,
+      "unit": "%",
+      "priority": "mandatory",
+      "description": "V20<15% du poumon contrelateral",
+      "target": 20
+    },
+    {
+      "organName": "Poumon_DT",
+      "constraintType": "Vx",
+      "value": 12,
+      "unit": "%",
+      "priority": "mandatory",
+      "target": 35,
+      "description": "V35<12% du poumon contrelateral"
+    },
+    {
+      "organName": "Poumon_DT",
+      "constraintType": "Vx",
+      "value": 10,
+      "unit": "%",
+      "priority": "mandatory",
+      "target": 50,
+      "description": "V50<10% du poumon contrelateral"
+    },
+    {
+      "organName": "Poumon_DT",
+      "constraintType": "Dmean",
+      "value": 5,
+      "unit": "Gy",
+      "priority": "desirable",
+      "description": "Dose moyenne poumon contrelateral < 5 Gy"
+    },
+    {
+      "organName": "Poumon_GH",
+      "constraintType": "Dmean",
+      "value": 15,
+      "unit": "Gy",
+      "priority": "mandatory",
+      "description": "Dose moyenne poumon homolateral <15Gy"
+    },
+    {
+      "organName": "Poumon_GH",
+      "constraintType": "Vx",
+      "value": 50,
+      "target": 5,
+      "unit": "%",
+      "priority": "optimal",
+      "description": "V5Gy < 50% du poumon homolateral"
+    },
+    {
+      "organName": "Poumon_GH",
+      "constraintType": "Vx",
+      "value": 18,
+      "unit": "%",
+      "priority": "optimal",
+      "description": "V30<18% du poumon homolateral",
+      "target": 30
+    },
+    {
+      "organName": "Poumon_GH",
+      "constraintType": "Vx",
+      "value": 14,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 20,
+      "description": "V20<14% du poumon homolateral"
+    },
+    {
+      "organName": "Sein contrelateral",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "mandatory",
+      "target": 5,
+      "description": "V5<50% du Sein contrelateral"
+    },
+    {
+      "organName": "Sein contrelateral",
+      "constraintType": "Vx",
+      "value": 35,
+      "unit": "%",
+      "priority": "mandatory",
+      "description": " V7<35% du Sein contrelateral",
+      "target": 7
+    },
+    {
+      "organName": "Sein contrelateral",
+      "constraintType": "Vx",
+      "value": 20,
+      "unit": "%",
+      "priority": "mandatory",
+      "description": "V10<20% du Sein contrelateral",
+      "target": 10
+    },
+    {
+      "organName": "Sein contrelateral",
+      "constraintType": "Vx",
+      "value": 7,
+      "unit": "%",
+      "priority": "mandatory",
+      "target": 35,
+      "description": "V35<7%"
+    },
+    {
+      "organName": "Sein contrelateral",
+      "constraintType": "Vx",
+      "value": 5,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 50,
+      "description": "V50<5% du Sein contrelateral"
+    },
+    {
+      "organName": "Sein contrelateral",
+      "constraintType": "Dmean",
+      "value": 5,
+      "unit": "Gy",
+      "priority": "desirable",
+      "description": "Dose moyenne sein contrelateral <5Gy"
+    },
+    {
+      "organName": "Thyroide",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 50
+    },
+    {
+      "organName": "Thyroide",
+      "constraintType": "Dmean",
+      "value": 20,
+      "unit": "Gy",
+      "priority": "mandatory"
+    }
+  ],
+  "createdAt": "2025-11-12T17:51:22.421Z",
+  "modifiedAt": "2025-11-12T19:04:09.536Z",
+  "isCustom": false
+}

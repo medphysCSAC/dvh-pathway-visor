@@ -1,0 +1,122 @@
+{
+  "id": "glioblastome-60-30fx-v2_copy_1762854807025",
+  "name": "Glioblastome (60Gy/30fx)",
+  "location": "Encéphale",
+  "prescriptions": [
+    {
+      "ptvName": "PTV T",
+      "totalDose": 60,
+      "numberOfFractions": 30,
+      "dosePerFraction": 2
+    }
+  ],
+  "oarConstraints": [
+    {
+      "organName": "Chiasma optique",
+      "constraintType": "Dmax",
+      "value": 54,
+      "unit": "Gy",
+      "priority": "mandatory"
+    },
+    {
+      "organName": "Moelle épinière",
+      "constraintType": "Dmax",
+      "value": 45,
+      "unit": "Gy",
+      "priority": "mandatory"
+    },
+    {
+      "organName": "Tronc cérébral",
+      "constraintType": "Dmax",
+      "value": 54,
+      "unit": "Gy",
+      "priority": "desirable",
+      "description": "(60Gy)"
+    },
+    {
+      "organName": "Lobe temporal",
+      "constraintType": "Dmax",
+      "target": 60,
+      "value": 65,
+      "unit": "Gy",
+      "priority": "desirable"
+    },
+    {
+      "organName": "Cristallin",
+      "constraintType": "Dmax",
+      "value": 6,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Encephale",
+      "constraintType": "Vx",
+      "value": 30,
+      "unit": "Gy",
+      "priority": "optimal",
+      "target": 60
+    },
+    {
+      "organName": "hippocampe",
+      "constraintType": "Dmean",
+      "value": 30,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Hypophyse",
+      "constraintType": "Dmax",
+      "value": 60,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Moelle epiniere",
+      "constraintType": "Dmax",
+      "value": 45,
+      "unit": "Gy",
+      "priority": "mandatory"
+    },
+    {
+      "organName": "Nerf optique",
+      "constraintType": "Dmax",
+      "value": 54,
+      "unit": "Gy",
+      "priority": "mandatory"
+    },
+    {
+      "organName": "Oeil",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "Gy",
+      "priority": "optimal",
+      "target": 35
+    },
+    {
+      "organName": "Oreille interne",
+      "constraintType": "Dmax",
+      "value": 50,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Oreille interne",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "Gy",
+      "priority": "optimal",
+      "target": 45
+    },
+    {
+      "organName": "Retine",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "Gy",
+      "priority": "optimal",
+      "target": 45
+    }
+  ],
+  "createdAt": "2025-11-11T09:53:27.025Z",
+  "modifiedAt": "2025-11-11T10:01:17.588Z",
+  "isCustom": true
+}

@@ -1,0 +1,338 @@
+{
+  "id": "nasopharynx_copy_1762855309948",
+  "name": "Cavum (54-59.4-70Gy_33fx)",
+  "location": "Nasopharynx SIB",
+  "prescriptions": [
+    {
+      "ptvName": "PTV_70",
+      "totalDose": 70,
+      "numberOfFractions": 33,
+      "dosePerFraction": 2.12
+    },
+    {
+      "ptvName": "PTV_59.4",
+      "totalDose": 59.4,
+      "numberOfFractions": 33,
+      "dosePerFraction": 1.8
+    },
+    {
+      "ptvName": "PTV_54",
+      "totalDose": 54,
+      "numberOfFractions": 33,
+      "dosePerFraction": 1.6363636363636365
+    }
+  ],
+  "oarConstraints": [
+    {
+      "organName": "ATM DT",
+      "constraintType": "Dmax",
+      "value": 70,
+      "unit": "Gy",
+      "priority": "optimal",
+      "description": "Articulation mandibulaire (75Gy)"
+    },
+    {
+      "organName": "ATM GCHE",
+      "constraintType": "Dmax",
+      "value": 70,
+      "unit": "Gy",
+      "priority": "optimal",
+      "description": "Articulation mandibulaire (75Gy)"
+    },
+
+    {
+      "organName": "Cavite buccale",
+      "constraintType": "Dmean",
+      "value": 40,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Chiasma",
+      "constraintType": "Dmax",
+      "value": 54,
+      "unit": "Gy",
+      "priority": "mandatory",
+      "description": ""
+    },
+    {
+      "organName": "Cristallin DT",
+      "constraintType": "Dmax",
+      "value": 6,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Cristallin Gche",
+      "constraintType": "Dmax",
+      "value": 6,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+
+    {
+      "organName": "Encephale",
+      "constraintType": "Vx",
+      "value": 30,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 60
+    },
+    {
+      "organName": "Glande sous max Dte",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 35
+    },
+    {
+      "organName": "Glande sous max Dte",
+      "constraintType": "Dmean",
+      "value": 35,
+      "unit": "Gy",
+      "priority": "optimal",
+      "description": "Glande sous maxillaire"
+    },   
+    {
+      "organName": "Glande sous max Gche",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 35
+    },
+    {
+      "organName": "Glande sous max Gche",
+      "constraintType": "Dmean",
+      "value": 35,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Hypophyse",
+      "constraintType": "Dmax",
+      "value": 60,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Larynx",
+      "constraintType": "Dmean",
+      "value": 60,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Larynx",
+      "constraintType": "Vx",
+      "value": 60,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 30
+    },
+    {
+      "organName": "Larynx",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 45
+    },
+    {
+      "organName": "Levres",
+      "constraintType": "Dmax",
+      "value": 30,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Levres",
+      "constraintType": "Dmean",
+      "value": 20,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Lobe temporal DT",
+      "constraintType": "Dmax",
+      "value": 65,
+      "unit": "Gy",
+      "priority": "optimal",
+      "description": "(70Gy)"
+    },
+
+    {
+      "organName": "Lobe temporal Gche",
+      "constraintType": "Dmax",
+      "value": 65,
+      "unit": "Gy",
+      "priority": "optimal",
+      "description": "(70Gy)"
+    },
+    {
+      "organName": "Mandibule",
+      "constraintType": "Dmax",
+      "value": 70,
+      "unit": "Gy",
+      "priority": "optimal",
+      "description": "Dmax mandibule < 70 Gy (ostéoradionécrose)"
+    },
+    {
+      "organName": "Mandibule",
+      "constraintType": "Dmax",
+      "value": 70,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Moelle",
+      "constraintType": "Dmax",
+      "value": 45,
+      "unit": "Gy",
+      "priority": "mandatory",
+      "description": "(50Gy si canal medullaire)"
+    },
+    {
+      "organName": "Nerf optique DT",
+      "constraintType": "Dmax",
+      "value": 54,
+      "unit": "Gy",
+      "priority": "mandatory",
+      "description": "(60Gy)"
+    },
+    {
+      "organName": "Nerf optique Gche",
+      "constraintType": "Dmax",
+      "value": 54,
+      "unit": "Gy",
+      "priority": "mandatory",
+      "description": "(60Gy)"
+    },
+
+    {
+      "organName": "Oeil DT",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 35
+    },
+    {
+      "organName": "Oeil Gche",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 35
+    },
+
+    {
+      "organName": "Oesophage",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 45
+    },
+    {
+      "organName": "Oreille interne DT",
+      "constraintType": "Dmax",
+      "value": 50,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Oreille interne DT",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 45
+    },
+    {
+      "organName": "Oreille interne Gche",
+      "constraintType": "Dmax",
+      "value": 50,
+      "unit": "Gy",
+      "priority": "optimal"
+    },
+    {
+      "organName": "Oreille interne Gche",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 45
+    },
+
+    {
+      "organName": "Parotides",
+      "constraintType": "Vx",
+      "value": 65,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 15
+    },
+    {
+      "organName": "Parotides",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 25
+    },
+    {
+      "organName": "Parotides",
+      "constraintType": "Vx",
+      "value": 45,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 30
+    },
+    {
+      "organName": "Parotides",
+      "constraintType": "Dx",
+      "value": 30,
+      "unit": "Gy",
+      "priority": "optimal",
+      "target": 50
+    },
+    {
+      "organName": "Retine DT",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 45
+    },
+    {
+      "organName": "Retine Gche",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 45
+    },
+
+    {
+      "organName": "Thyroide",
+      "constraintType": "Vx",
+      "value": 60,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 50
+    },
+    {
+      "organName": "Tronc cerebral",
+      "constraintType": "Dmax",
+      "value": 54,
+      "unit": "Gy",
+      "priority": "mandatory",
+      "description": "(60Gy)"
+    }
+  ],
+  "createdAt": "2025-11-12T19:17:46.476Z",
+  "modifiedAt": "2025-11-12T19:25:46.867Z",
+  "isCustom": false
+}
