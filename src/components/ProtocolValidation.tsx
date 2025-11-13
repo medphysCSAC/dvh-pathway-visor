@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useAnalysisHistory } from '@/hooks/useAnalysisHistory';
 import { FileDown, FileText, AlertTriangle, CheckCircle2, XCircle, AlertCircle, Target } from 'lucide-react';
 import StructureMapping from './StructureMapping';
 import ExportReportDialog from './ExportReportDialog';
@@ -21,6 +22,7 @@ interface ProtocolValidationProps {
 
 export default function ProtocolValidation({ structures, patientId }: ProtocolValidationProps) {
   const { toast } = useToast();
+  const { addToHistory } = useAnalysisHistory();
   const [protocols, setProtocols] = useState<TreatmentProtocol[]>([]);
   const [selectedProtocolId, setSelectedProtocolId] = useState<string>('');
   const [report, setReport] = useState<ValidationReport | null>(null);
@@ -60,6 +62,14 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
 
     const validationReport = generateValidationReport(protocol, structures, patientId, mappings);
     setReport(validationReport);
+
+    // Ajouter à l'historique
+    addToHistory({
+      patientId,
+      protocolName: protocol.name,
+      overallStatus: validationReport.overallStatus,
+      report: validationReport,
+    });
 
     const statusMessage = 
       validationReport.overallStatus === 'PASS' ? 'Toutes les contraintes sont respectées ✅' :
