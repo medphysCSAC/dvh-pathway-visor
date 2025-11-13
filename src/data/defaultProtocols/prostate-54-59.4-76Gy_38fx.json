@@ -1,0 +1,174 @@
+{
+  "id": "imported_1762442755559",
+  "name": "Prostate_54/61.94/76Gy_38fx",
+  "location": "Prostate classique",
+  "prescriptions": [
+    {
+      "ptvName": "PTV",
+      "totalDose": 76,
+      "numberOfFractions": 38,
+      "dosePerFraction": 2
+    },
+    {
+      "ptvName": "PTV",
+      "totalDose": 61.94,
+      "numberOfFractions": 38,
+      "dosePerFraction": 1.63
+    },
+    {
+      "ptvName": "PTV",
+      "totalDose": 54,
+      "numberOfFractions": 38,
+      "dosePerFraction": 1.4210526315789473
+    }
+  ],
+  "oarConstraints": [
+    {
+      "organName": "Bulbe pénien",
+      "constraintType": "Vx",
+      "value": 90,
+      "unit": "%",
+      "target": 50,
+      "priority": "mandatory",
+      "description": "Bulbe pénien - V50<90%"
+    },
+    {
+      "organName": "Bulbe pénien",
+      "constraintType": "Vx",
+      "value": 70,
+      "unit": "%",
+      "target": 70,
+      "priority": "mandatory",
+      "description": "Bulbe pénien - V70<70%"
+    },
+    {
+      "organName": "Canal anal",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "target": 56,
+      "priority": "mandatory",
+      "description": "Canal anal - V56<50%"
+    },
+    {
+      "organName": "Canal anal",
+      "constraintType": "Vx",
+      "value": 30,
+      "unit": "%",
+      "target": 70,
+      "priority": "mandatory",
+      "description": "Canal anal - V70<30%"
+    },
+    {
+      "organName": "Rectum",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "target": 50,
+      "priority": "mandatory",
+      "description": "Rectum - V50<50%"
+    },
+    {
+      "organName": "Rectum",
+      "constraintType": "Vx",
+      "value": 35,
+      "unit": "%",
+      "target": 60,
+      "priority": "mandatory",
+      "description": "Rectum - V60<35%"
+    },
+    {
+      "organName": "Rectum",
+      "constraintType": "Vx",
+      "value": 25,
+      "unit": "%",
+      "target": 65,
+      "priority": "mandatory",
+      "description": "Rectum - V65<25%"
+    },
+    {
+      "organName": "Rectum",
+      "constraintType": "Vx",
+      "value": 20,
+      "unit": "%",
+      "target": 70,
+      "priority": "mandatory",
+      "description": "Rectum - V70<20%"
+    },
+    {
+      "organName": "Rectum",
+      "constraintType": "Vx",
+      "value": 5,
+      "unit": "%",
+      "target": 75,
+      "priority": "mandatory",
+      "description": "Rectum - V75<05%"
+    },
+    {
+      "organName": "Sigmoide",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "target": 50,
+      "priority": "mandatory",
+      "description": "Sigmoide - V50<50%"
+    },
+    {
+      "organName": "Tête fémorale DT",
+      "constraintType": "Vx",
+      "value": 5,
+      "unit": "%",
+      "target": 50,
+      "priority": "mandatory",
+      "description": "Tête fémorale DT - V50<5%"
+    },
+    {
+      "organName": "Tête fémorale Gche",
+      "constraintType": "Vx",
+      "value": 5,
+      "unit": "%",
+      "target": 50,
+      "priority": "mandatory",
+      "description": "Tête fémorale Gche - V50<5%"
+    },
+    {
+      "organName": "Vessie",
+      "constraintType": "Vx",
+      "value": 70,
+      "unit": "%",
+      "target": 50,
+      "priority": "mandatory",
+      "description": "Vessie - V50<70%"
+    },
+    {
+      "organName": "Vessie",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "target": 60,
+      "priority": "mandatory",
+      "description": "Vessie - V60<50%"
+    },
+    {
+      "organName": "Vessie",
+      "constraintType": "Vx",
+      "value": 25,
+      "unit": "%",
+      "target": 70,
+      "priority": "mandatory",
+      "description": "Vessie - V70<25%"
+    },
+    {
+      "organName": "Vessie",
+      "constraintType": "Vx",
+      "value": 15,
+      "unit": "%",
+      "target": 75,
+      "priority": "mandatory",
+      "description": "Vessie - V75<15%"
+    }
+  ],
+  "createdAt": "2025-11-06T15:59:18.850Z",
+  "modifiedAt": "2025-11-06T15:59:18.850Z",
+  "isCustom": true
+}
