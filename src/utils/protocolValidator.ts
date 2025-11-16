@@ -8,7 +8,7 @@ import {
   ValidationReport,
   StructureMapping
 } from '@/types/protocol';
-import { calculateDx, calculateVx, calculatePTVQualityMetrics, findPrimaryPTV } from './planQualityMetrics';
+import { calculateDx, calculateVx, calculatePTVQualityMetrics, findPrimaryPTV, calculateVxAbsoluteCc } from './planQualityMetrics';
 
 /**
  * Valide la cohérence d'une prescription de dose
@@ -111,24 +111,23 @@ export function validateConstraint(
         if (target === undefined) {
           throw new Error('Target dose manquant pour contrainte Vx');
         }
-        const volumePercent = calculateVx(structure, target);
         const vxUnit = targetUnit || '%';
         
         if (vxUnit === 'cc') {
-          // Convertir le pourcentage en volume absolu (cc)
-          measuredValue = structure.totalVolume 
-            ? (volumePercent / 100) * structure.totalVolume 
-            : 0;
+          // Utiliser directement le DVH absolu pour obtenir le volume (cc)
+          measuredValue = calculateVxAbsoluteCc(structure, target);
           status = measuredValue <= value ? 'PASS' : 'FAIL';
           message = `V${target}Gy mesuré: ${measuredValue.toFixed(2)} cc, seuil: ${value} cc`;
         } else {
-          // Volume en pourcentage
+          // Volume en pourcentage (DVH relatif)
+          const volumePercent = calculateVx(structure, target);
           measuredValue = volumePercent;
           status = measuredValue <= value ? 'PASS' : 'FAIL';
           message = `V${target}Gy mesuré: ${measuredValue.toFixed(1)}%, seuil: ${value}%`;
         }
         break;
       }
+      case 'Dx':
         // Dx = dose reçue par x% ou x cc du volume
         if (target === undefined) {
           throw new Error('Target volume manquant pour contrainte Dx');

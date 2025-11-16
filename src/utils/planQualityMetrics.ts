@@ -54,10 +54,10 @@ export const calculateDx = (structure: Structure, volumeValue: number, unit: '%'
  */
 export const calculateVx = (structure: Structure, targetDose: number): number => {
   if (!structure.relativeVolume.length) return 0;
-  
+
   // Assurer un tri croissant par dose pour une interpolation fiable
   const points = [...structure.relativeVolume].sort((a, b) => a.dose - b.dose);
-  
+
   // Gestion des bornes: si la dose cible est en dehors de la plage mesurée
   if (targetDose <= points[0].dose) {
     return points[0].volume; // tout le volume reçoit au moins cette dose (souvent ~100%)
@@ -65,21 +65,51 @@ export const calculateVx = (structure: Structure, targetDose: number): number =>
   if (targetDose >= points[points.length - 1].dose) {
     return points[points.length - 1].volume; // souvent ~0%
   }
-  
+
   // Trouver les deux points qui encadrent la dose cible
   for (let i = 0; i < points.length - 1; i++) {
     const curr = points[i];
     const next = points[i + 1];
-    
+
     if (curr.dose <= targetDose && next.dose >= targetDose) {
       // Interpolation linéaire
       const t = (targetDose - curr.dose) / (next.dose - curr.dose);
       return curr.volume + t * (next.volume - curr.volume);
     }
   }
-  
+
   // Fallback sécurisé
   return points[points.length - 1].volume;
+};
+
+
+/**
+ * Calcule le volume absolu (cc) recevant au moins une dose donnée (Vx en cc)
+ * Utilise directement le DVH absolu si disponible, sinon fait un fallback via Vx% * totalVolume
+ */
+export const calculateVxAbsoluteCc = (structure: Structure, targetDose: number): number => {
+  const abs = structure.absoluteVolume ?? [];
+
+  if (abs.length >= 2) {
+    const points = [...abs].sort((a, b) => a.dose - b.dose);
+
+    if (targetDose <= points[0].dose) return points[0].volume;
+    if (targetDose >= points[points.length - 1].dose) return points[points.length - 1].volume;
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      if (p1.dose <= targetDose && p2.dose >= targetDose) {
+        const t = (targetDose - p1.dose) / (p2.dose - p1.dose);
+        // Interpolation linéaire du volume cumulatif (en cc)
+        return p1.volume + t * (p2.volume - p1.volume);
+      }
+    }
+  }
+
+  // Fallback sécurisé: passer par Vx% * totalVolume si DVH absolu indisponible
+  const percent = calculateVx(structure, targetDose);
+  return structure.totalVolume ? (percent / 100) * structure.totalVolume : 0;
 };
 
 /**
