@@ -89,6 +89,7 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
           value: 0,
           unit: 'Gy',
           priority: 'optimal',
+          targetUnit: '%',
         }
       ]
     });
@@ -358,13 +359,14 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
                           value={constraint.constraintType}
                           onValueChange={(v) => {
                             updateConstraint(idx, 'constraintType', v as ConstraintType);
-                            // Initialiser l'unité en fonction du type
-                            if (v === 'Dx') {
+                            // Initialiser l'unité et targetUnit en fonction du type
+                            if (v === 'Dx' || v === 'Dmax' || v === 'Dmean') {
                               updateConstraint(idx, 'unit', 'Gy');
                             } else if (v === 'Vx') {
-                              updateConstraint(idx, 'unit', '%');
-                            } else {
                               updateConstraint(idx, 'unit', 'Gy');
+                              if (!constraint.targetUnit) {
+                                updateConstraint(idx, 'targetUnit', '%');
+                              }
                             }
                           }}
                         >
@@ -380,18 +382,35 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
                         </Select>
                       </div>
 
-                      {/* Pour Vx : besoin de la dose seuil en Gy */}
+                      {/* Pour Vx : besoin de la dose seuil en Gy et choix de l'unité du résultat */}
                       {constraint.constraintType === 'Vx' && (
-                        <div>
-                          <Label>Dose seuil (Gy)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={constraint.target || ''}
-                            onChange={(e) => updateConstraint(idx, 'target', parseFloat(e.target.value))}
-                            placeholder="Ex: 40.8"
-                          />
-                        </div>
+                        <>
+                          <div>
+                            <Label>Dose seuil (Gy)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={constraint.target || ''}
+                              onChange={(e) => updateConstraint(idx, 'target', parseFloat(e.target.value))}
+                              placeholder="Ex: 40.8"
+                            />
+                          </div>
+                          <div>
+                            <Label>Unité du résultat</Label>
+                            <Select
+                              value={constraint.targetUnit || '%'}
+                              onValueChange={(v) => updateConstraint(idx, 'targetUnit', v as '%' | 'cc')}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="%">% (pourcentage du volume)</SelectItem>
+                                <SelectItem value="cc">cc (volume absolu)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </>
                       )}
 
                       {/* Pour Dx : besoin du volume en % */}
@@ -410,9 +429,11 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
 
                       <div>
                         <Label>
-                          {constraint.constraintType === 'Vx' ? 'Volume maximum' :
-                           constraint.constraintType === 'Dx' ? 'Dose maximum (Gy)' :
-                           'Dose maximum (Gy)'}
+                          {constraint.constraintType === 'Vx' 
+                            ? `Valeur maximum (${constraint.targetUnit || '%'})`
+                            : constraint.constraintType === 'Dx' 
+                            ? 'Dose maximum (Gy)' 
+                            : 'Dose maximum (Gy)'}
                         </Label>
                         <Input
                           type="number"
@@ -420,35 +441,13 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
                           value={constraint.value}
                           onChange={(e) => updateConstraint(idx, 'value', parseFloat(e.target.value))}
                           placeholder={
-                            constraint.constraintType === 'Vx' ? 'Ex: 17 (cc) ou 50 (%)' :
-                            constraint.constraintType === 'Dx' ? 'Ex: 30' :
-                            'Ex: 45'
+                            constraint.constraintType === 'Vx' 
+                              ? (constraint.targetUnit === 'cc' ? 'Ex: 17' : 'Ex: 50')
+                              : constraint.constraintType === 'Dx' 
+                              ? 'Ex: 30' 
+                              : 'Ex: 45'
                           }
                         />
-                      </div>
-
-                      {/* Unité du résultat */}
-                      <div>
-                        <Label>Unité {constraint.constraintType === 'Vx' ? 'du volume' : 'de la dose'}</Label>
-                        <Select
-                          value={constraint.unit}
-                          onValueChange={(v) => updateConstraint(idx, 'unit', v)}
-                          disabled={constraint.constraintType !== 'Vx'}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {constraint.constraintType === 'Vx' ? (
-                              <>
-                                <SelectItem value="%">% (pourcentage du volume)</SelectItem>
-                                <SelectItem value="cc">cc (volume absolu)</SelectItem>
-                              </>
-                            ) : (
-                              <SelectItem value="Gy">Gy</SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
                       </div>
                       <div>
                         <Label>Priorité</Label>
