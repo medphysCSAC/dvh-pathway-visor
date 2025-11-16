@@ -72,7 +72,7 @@ export const parseTomoTherapyDVH = (relContent: string, absContent?: string): DV
 
   // Parse header to get structure names
   const relHeader = relLines[0].split(',').map(h => h.replace(/"/g, '').trim());
-  const absHeader = absLines[0].split(',').map(h => h.replace(/"/g, '').trim());
+  const absHeader = absLines.length > 0 ? absLines[0].split(',').map(h => h.replace(/"/g, '').trim()) : [];
   
   const structures: Structure[] = [];
   
@@ -91,15 +91,14 @@ export const parseTomoTherapyDVH = (relContent: string, absContent?: string): DV
       
       const dose = parseFloat(relCells[i + 1]);
       const relVol = parseFloat(relCells[i + 2]);
-      const absVol = parseFloat(absCells[i + 2]);
       
       if (!isNaN(dose) && !isNaN(relVol)) {
         relativeVolume.push({ dose, volume: relVol });
       }
       
-      if (!isNaN(dose) && absCells[i + 2] !== undefined) {
+      if (absCells.length > 0 && absCells[i + 2] !== undefined) {
         const absVol = parseFloat(absCells[i + 2]);
-        if (!isNaN(absVol)) {
+        if (!isNaN(dose) && !isNaN(absVol)) {
           absoluteVolume.push({ dose, volume: absVol });
         }
       }
