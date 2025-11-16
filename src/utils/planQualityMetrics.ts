@@ -19,6 +19,18 @@ export const calculateDx = (structure: Structure, volumeValue: number, unit: '%'
     return 0;
   }
   
+  // DVH décroissant: si le volume cherché est >= au volume max (premier point),
+  // cela signifie que tout le volume reçoit au moins cette dose
+  if (volumePercent >= points[0].volume) {
+    return points[0].dose;
+  }
+  
+  // Si le volume cherché est <= au volume min (dernier point),
+  // retourner la dose maximale (dernier point)
+  if (volumePercent <= points[points.length - 1].volume) {
+    return points[points.length - 1].dose;
+  }
+  
   // Trouver les deux points qui encadrent le volume cible
   for (let i = 0; i < points.length - 1; i++) {
     const curr = points[i];
@@ -32,7 +44,7 @@ export const calculateDx = (structure: Structure, volumeValue: number, unit: '%'
     }
   }
   
-  // Si pas trouvé, retourner la dernière dose
+  // Fallback: retourner la dernière dose
   return points[points.length - 1].dose;
 };
 

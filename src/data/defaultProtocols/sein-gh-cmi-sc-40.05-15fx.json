@@ -1,0 +1,151 @@
+{
+  "id": "imported_1763280860871",
+  "name": "SeinGH+CMI+SC_40.05Gy_15fx",
+  "location": "SeinGH+CMI+SC",
+  "prescriptions": [
+    {
+      "ptvName": "PTV T",
+      "totalDose": 40.05,
+      "numberOfFractions": 15,
+      "dosePerFraction": 2.67
+    },
+    {
+      "ptvName": "PTV CMI",
+      "totalDose": 40.05,
+      "numberOfFractions": 15,
+      "dosePerFraction": 2.67
+    },
+    {
+      "ptvName": "PTV SC",
+      "totalDose": 40.05,
+      "numberOfFractions": 15,
+      "dosePerFraction": 2.67
+    }
+  ],
+  "oarConstraints": [
+    {
+      "organName": "Coeur",
+      "constraintType": "Vx",
+      "value": 10,
+      "unit": "%",
+      "target": 13,
+      "priority": "mandatory",
+      "description": "Coeur - V13<10%"
+    },
+    {
+      "organName": "Coeur",
+      "constraintType": "Vx",
+      "value": 10,
+      "unit": "%",
+      "target": 22.5,
+      "priority": "mandatory",
+      "description": "Coeur - V22.5<10%"
+    },
+    {
+      "organName": "Coeur",
+      "constraintType": "Dmean",
+      "value": 5,
+      "unit": "Gy",
+      "priority": "mandatory",
+      "description": "Coeur - Dmean<5Gy"
+    },
+    {
+      "organName": "Foie",
+      "constraintType": "Dmean",
+      "value": 26,
+      "unit": "Gy",
+      "priority": "mandatory",
+      "description": "Foie - Dmean<26Gy"
+    },
+    {
+      "organName": "Moelle epiniere",
+      "constraintType": "Dmax",
+      "value": 37,
+      "unit": "Gy",
+      "priority": "mandatory",
+      "description": "Moelle epiniere - Dmax=37Gy"
+    },
+    {
+      "organName": "Poumon DT",
+      "constraintType": "Dmean",
+      "value": 2,
+      "unit": "Gy",
+      "priority": "mandatory",
+      "description": "Poumon DT - Dmean<2Gy"
+    },
+    {
+      "organName": "Poumon DT",
+      "constraintType": "Vx",
+      "value": 15,
+      "unit": "%",
+      "target": 2.5,
+      "priority": "mandatory",
+      "description": "Poumon DT - V2.5 < 15%"
+    },
+    {
+      "organName": "Poumon Gche",
+      "constraintType": "Vx",
+      "value": 35,
+      "unit": "%",
+      "target": 18,
+      "priority": "mandatory",
+      "description": "Poumon Gche V18<35%"
+    },
+    {
+      "organName": "Sein contrelateral",
+      "constraintType": "Vx",
+      "value": 10,
+      "unit": "%",
+      "target": 5,
+      "priority": "mandatory",
+      "description": "Sein contrelateral - V5<10%"
+    },
+    {
+      "organName": "Sein contrelateral",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "target": 5,
+      "priority": "mandatory",
+      "description": "Sein contrelateral - V5<50%"
+    },
+    {
+      "organName": "Sein contrelateral",
+      "constraintType": "Vx",
+      "value": 35,
+      "unit": "%",
+      "target": 7,
+      "priority": "mandatory",
+      "description": "Sein contrelateral - V7<35%"
+    },
+    {
+      "organName": "Sein contrelateral",
+      "constraintType": "Vx",
+      "value": 20,
+      "unit": "%",
+      "target": 10,
+      "priority": "mandatory",
+      "description": "Sein contrelateral - V10<20%"
+    },
+    {
+      "organName": "Sein contrelateral",
+      "constraintType": "Vx",
+      "value": 15,
+      "unit": "%",
+      "target": 20,
+      "priority": "mandatory",
+      "description": "Sein contrelateral - V20<15%"
+    },
+    {
+      "organName": "Thyroide",
+      "constraintType": "Dmean",
+      "value": 26,
+      "unit": "Gy",
+      "priority": "mandatory",
+      "description": "Thyroide - Dmean<26Gy"
+    }
+  ],
+  "createdAt": "2025-11-16T08:34:01.689Z",
+  "modifiedAt": "2025-11-16T09:05:20.030Z",
+  "isCustom": true
+}

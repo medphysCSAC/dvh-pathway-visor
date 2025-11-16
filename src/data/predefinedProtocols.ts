@@ -8,6 +8,10 @@ import glioblastome from './defaultProtocols/glioblastome-60Gy-30fx.json';
 import prostateClassic from './defaultProtocols/prostate-54-59.4-76Gy_38fx.json';
 import prostateCHHiP1 from './defaultProtocols/prostate-chhip-44-60-20fx.json';
 import prostateCHHiP2 from './defaultProtocols/prostate-chhip-48-57.6-60-20fx.json';
+import seinGhCmiSc from './defaultProtocols/sein-gh-cmi-sc-40.05-15fx.json';
+import seinGhBoost from './defaultProtocols/sein-gh-boost-40.05-50.05-15-19fx.json';
+import seinDtCmiSc from './defaultProtocols/sein-dt-cmi-sc-40.05-15fx.json';
+import seinDtBoost from './defaultProtocols/sein-dt-boost-40.05-50.05-15-19fx.json';
 
 /**
  * Protocoles de radiothérapie prédéfinis (installés par défaut avec l'application)
@@ -21,6 +25,10 @@ export const predefinedProtocols: TreatmentProtocol[] = [
   prostateClassic,
   prostateCHHiP1,
   prostateCHHiP2,
+  seinGhCmiSc,
+  seinGhBoost,
+  seinDtCmiSc,
+  seinDtBoost,
 ].map((protocol: any) => ({
   ...protocol,
   isCustom: false,
