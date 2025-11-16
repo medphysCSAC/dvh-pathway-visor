@@ -24,10 +24,10 @@ const Index = () => {
   const [activeFilter, setActiveFilter] = useState<StructureCategory | 'ALL'>('ALL');
   const [multiPlans, setMultiPlans] = useState<PlanData[]>([]);
   const [multiPlanMode, setMultiPlanMode] = useState<'summation' | 'comparison' | 'multi-patient' | null>(null);
-  const handleFilesUploaded = async (relFile: File, absFile: File) => {
+  const handleFilesUploaded = async (relFile: File, absFile?: File) => {
     try {
       const relContent = await relFile.text();
-      const absContent = await absFile.text();
+      const absContent = absFile ? await absFile.text() : undefined;
       const data = parseTomoTherapyDVH(relContent, absContent);
 
       // Extract patient ID from filename if available
@@ -40,6 +40,11 @@ const Index = () => {
       toast.success('Fichiers DVH chargés avec succès', {
         description: `${data.structures.length} structures anatomiques détectées`
       });
+      if (!absFile) {
+        toast.warning('DVH ABS non fourni', {
+          description: 'Certaines métriques en cc/cc nécessiteront le fichier ABS pour être calculées.'
+        });
+      }
     } catch (error) {
       console.error('Error parsing DVH files:', error);
       toast.error('Erreur lors du chargement des fichiers', {

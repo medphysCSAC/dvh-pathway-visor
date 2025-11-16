@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useState } from 'react';
 
 interface FileUploadProps {
-  onFilesUploaded: (relFile: File, absFile: File) => void;
+  onFilesUploaded: (relFile: File, absFile?: File) => void;
 }
 
 export const FileUpload = ({ onFilesUploaded }: FileUploadProps) => {
@@ -22,11 +22,11 @@ export const FileUpload = ({ onFilesUploaded }: FileUploadProps) => {
   };
 
   const handleUpload = () => {
-    if (!relFile || !absFile) {
-      setError('Veuillez sélectionner les deux fichiers DVH');
+    if (!relFile) {
+      setError('Veuillez sélectionner au minimum le fichier DVH REL');
       return;
     }
-    onFilesUploaded(relFile, absFile);
+    onFilesUploaded(relFile, absFile || undefined);
   };
 
   return (
@@ -40,7 +40,7 @@ export const FileUpload = ({ onFilesUploaded }: FileUploadProps) => {
           <div className="text-center">
             <h3 className="text-xl font-semibold mb-2">Importer les fichiers DVH</h3>
             <p className="text-muted-foreground">
-              Sélectionnez les fichiers DVH relatif (REL) et absolu (ABS) pour l'analyse
+              Le fichier REL est requis. Le fichier ABS est optionnel (nécessaire pour les métriques en cc).
             </p>
           </div>
 
@@ -101,14 +101,14 @@ export const FileUpload = ({ onFilesUploaded }: FileUploadProps) => {
             </div>
           )}
 
-          <Button
-            onClick={handleUpload}
-            disabled={!relFile || !absFile}
-            size="lg"
-            className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
-          >
-            Analyser les fichiers DVH
-          </Button>
+      <Button
+        onClick={handleUpload}
+        disabled={!relFile}
+        size="lg"
+        className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+      >
+        Analyser le(s) fichier(s) DVH
+      </Button>
         </div>
       </CardContent>
     </Card>

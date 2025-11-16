@@ -62,12 +62,12 @@ export const findMaxDoseAcrossStructures = (structures: Structure[]): number => 
   return maxDose;
 };
 
-export const parseTomoTherapyDVH = (relContent: string, absContent: string): DVHData => {
+export const parseTomoTherapyDVH = (relContent: string, absContent?: string): DVHData => {
   const relLines = relContent.trim().split('\n');
-  const absLines = absContent.trim().split('\n');
+  const absLines = absContent ? absContent.trim().split('\n') : [];
   
-  if (relLines.length === 0 || absLines.length === 0) {
-    throw new Error('Empty file content');
+  if (relLines.length === 0) {
+    throw new Error('Empty REL file content');
   }
 
   // Parse header to get structure names
@@ -87,7 +87,7 @@ export const parseTomoTherapyDVH = (relContent: string, absContent: string): DVH
     // Parse data rows
     for (let rowIdx = 1; rowIdx < relLines.length; rowIdx++) {
       const relCells = relLines[rowIdx].split(',');
-      const absCells = absLines[rowIdx].split(',');
+      const absCells = absLines.length > rowIdx ? absLines[rowIdx].split(',') : [] as any;
       
       const dose = parseFloat(relCells[i + 1]);
       const relVol = parseFloat(relCells[i + 2]);
@@ -97,8 +97,11 @@ export const parseTomoTherapyDVH = (relContent: string, absContent: string): DVH
         relativeVolume.push({ dose, volume: relVol });
       }
       
-      if (!isNaN(dose) && !isNaN(absVol)) {
-        absoluteVolume.push({ dose, volume: absVol });
+      if (!isNaN(dose) && absCells[i + 2] !== undefined) {
+        const absVol = parseFloat(absCells[i + 2]);
+        if (!isNaN(absVol)) {
+          absoluteVolume.push({ dose, volume: absVol });
+        }
       }
     }
     
