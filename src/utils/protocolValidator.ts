@@ -112,6 +112,8 @@ export function validateConstraint(
           throw new Error('Target dose manquant pour contrainte Vx');
         }
         measuredValue = calculateVx(structure, target);
+        // Pour Vx, la contrainte est souvent "<= valeur"; si vos protocoles utilisent 
+        // des contraintes de type "Vx doit être proche de 100%", ajuster au besoin.
         status = measuredValue <= value ? 'PASS' : 'FAIL';
         message = `V${target}Gy mesuré: ${measuredValue.toFixed(1)}%, seuil: ${value}%`;
         break;
@@ -165,9 +167,14 @@ export function findBestStructureMatch(
   
   // Normalisation avancée qui gère les PTVs
   const normalizeForComparison = (str: string) => {
-    return str.toLowerCase()
-      .replace(/[_-]/g, ' ')  // Convertir _ et - en espaces
-      .replace(/\s+/g, ' ')    // Normaliser les espaces multiples
+    return str
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '') // enlever les accents
+      .replace(/œ/g, 'oe')
+      .replace(/æ/g, 'ae')
+      .replace(/[_-]/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
   };
   

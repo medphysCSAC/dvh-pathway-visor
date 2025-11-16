@@ -55,7 +55,16 @@ export const calculateDx = (structure: Structure, volumeValue: number, unit: '%'
 export const calculateVx = (structure: Structure, targetDose: number): number => {
   if (!structure.relativeVolume.length) return 0;
   
-  const points = structure.relativeVolume;
+  // Assurer un tri croissant par dose pour une interpolation fiable
+  const points = [...structure.relativeVolume].sort((a, b) => a.dose - b.dose);
+  
+  // Gestion des bornes: si la dose cible est en dehors de la plage mesurée
+  if (targetDose <= points[0].dose) {
+    return points[0].volume; // tout le volume reçoit au moins cette dose (souvent ~100%)
+  }
+  if (targetDose >= points[points.length - 1].dose) {
+    return points[points.length - 1].volume; // souvent ~0%
+  }
   
   // Trouver les deux points qui encadrent la dose cible
   for (let i = 0; i < points.length - 1; i++) {
@@ -69,12 +78,8 @@ export const calculateVx = (structure: Structure, targetDose: number): number =>
     }
   }
   
-  // Si la dose cible est au-delà de la courbe
-  if (targetDose >= points[points.length - 1].dose) {
-    return points[points.length - 1].volume;
-  }
-  
-  return 0;
+  // Fallback sécurisé
+  return points[points.length - 1].volume;
 };
 
 /**
