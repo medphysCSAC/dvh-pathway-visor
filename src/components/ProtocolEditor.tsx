@@ -372,7 +372,7 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
                       {(constraint.constraintType === 'Vx' || constraint.constraintType === 'Dx') && (
                         <>
                           <div>
-                            <Label>{constraint.constraintType === 'Vx' ? 'Dose (Gy)' : 'Volume'}</Label>
+                            <Label>{constraint.constraintType === 'Vx' ? 'Dose (Gy)' : 'Volume (%)'}</Label>
                             <Input
                               type="number"
                               step="0.01"
@@ -380,23 +380,21 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
                               onChange={(e) => updateConstraint(idx, 'target', parseFloat(e.target.value))}
                             />
                           </div>
-                          {constraint.constraintType === 'Dx' && (
-                            <div>
-                              <Label>Unité du volume</Label>
-                              <Select
-                                value={constraint.targetUnit || '%'}
-                                onValueChange={(v) => updateConstraint(idx, 'targetUnit', v)}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="%">% (pourcentage)</SelectItem>
-                                  <SelectItem value="cc">cc (volume absolu)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          )}
+                          <div>
+                            <Label>Unité du {constraint.constraintType === 'Vx' ? 'volume seuil' : 'volume cible'}</Label>
+                            <Select
+                              value={constraint.targetUnit || '%'}
+                              onValueChange={(v) => updateConstraint(idx, 'targetUnit', v)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="%">% (pourcentage)</SelectItem>
+                                <SelectItem value="cc">cc (volume absolu)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </>
                       )}
                       <div>
