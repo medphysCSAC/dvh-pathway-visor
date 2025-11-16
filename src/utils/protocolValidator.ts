@@ -106,19 +106,29 @@ export function validateConstraint(
         message = `Dmean mesuré: ${measuredValue.toFixed(1)} Gy, seuil: ${value} Gy`;
         break;
         
-      case 'Vx':
+      case 'Vx': {
         // Vx = volume recevant au moins target Gy
         if (target === undefined) {
           throw new Error('Target dose manquant pour contrainte Vx');
         }
-        measuredValue = calculateVx(structure, target);
-        // Pour Vx, la contrainte est souvent "<= valeur"; si vos protocoles utilisent 
-        // des contraintes de type "Vx doit être proche de 100%", ajuster au besoin.
-        status = measuredValue <= value ? 'PASS' : 'FAIL';
-        message = `V${target}Gy mesuré: ${measuredValue.toFixed(1)}%, seuil: ${value}%`;
-        break;
+        const volumePercent = calculateVx(structure, target);
+        const vxUnit = targetUnit || '%';
         
-      case 'Dx':
+        if (vxUnit === 'cc') {
+          // Convertir le pourcentage en volume absolu (cc)
+          measuredValue = structure.totalVolume 
+            ? (volumePercent / 100) * structure.totalVolume 
+            : 0;
+          status = measuredValue <= value ? 'PASS' : 'FAIL';
+          message = `V${target}Gy mesuré: ${measuredValue.toFixed(2)} cc, seuil: ${value} cc`;
+        } else {
+          // Volume en pourcentage
+          measuredValue = volumePercent;
+          status = measuredValue <= value ? 'PASS' : 'FAIL';
+          message = `V${target}Gy mesuré: ${measuredValue.toFixed(1)}%, seuil: ${value}%`;
+        }
+        break;
+      }
         // Dx = dose reçue par x% ou x cc du volume
         if (target === undefined) {
           throw new Error('Target volume manquant pour contrainte Dx');
