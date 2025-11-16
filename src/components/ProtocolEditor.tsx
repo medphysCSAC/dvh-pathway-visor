@@ -356,68 +356,97 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
                         <Label>Type de contrainte</Label>
                         <Select
                           value={constraint.constraintType}
-                          onValueChange={(v) => updateConstraint(idx, 'constraintType', v as ConstraintType)}
+                          onValueChange={(v) => {
+                            updateConstraint(idx, 'constraintType', v as ConstraintType);
+                            // Initialiser l'unité en fonction du type
+                            if (v === 'Dx') {
+                              updateConstraint(idx, 'unit', 'Gy');
+                            } else if (v === 'Vx') {
+                              updateConstraint(idx, 'unit', '%');
+                            } else {
+                              updateConstraint(idx, 'unit', 'Gy');
+                            }
+                          }}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Dmax">Dmax - Dose maximale</SelectItem>
-                            <SelectItem value="Dmean">Dmean - Dose moyenne</SelectItem>
-                            <SelectItem value="Vx">Vx - Volume recevant X Gy</SelectItem>
-                            <SelectItem value="Dx">Dx - Dose reçue par X% du volume</SelectItem>
+                            <SelectItem value="Dmax">Dose maximale (Dmax)</SelectItem>
+                            <SelectItem value="Dmean">Dose moyenne (Dmean)</SelectItem>
+                            <SelectItem value="Vx">Volume recevant une dose (Vx)</SelectItem>
+                            <SelectItem value="Dx">Dose reçue par un volume (Dx)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                      {(constraint.constraintType === 'Vx' || constraint.constraintType === 'Dx') && (
-                        <>
-                          <div>
-                            <Label>{constraint.constraintType === 'Vx' ? 'Dose (Gy)' : 'Volume (%)'}</Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={constraint.target || 0}
-                              onChange={(e) => updateConstraint(idx, 'target', parseFloat(e.target.value))}
-                            />
-                          </div>
-                          <div>
-                            <Label>Unité du {constraint.constraintType === 'Vx' ? 'volume seuil' : 'volume cible'}</Label>
-                            <Select
-                              value={constraint.targetUnit || '%'}
-                              onValueChange={(v) => updateConstraint(idx, 'targetUnit', v)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="%">% (pourcentage)</SelectItem>
-                                <SelectItem value="cc">cc (volume absolu)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </>
+
+                      {/* Pour Vx : besoin de la dose seuil en Gy */}
+                      {constraint.constraintType === 'Vx' && (
+                        <div>
+                          <Label>Dose seuil (Gy)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={constraint.target || ''}
+                            onChange={(e) => updateConstraint(idx, 'target', parseFloat(e.target.value))}
+                            placeholder="Ex: 40.8"
+                          />
+                        </div>
                       )}
+
+                      {/* Pour Dx : besoin du volume en % */}
+                      {constraint.constraintType === 'Dx' && (
+                        <div>
+                          <Label>Volume (%)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={constraint.target || ''}
+                            onChange={(e) => updateConstraint(idx, 'target', parseFloat(e.target.value))}
+                            placeholder="Ex: 50"
+                          />
+                        </div>
+                      )}
+
                       <div>
-                        <Label>Valeur seuil</Label>
+                        <Label>
+                          {constraint.constraintType === 'Vx' ? 'Volume maximum' :
+                           constraint.constraintType === 'Dx' ? 'Dose maximum (Gy)' :
+                           'Dose maximum (Gy)'}
+                        </Label>
                         <Input
                           type="number"
                           step="0.01"
                           value={constraint.value}
                           onChange={(e) => updateConstraint(idx, 'value', parseFloat(e.target.value))}
+                          placeholder={
+                            constraint.constraintType === 'Vx' ? 'Ex: 17 (cc) ou 50 (%)' :
+                            constraint.constraintType === 'Dx' ? 'Ex: 30' :
+                            'Ex: 45'
+                          }
                         />
                       </div>
+
+                      {/* Unité du résultat */}
                       <div>
-                        <Label>Unité</Label>
+                        <Label>Unité {constraint.constraintType === 'Vx' ? 'du volume' : 'de la dose'}</Label>
                         <Select
                           value={constraint.unit}
                           onValueChange={(v) => updateConstraint(idx, 'unit', v)}
+                          disabled={constraint.constraintType !== 'Vx'}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Gy">Gy</SelectItem>
-                            <SelectItem value="%">%</SelectItem>
+                            {constraint.constraintType === 'Vx' ? (
+                              <>
+                                <SelectItem value="%">% (pourcentage du volume)</SelectItem>
+                                <SelectItem value="cc">cc (volume absolu)</SelectItem>
+                              </>
+                            ) : (
+                              <SelectItem value="Gy">Gy</SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
