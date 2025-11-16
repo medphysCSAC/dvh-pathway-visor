@@ -103,9 +103,11 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
   };
 
   const updateConstraint = (index: number, field: keyof OARConstraint, value: any) => {
-    const newConstraints = [...editedProtocol.oarConstraints];
-    newConstraints[index] = { ...newConstraints[index], [field]: value };
-    setEditedProtocol({ ...editedProtocol, oarConstraints: newConstraints });
+    setEditedProtocol((prev) => {
+      const newConstraints = [...prev.oarConstraints];
+      newConstraints[index] = { ...newConstraints[index], [field]: value };
+      return { ...prev, oarConstraints: newConstraints };
+    });
   };
 
   const movePrescription = (index: number, direction: 'up' | 'down') => {
@@ -373,7 +375,7 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="z-50">
                             <SelectItem value="Dmax">Dose maximale (Dmax)</SelectItem>
                             <SelectItem value="Dmean">Dose moyenne (Dmean)</SelectItem>
                             <SelectItem value="Vx">Volume recevant une dose (Vx)</SelectItem>
@@ -404,7 +406,7 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="z-50">
                                 <SelectItem value="%">% (pourcentage du volume)</SelectItem>
                                 <SelectItem value="cc">cc (volume absolu)</SelectItem>
                               </SelectContent>
