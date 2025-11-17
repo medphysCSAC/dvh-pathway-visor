@@ -361,6 +361,11 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
                         cr.constraint.constraintType === 'Dx' ? `D${cr.constraint.target}%` :
                         cr.constraint.constraintType;
 
+                      // Déterminer l'unité correcte pour la valeur mesurée
+                      const measuredUnit = cr.constraint.constraintType === 'Vx' 
+                        ? (cr.constraint.targetUnit || '%')  // Pour Vx, utiliser targetUnit (cc ou %)
+                        : cr.constraint.unit;  // Pour Dmax, Dmean, Dx: toujours Gy
+
                       return (
                         <tr key={idx} className="border-b">
                           <td className="p-2">
@@ -373,10 +378,10 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
                           </td>
                           <td className="p-2 font-mono text-sm">{constraintDesc}</td>
                           <td className="p-2 font-mono">
-                            {cr.measuredValue.toFixed(1)} {cr.constraint.unit}
+                            {cr.measuredValue.toFixed(1)} {measuredUnit}
                           </td>
                           <td className="p-2 font-mono">
-                            &lt; {cr.constraint.value} {cr.constraint.unit}
+                            &lt; {cr.constraint.value} {measuredUnit}
                           </td>
                           <td className="p-2">
                             <div className="flex items-center gap-2">
