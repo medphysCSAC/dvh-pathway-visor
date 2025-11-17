@@ -165,11 +165,23 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
     const protocol = protocols.find(p => p.id === protocolToDelete);
     if (!protocol) return;
 
-    // Vérification du mot de passe
-    if (deletePassword !== 'abc123') {
+    // Protection des protocoles prédéfinis
+    if (!protocol.isCustom) {
+      toast({
+        title: 'Action interdite',
+        description: 'Les protocoles prédéfinis ne peuvent pas être supprimés. Utilisez "Masquer" pour les cacher ou créez une copie personnalisée.',
+        variant: 'destructive',
+      });
+      setProtocolToDelete(null);
+      setDeletePassword('');
+      return;
+    }
+
+    // Vérification du mot de passe pour protocoles personnalisés
+    if (deletePassword !== 'DELETE') {
       toast({
         title: 'Erreur',
-        description: 'Mot de passe incorrect',
+        description: 'Tapez "DELETE" en majuscules pour confirmer la suppression définitive',
         variant: 'destructive',
       });
       return;
@@ -180,7 +192,7 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
       await loadProtocols();
       toast({
         title: 'Protocole supprimé',
-        description: `Le protocole "${protocol.name}" a été supprimé`,
+        description: `Le protocole personnalisé "${protocol.name}" a été supprimé définitivement`,
       });
     } catch (error) {
       toast({
@@ -213,6 +225,16 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
   };
 
   const handleEditProtocol = (protocol: TreatmentProtocol) => {
+    // Empêcher l'édition directe des protocoles prédéfinis
+    if (!protocol.isCustom) {
+      toast({
+        title: "Action non autorisée",
+        description: "Les protocoles prédéfinis ne peuvent pas être modifiés directement. Créez une copie personnalisée pour la modifier.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setProtocolToEdit(protocol);
     setEditorOpen(true);
   };
