@@ -2,509 +2,114 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { ValidationReport } from '@/types/protocol';
 
-/**
- * Génère un rapport HTML standalone pour impression
- */
-export function generateHTMLReport(report: ValidationReport, overallStatus?: 'PASS' | 'FAIL', doctorName?: string): string {
-  const finalStatus = overallStatus || report.overallStatus;
-  const { protocolName, patientId, evaluationDate, prescriptionResults, constraintResults } = report;
-  
-  const statusColor = finalStatus === 'PASS' ? '#22c55e' : '#ef4444';
-  const statusIcon = finalStatus === 'PASS' ? '✅' : '❌';
-  
-  const html = `
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rapport de Validation - ${protocolName}</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      line-height: 1.6;
-      color: #1f2937;
-      background: #f9fafb;
-      padding: 2rem;
-    }
-    
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      background: white;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    
-    .header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 2rem;
-      text-align: center;
-    }
-    
-    .header h1 {
-      font-size: 2rem;
-      margin-bottom: 0.5rem;
-    }
-    
-    .header p {
-      opacity: 0.9;
-      font-size: 1.1rem;
-    }
-    
-    .content {
-      padding: 2rem;
-    }
-    
-    .info-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
-      padding: 1.5rem;
-      background: #f3f4f6;
-      border-radius: 8px;
-    }
-    
-    .info-item {
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .info-label {
-      font-size: 0.875rem;
-      color: #6b7280;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.25rem;
-    }
-    
-    .info-value {
-      font-size: 1.125rem;
-      font-weight: 600;
-      color: #111827;
-    }
-    
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem 1rem;
-      border-radius: 9999px;
-      font-weight: 600;
-      font-size: 1rem;
-      background: ${statusColor};
-      color: white;
-    }
-    
-    .section {
-      margin-bottom: 2rem;
-    }
-    
-    .section-title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #111827;
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 2px solid #e5e7eb;
-    }
-    
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 1rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    
-    thead {
-      background: #f9fafb;
-    }
-    
-    th {
-      text-align: left;
-      padding: 1rem;
-      font-weight: 600;
-      color: #374151;
-      border-bottom: 2px solid #e5e7eb;
-      font-size: 0.875rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    
-    td {
-      padding: 0.875rem 1rem;
-      border-bottom: 1px solid #f3f4f6;
-    }
-    
-    tbody tr:hover {
-      background: #f9fafb;
-    }
-    
-    tbody tr:last-child td {
-      border-bottom: none;
-    }
-    
-    .status-pass {
-      color: #059669;
-      font-weight: 600;
-    }
-    
-    .status-fail {
-      color: #dc2626;
-      font-weight: 600;
-    }
-    
-    .status-warning {
-      color: #d97706;
-      font-weight: 600;
-    }
-    
-    .status-not-evaluated {
-      color: #6b7280;
-      font-weight: 600;
-    }
-    
-    .warning-box {
-      background: #fef3c7;
-      border-left: 4px solid #f59e0b;
-      padding: 1rem;
-      margin: 1rem 0;
-      border-radius: 4px;
-    }
-    
-    .warning-box ul {
-      margin-left: 1.5rem;
-      margin-top: 0.5rem;
-    }
-    
-    .footer {
-      margin-top: 2rem;
-      padding-top: 1rem;
-      border-top: 2px solid #e5e7eb;
-      text-align: center;
-      color: #6b7280;
-      font-size: 0.875rem;
-    }
-    
-    .no-print {
-      text-align: center;
-      margin: 2rem 0;
-    }
-    
-    .btn-print {
-      background: #667eea;
-      color: white;
-      border: none;
-      padding: 0.75rem 2rem;
-      font-size: 1rem;
-      font-weight: 600;
-      border-radius: 8px;
-      cursor: pointer;
-      box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
-      transition: all 0.2s;
-    }
-    
-    .btn-print:hover {
-      background: #5568d3;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
-    }
-    
-    @media print {
-      body {
-        background: white;
-        padding: 0;
-      }
-      
-      .container {
-        box-shadow: none;
-      }
-      
-      .no-print {
-        display: none;
-      }
-      
-      .section {
-        page-break-inside: avoid;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>📋 Rapport de Validation de Plan</h1>
-      <p>Protocole: ${protocolName}</p>
-    </div>
-    
-    <div class="content">
-      <div class="info-grid">
-        <div class="info-item">
-          <span class="info-label">Patient ID</span>
-          <span class="info-value">${patientId}</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">Protocole</span>
-          <span class="info-value">${protocolName}</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">Date d'évaluation</span>
-          <span class="info-value">${new Date(evaluationDate).toLocaleDateString('fr-FR')}</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">Statut Global</span>
-          <span class="status-badge">${statusIcon} ${finalStatus}</span>
-        </div>
-      </div>
-      
-      ${doctorName ? `
-      <div style="margin: 1.5rem 0; padding: 1rem; background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px;">
-        <p style="margin: 0; font-size: 1rem; color: #166534;">
-          <strong>✓ Validé par Dr ${doctorName}</strong>
-        </p>
-      </div>
-      ` : ''}
-      
-      ${report.planSummary ? `
-      <div class="section">
-        <h2 class="section-title">📊 Résumé du plan de traitement</h2>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="info-label">PTV principal</span>
-            <span class="info-value">${report.planSummary.primaryPTV}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Dose de prescription (D50)</span>
-            <span class="info-value">${report.planSummary.prescriptionDose.toFixed(2)} Gy</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Nombre de structures</span>
-            <span class="info-value">${report.planSummary.ptvCount} PTV • ${report.planSummary.oarCount} OAR</span>
-          </div>
-        </div>
-      </div>
-      ` : ''}
-      
-      ${report.ptvQualityMetrics && report.ptvQualityMetrics.length > 0 ? `
-      <div class="section">
-        <h2 class="section-title">🎯 Qualité des volumes cibles (PTV)</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Structure</th>
-              <th>D<sub>95%</sub></th>
-              <th>D<sub>98%</sub></th>
-              <th>D<sub>50%</sub></th>
-              <th>D<sub>2%</sub></th>
-              <th>V<sub>95%</sub></th>
-              <th>HI</th>
-              <th>CI</th>
-              <th>CN</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${report.ptvQualityMetrics.map(m => `
-              <tr>
-                <td><strong>${m.structureName}</strong></td>
-                <td>${m.d95.toFixed(2)} Gy</td>
-                <td>${m.d98.toFixed(2)} Gy</td>
-                <td>${m.d50.toFixed(2)} Gy</td>
-                <td>${m.d2.toFixed(2)} Gy</td>
-                <td class="${m.v95 >= 95 ? 'status-pass' : 'status-fail'}">${m.v95.toFixed(1)}%</td>
-                <td class="${m.hi < 0.15 ? 'status-pass' : 'status-fail'}">${m.hi.toFixed(3)}</td>
-                <td class="${Math.abs(1 - m.ci) < 0.1 ? 'status-pass' : 'status-fail'}">${m.ci.toFixed(3)}</td>
-                <td>${m.cn.toFixed(3)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        <div style="margin-top: 1rem; padding: 1rem; background: #f3f4f6; border-radius: 4px; font-size: 0.875rem;">
-          <p><strong>Indices de qualité :</strong></p>
-          <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
-            <li><strong>HI (Homogeneity Index)</strong> : (D2% - D98%) / D50%. Idéal &lt; 0.1</li>
-            <li><strong>CI (Conformity Index)</strong> : V95% / 95%. Idéal ≈ 1</li>
-            <li><strong>CN (Conformation Number)</strong> : Mesure la conformation 3D. Idéal ≈ 1</li>
-            <li><strong>V95%</strong> : Volume recevant 95% de la dose. Objectif ≥ 95%</li>
-          </ul>
-        </div>
-      </div>
-      ` : ''}
-      
-      
-      <div class="section">
-        <h2 class="section-title">🛡️ Contraintes OAR (Organes à Risque)</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Organe</th>
-              <th>Contrainte</th>
-              <th>Valeur Mesurée</th>
-              <th>Seuil</th>
-              <th>Observation</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${constraintResults.map(cr => {
-              const constraintDesc = cr.constraint.constraintType === 'Vx' 
-                ? `V${cr.constraint.target}Gy`
-                : cr.constraint.constraintType === 'Dx'
-                ? `D${cr.constraint.target}%`
-                : cr.constraint.constraintType;
-              
-              return `
-                <tr>
-                  <td><strong>${cr.structureName}</strong></td>
-                  <td>${constraintDesc}</td>
-                  <td>${cr.measuredValue.toFixed(1)} ${cr.constraint.unit}</td>
-                  <td>&lt; ${cr.constraint.value} ${cr.constraint.unit}</td>
-                  <td class="${
-                    cr.status === 'PASS' ? 'status-pass' : 
-                    cr.status === 'WARNING' ? 'status-warning' : 
-                    cr.status === 'FAIL' ? 'status-fail' : 
-                    'status-not-evaluated'
-                  }">
-                    ${
-                      cr.status === 'PASS' ? '✅ PASS' : 
-                      cr.status === 'WARNING' ? '⚠️ WARNING' : 
-                      cr.status === 'FAIL' ? '❌ FAIL' : 
-                      'Non évalué'
-                    }
-                  </td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-      
-      ${report.unmatchedStructures.length > 0 ? `
-        <div class="section">
-          <h2 class="section-title">⚠️ Structures Non Trouvées</h2>
-          <div class="warning-box">
-            <p><strong>Les structures suivantes du protocole n'ont pas été trouvées dans le fichier DVH:</strong></p>
-            <ul>
-              ${report.unmatchedStructures.map(s => `<li>${s}</li>`).join('')}
-            </ul>
-            <p style="margin-top: 0.5rem;"><em>Vérifiez les noms des structures ou utilisez le mapping manuel.</em></p>
-          </div>
-        </div>
-      ` : ''}
-      
-      <div class="footer">
-        <p>Rapport généré le ${new Date().toLocaleString('fr-FR')}</p>
-        <p style="margin-top: 0.5rem;">DVH Analyzer - Outil de validation de plans - Centre Sidi Abdellah</p>
-      </div>
-    </div>
-  </div>
-  
-  <div class="no-print">
-    <button class="btn-print" onclick="window.print()">🖨️ Imprimer ce rapport</button>
-  </div>
-</body>
-</html>
-  `;
-  
-  return html;
+export type ReportTemplate = 'classic' | 'modern' | 'minimal';
+
+export function generateHTMLReport(
+  report: ValidationReport, 
+  overallStatus?: 'PASS' | 'FAIL', 
+  doctorName?: string,
+  template: ReportTemplate = 'classic'
+): string {
+  switch (template) {
+    case 'modern':
+      return generateModernReport(report, overallStatus, doctorName);
+    case 'minimal':
+      return generateMinimalReport(report, overallStatus, doctorName);
+    case 'classic':
+    default:
+      return generateClassicReport(report, overallStatus, doctorName);
+  }
 }
 
-/**
- * Génère un rapport PDF
- */
-export async function generatePDFReport(report: ValidationReport, overallStatus?: 'PASS' | 'FAIL', doctorName?: string): Promise<Blob> {
-  // Créer un élément HTML temporaire
-  const htmlContent = generateHTMLReport(report, overallStatus, doctorName);
+function generateClassicReport(report: ValidationReport, overallStatus?: 'PASS' | 'FAIL', doctorName?: string): string {
+  const finalStatus = overallStatus || report.overallStatus;
+  const { protocolName, patientId, evaluationDate, prescriptionResults, constraintResults } = report;
+  const statusColor = finalStatus === 'PASS' ? '#22c55e' : '#ef4444';
+  
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Validation - ${protocolName}</title><style>@media print{@page{size:A4;margin:15mm}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}.page-break{page-break-before:always}.no-break{page-break-inside:avoid}}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Times New Roman',serif;line-height:1.5;color:#000;background:white;padding:20mm}.header{text-align:center;border-bottom:3px double #000;padding-bottom:15mm;margin-bottom:10mm}.header h1{font-size:20pt;font-weight:bold;margin-bottom:5mm;text-transform:uppercase}.info-section{margin-bottom:10mm;padding:5mm;border:1px solid #ddd;background:#f9f9f9}.info-row{display:flex;margin-bottom:3mm;font-size:11pt}.info-label{font-weight:bold;width:150px}.status-box{text-align:center;padding:5mm;margin:10mm 0;border:2px solid ${statusColor};background:${statusColor}15}.status-text{font-size:16pt;font-weight:bold;color:${statusColor}}.section{margin-top:10mm;page-break-inside:avoid}.section-title{font-size:14pt;font-weight:bold;margin-bottom:5mm;padding-bottom:2mm;border-bottom:2px solid #000}table{width:100%;border-collapse:collapse;margin-bottom:8mm;font-size:10pt}thead{background:#333;color:white}th{text-align:left;padding:3mm;font-weight:bold;border:1px solid #000}td{padding:3mm;border:1px solid #ddd}tbody tr:nth-child(even){background:#f5f5f5}.pass{color:#22c55e;font-weight:bold}.fail{color:#ef4444;font-weight:bold}.warning{color:#f59e0b;font-weight:bold}.signature-section{margin-top:15mm;display:flex;justify-content:space-between}.signature-box{width:45%;border-top:1px solid #000;padding-top:2mm;text-align:center}.footer{margin-top:15mm;padding-top:5mm;border-top:1px solid #ddd;font-size:9pt;text-align:center;color:#666}</style></head><body><div class="header"><h1>Rapport de Validation du Plan de Traitement</h1><p>Radiothérapie - Évaluation Dosimétrique</p></div><div class="info-section no-break"><div class="info-row"><span class="info-label">Protocole :</span><span>${protocolName}</span></div><div class="info-row"><span class="info-label">Patient ID :</span><span>${patientId}</span></div><div class="info-row"><span class="info-label">Date :</span><span>${new Date(evaluationDate).toLocaleDateString('fr-FR')}</span></div>${doctorName ? `<div class="info-row"><span class="info-label">Médecin :</span><span>${doctorName}</span></div>` : ''}</div><div class="status-box no-break"><div class="status-text">STATUT : ${finalStatus}</div></div>${prescriptionResults.length > 0 ? `<div class="section"><h2 class="section-title">1. Volumes Cibles (PTV)</h2><table><thead><tr><th>Structure</th><th>Prescription</th><th>V95%</th><th>D95%</th><th>Statut</th></tr></thead><tbody>${prescriptionResults.map(r => `<tr><td>${r.structureName}</td><td>${r.prescriptionDose.toFixed(2)} Gy</td><td>${r.v95 !== null ? r.v95.toFixed(1) + '%' : 'N/A'}</td><td>${r.d95 !== null ? r.d95.toFixed(2) + ' Gy' : 'N/A'}</td><td class="${r.status.toLowerCase()}">${r.status}</td></tr>`).join('')}</tbody></table></div>` : ''}${constraintResults.length > 0 ? `<div class="section page-break"><h2 class="section-title">2. Organes à Risque (OAR)</h2><table><thead><tr><th>Structure</th><th>Contrainte</th><th>Limite</th><th>Mesuré</th><th>Statut</th></tr></thead><tbody>${constraintResults.map(r => `<tr><td>${r.structureName}</td><td>${r.constraintType}</td><td>${r.limit.toFixed(2)} ${r.limitUnit}</td><td>${r.measuredValue !== null ? r.measuredValue.toFixed(2) + ' ' + r.limitUnit : 'N/A'}</td><td class="${r.status.toLowerCase()}">${r.status}</td></tr>`).join('')}</tbody></table></div>` : ''}${doctorName ? `<div class="signature-section"><div class="signature-box"><p>Date : ${new Date().toLocaleDateString('fr-FR')}</p></div><div class="signature-box"><p>Signature</p><p><strong>${doctorName}</strong></p></div></div>` : ''}<div class="footer"><p>Document généré le ${new Date().toLocaleString('fr-FR')}</p><p>DVH Analyzer</p></div></body></html>`;
+}
+
+function generateModernReport(report: ValidationReport, overallStatus?: 'PASS' | 'FAIL', doctorName?: string): string {
+  const finalStatus = overallStatus || report.overallStatus;
+  const { protocolName, patientId, evaluationDate, prescriptionResults, constraintResults } = report;
+  const statusColor = finalStatus === 'PASS' ? '#10b981' : '#ef4444';
+  const statusBg = finalStatus === 'PASS' ? '#d1fae5' : '#fee2e2';
+  
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Validation - ${protocolName}</title><style>@media print{@page{size:A4;margin:12mm}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}.page-break{page-break-before:always}.no-break{page-break-inside:avoid}}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;color:#1f2937;padding:15mm}.header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:8mm;border-radius:4mm;margin-bottom:8mm}.header h1{font-size:24pt;font-weight:700;margin-bottom:2mm}.info-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:5mm;margin-bottom:8mm}.info-card{background:#f9fafb;padding:5mm;border-radius:3mm;border-left:4px solid #667eea}.info-card-label{font-size:9pt;color:#6b7280;font-weight:600;text-transform:uppercase;margin-bottom:1mm}.info-card-value{font-size:13pt;font-weight:600;color:#111827}.status-banner{background:${statusBg};border:2px solid ${statusColor};border-radius:3mm;padding:6mm;text-align:center;margin-bottom:8mm}.status-text{font-size:18pt;font-weight:700;color:${statusColor}}.section{margin-bottom:8mm;page-break-inside:avoid}.section-header{display:flex;align-items:center;gap:3mm;margin-bottom:5mm}.section-number{width:8mm;height:8mm;background:#667eea;color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:11pt}.section-title{font-size:15pt;font-weight:700}table{width:100%;border-collapse:separate;border-spacing:0;margin-bottom:6mm;font-size:10pt;border-radius:3mm;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1)}thead{background:linear-gradient(to bottom,#f9fafb,#f3f4f6)}th{text-align:left;padding:4mm;font-weight:600;color:#374151;border-bottom:2px solid #e5e7eb;font-size:9pt;text-transform:uppercase}td{padding:4mm;border-bottom:1px solid #f3f4f6}.badge{display:inline-block;padding:1mm 3mm;border-radius:2mm;font-size:9pt;font-weight:600}.badge-pass{background:#d1fae5;color:#065f46}.badge-fail{background:#fee2e2;color:#991b1b}.badge-warning{background:#fef3c7;color:#92400e}.signature-area{margin-top:12mm;padding-top:6mm;border-top:2px solid #e5e7eb;display:flex;justify-content:space-between}.signature-block{width:45%}.signature-line{border-top:1px solid #000;padding-top:2mm;font-weight:600}.footer{margin-top:10mm;padding-top:4mm;border-top:1px solid #e5e7eb;text-align:center;font-size:8pt;color:#9ca3af}</style></head><body><div class="header no-break"><h1>Rapport de Validation</h1><p>Plan de Traitement en Radiothérapie</p></div><div class="info-cards no-break"><div class="info-card"><div class="info-card-label">Protocole</div><div class="info-card-value">${protocolName}</div></div><div class="info-card"><div class="info-card-label">Patient</div><div class="info-card-value">${patientId}</div></div><div class="info-card"><div class="info-card-label">Date</div><div class="info-card-value">${new Date(evaluationDate).toLocaleDateString('fr-FR')}</div></div>${doctorName ? `<div class="info-card"><div class="info-card-label">Médecin</div><div class="info-card-value">${doctorName}</div></div>` : ''}</div><div class="status-banner no-break"><div class="status-text">STATUT : ${finalStatus}</div></div>${prescriptionResults.length > 0 ? `<div class="section"><div class="section-header"><div class="section-number">1</div><h2 class="section-title">Volumes Cibles (PTV)</h2></div><table><thead><tr><th>Structure</th><th>Prescription</th><th>V95%</th><th>D95%</th><th style="text-align:center">Statut</th></tr></thead><tbody>${prescriptionResults.map(r => `<tr><td>${r.structureName}</td><td>${r.prescriptionDose.toFixed(2)} Gy</td><td>${r.v95 !== null ? r.v95.toFixed(1) + '%' : 'N/A'}</td><td>${r.d95 !== null ? r.d95.toFixed(2) + ' Gy' : 'N/A'}</td><td style="text-align:center"><span class="badge badge-${r.status.toLowerCase()}">${r.status}</span></td></tr>`).join('')}</tbody></table></div>` : ''}${constraintResults.length > 0 ? `<div class="section ${prescriptionResults.length > 5 ? 'page-break' : ''}"><div class="section-header"><div class="section-number">2</div><h2 class="section-title">Organes à Risque (OAR)</h2></div><table><thead><tr><th>Structure</th><th>Contrainte</th><th>Limite</th><th>Mesuré</th><th style="text-align:center">Statut</th></tr></thead><tbody>${constraintResults.map(r => `<tr><td>${r.structureName}</td><td>${r.constraintType}</td><td>${r.limit.toFixed(2)} ${r.limitUnit}</td><td>${r.measuredValue !== null ? r.measuredValue.toFixed(2) + ' ' + r.limitUnit : 'N/A'}</td><td style="text-align:center"><span class="badge badge-${r.status.toLowerCase()}">${r.status}</span></td></tr>`).join('')}</tbody></table></div>` : ''}${doctorName ? `<div class="signature-area"><div class="signature-block"><div class="signature-line">${new Date().toLocaleDateString('fr-FR')}</div></div><div class="signature-block"><div class="signature-line">${doctorName}</div></div></div>` : ''}<div class="footer"><p>Généré le ${new Date().toLocaleString('fr-FR')} - DVH Analyzer</p></div></body></html>`;
+}
+
+function generateMinimalReport(report: ValidationReport, overallStatus?: 'PASS' | 'FAIL', doctorName?: string): string {
+  const finalStatus = overallStatus || report.overallStatus;
+  const { protocolName, patientId, evaluationDate, prescriptionResults, constraintResults } = report;
+  const statusColor = finalStatus === 'PASS' ? '#059669' : '#dc2626';
+  
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Validation - ${protocolName}</title><style>@media print{@page{size:A4;margin:20mm 15mm}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}.page-break{page-break-before:always}.no-break{page-break-inside:avoid}}*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;line-height:1.4;color:#000;padding:15mm;font-size:10pt}.header{margin-bottom:8mm;padding-bottom:3mm;border-bottom:3px solid #000}.header h1{font-size:18pt;font-weight:bold;margin-bottom:2mm}.info-grid{display:grid;grid-template-columns:auto 1fr;gap:2mm 5mm;margin-bottom:6mm;font-size:10pt}.info-label{font-weight:bold}.status-line{text-align:center;padding:4mm 0;margin:6mm 0;border-top:2px solid ${statusColor};border-bottom:2px solid ${statusColor}}.status-line strong{font-size:14pt;color:${statusColor}}.section{margin-bottom:6mm;page-break-inside:avoid}.section-title{font-size:12pt;font-weight:bold;margin-bottom:3mm;padding:2mm 0;border-bottom:1px solid #000}table{width:100%;border-collapse:collapse;margin-bottom:4mm;font-size:9pt}thead{background:#f0f0f0}th{text-align:left;padding:2mm;font-weight:bold;border:1px solid #000}td{padding:2mm;border:1px solid #ccc}tbody tr:nth-child(even){background:#fafafa}.status-cell{font-weight:bold;text-align:center}.pass{color:#059669}.fail{color:#dc2626}.warning{color:#d97706}.signature{margin-top:12mm;page-break-inside:avoid}.signature-row{display:flex;justify-content:space-between;margin-top:3mm}.signature-box{width:45%;text-align:center}.signature-line{border-top:1px solid #000;margin-top:10mm;padding-top:1mm;font-size:9pt}.footer{margin-top:8mm;padding-top:2mm;border-top:1px solid #ccc;font-size:8pt;color:#666;text-align:right}</style></head><body><div class="header no-break"><h1>VALIDATION DU PLAN DE TRAITEMENT</h1><div>Radiothérapie</div></div><div class="info-grid no-break"><span class="info-label">Protocole :</span><span>${protocolName}</span><span class="info-label">Patient :</span><span>${patientId}</span><span class="info-label">Date :</span><span>${new Date(evaluationDate).toLocaleDateString('fr-FR')}</span>${doctorName ? `<span class="info-label">Validateur :</span><span>${doctorName}</span>` : ''}</div><div class="status-line no-break"><strong>STATUT : ${finalStatus}</strong></div>${prescriptionResults.length > 0 ? `<div class="section"><h2 class="section-title">VOLUMES CIBLES (PTV)</h2><table><thead><tr><th>Structure</th><th>Prescription</th><th>V95%</th><th>D95%</th><th style="width:60px">Statut</th></tr></thead><tbody>${prescriptionResults.map(r => `<tr><td>${r.structureName}</td><td>${r.prescriptionDose.toFixed(2)} Gy</td><td>${r.v95 !== null ? r.v95.toFixed(1) + '%' : 'N/A'}</td><td>${r.d95 !== null ? r.d95.toFixed(2) + ' Gy' : 'N/A'}</td><td class="status-cell ${r.status.toLowerCase()}">${r.status}</td></tr>`).join('')}</tbody></table></div>` : ''}${constraintResults.length > 0 ? `<div class="section ${prescriptionResults.length > 6 ? 'page-break' : ''}"><h2 class="section-title">ORGANES À RISQUE (OAR)</h2><table><thead><tr><th>Structure</th><th>Contrainte</th><th>Limite</th><th>Mesuré</th><th style="width:60px">Statut</th></tr></thead><tbody>${constraintResults.map(r => `<tr><td>${r.structureName}</td><td>${r.constraintType}</td><td>${r.limit.toFixed(2)} ${r.limitUnit}</td><td>${r.measuredValue !== null ? r.measuredValue.toFixed(2) + ' ' + r.limitUnit : 'N/A'}</td><td class="status-cell ${r.status.toLowerCase()}">${r.status}</td></tr>`).join('')}</tbody></table></div>` : ''}${doctorName ? `<div class="signature"><div class="signature-row"><div class="signature-box"><div class="signature-line">${new Date().toLocaleDateString('fr-FR')}</div></div><div class="signature-box"><div class="signature-line">${doctorName}</div></div></div></div>` : ''}<div class="footer">Généré le ${new Date().toLocaleString('fr-FR')} - DVH Analyzer</div></body></html>`;
+}
+
+export async function generatePDFReport(
+  report: ValidationReport,
+  overallStatus?: 'PASS' | 'FAIL',
+  doctorName?: string,
+  template: ReportTemplate = 'classic'
+): Promise<Blob> {
   const tempDiv = document.createElement('div');
-  tempDiv.innerHTML = htmlContent;
   tempDiv.style.position = 'absolute';
   tempDiv.style.left = '-9999px';
-  tempDiv.style.width = '1200px';
+  tempDiv.innerHTML = generateHTMLReport(report, overallStatus, doctorName, template);
   document.body.appendChild(tempDiv);
-  
-  // Supprimer le bouton d'impression
-  const printButton = tempDiv.querySelector('.no-print');
-  if (printButton) {
-    printButton.remove();
-  }
-  
+
   try {
-    // Convertir en canvas
-    const canvas = await html2canvas(tempDiv, {
-      scale: 2,
-      logging: false,
-      useCORS: true
-    });
-    
-    // Créer le PDF
-    const imgWidth = 210; // A4 width in mm
-    const pageHeight = 297; // A4 height in mm
+    const canvas = await html2canvas(tempDiv, { scale: 2, useCORS: true, logging: false });
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = 210;
+    const pageHeight = 297;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     let heightLeft = imgHeight;
-    
-    const pdf = new jsPDF('p', 'mm', 'a4');
     let position = 0;
-    
-    // Ajouter la première page
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
+
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
     heightLeft -= pageHeight;
-    
-    // Ajouter des pages supplémentaires si nécessaire
+
     while (heightLeft >= 0) {
       position = heightLeft - imgHeight;
       pdf.addPage();
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
     }
-    
-    // Retourner le blob
+
     return pdf.output('blob');
-    
   } finally {
-    // Nettoyer
     document.body.removeChild(tempDiv);
   }
 }
 
-/**
- * Télécharge un fichier
- */
 export function downloadFile(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
-  document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
 
-/**
- * Télécharge le rapport HTML
- */
-export function downloadHTMLReport(report: ValidationReport, overallStatus?: 'PASS' | 'FAIL', doctorName?: string): void {
-  const html = generateHTMLReport(report, overallStatus, doctorName);
+export function downloadHTMLReport(
+  report: ValidationReport,
+  overallStatus?: 'PASS' | 'FAIL',
+  doctorName?: string,
+  template: ReportTemplate = 'classic'
+): void {
+  const html = generateHTMLReport(report, overallStatus, doctorName, template);
   const blob = new Blob([html], { type: 'text/html' });
-  const filename = `${report.patientId}_${report.protocolName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.html`;
-  downloadFile(blob, filename);
+  downloadFile(blob, `Validation_${report.patientId}_${new Date().toISOString().split('T')[0]}.html`);
 }
 
-/**
- * Télécharge le rapport PDF
- */
-export async function downloadPDFReport(report: ValidationReport, overallStatus?: 'PASS' | 'FAIL', doctorName?: string): Promise<void> {
-  const blob = await generatePDFReport(report, overallStatus, doctorName);
-  const filename = `${report.patientId}_${report.protocolName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
-  downloadFile(blob, filename);
+export async function downloadPDFReport(
+  report: ValidationReport,
+  overallStatus?: 'PASS' | 'FAIL',
+  doctorName?: string,
+  template: ReportTemplate = 'classic'
+): Promise<void> {
+  const blob = await generatePDFReport(report, overallStatus, doctorName, template);
+  downloadFile(blob, `Validation_${report.patientId}_${new Date().toISOString().split('T')[0]}.pdf`);
 }

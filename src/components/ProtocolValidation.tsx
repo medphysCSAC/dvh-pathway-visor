@@ -82,7 +82,7 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
     });
   };
 
-  const handleExport = async (format: 'html' | 'pdf', overallStatus: 'PASS' | 'FAIL', doctorName: string) => {
+  const handleExport = async (format: 'html' | 'pdf', overallStatus: 'PASS' | 'FAIL', doctorName: string, template: 'classic' | 'modern' | 'minimal') => {
     if (!report) return;
     
     try {
@@ -92,19 +92,18 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
           title: 'Génération du PDF...',
           description: 'Veuillez patienter',
         });
-        await downloadPDFReport(report, overallStatus, doctorName);
+        await downloadPDFReport(report, overallStatus, doctorName, template);
         toast({
           title: 'PDF exporté',
-          description: 'Le rapport PDF a été téléchargé avec succès',
+          description: 'Le rapport a été téléchargé avec succès',
         });
       } else {
-        downloadHTMLReport(report, overallStatus, doctorName);
+        downloadHTMLReport(report, overallStatus, doctorName, template);
         toast({
           title: 'HTML exporté',
-          description: 'Le rapport HTML a été téléchargé avec succès',
+          description: 'Le rapport a été téléchargé avec succès',
         });
       }
-      setExportDialogOpen(false);
     } catch (error) {
       toast({
         title: 'Erreur d\'export',
