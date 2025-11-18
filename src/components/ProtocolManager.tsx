@@ -165,19 +165,7 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
     const protocol = protocols.find(p => p.id === protocolToDelete);
     if (!protocol) return;
 
-    // Protection des protocoles prédéfinis
-    if (!protocol.isCustom) {
-      toast({
-        title: 'Action interdite',
-        description: 'Les protocoles prédéfinis ne peuvent pas être supprimés. Utilisez "Masquer" pour les cacher ou créez une copie personnalisée.',
-        variant: 'destructive',
-      });
-      setProtocolToDelete(null);
-      setDeletePassword('');
-      return;
-    }
-
-    // Vérification du mot de passe pour protocoles personnalisés
+    // Vérification du mot de passe
     if (deletePassword !== 'DELETE') {
       toast({
         title: 'Erreur',
@@ -266,18 +254,6 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
   };
 
   const handleArchiveProtocol = (protocolId: string) => {
-    const protocol = protocols.find(p => p.id === protocolId);
-    
-    // Protection des protocoles prédéfinis
-    if (protocol && !protocol.isCustom) {
-      toast({
-        title: 'Action interdite',
-        description: 'Les protocoles prédéfinis ne peuvent pas être archivés. Créez une copie si nécessaire.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setArchivedProtocols(prev => {
       const newSet = new Set(prev);
       if (newSet.has(protocolId)) {
