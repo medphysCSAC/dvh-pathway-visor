@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { FileDown } from 'lucide-react';
@@ -13,7 +14,7 @@ interface ExportReportDialogProps {
   report: ValidationReport | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onExport: (format: 'html' | 'pdf', overallStatus: 'PASS' | 'FAIL', doctorName: string, template: ReportTemplate) => void;
+  onExport: (format: 'html' | 'pdf', overallStatus: 'PASS' | 'FAIL', doctorName: string, template: ReportTemplate, observations?: string) => void;
   isExporting?: boolean;
 }
 
@@ -26,6 +27,7 @@ export default function ExportReportDialog({
 }: ExportReportDialogProps) {
   const [overallStatus, setOverallStatus] = useState<'PASS' | 'FAIL'>('PASS');
   const [doctorName, setDoctorName] = useState('');
+  const [observations, setObservations] = useState('');
   const [exportFormat, setExportFormat] = useState<'html' | 'pdf'>('pdf');
   const [template, setTemplate] = useState<ReportTemplate>('classic');
 
@@ -33,7 +35,7 @@ export default function ExportReportDialog({
     if (!doctorName.trim()) {
       return;
     }
-    onExport(exportFormat, overallStatus, doctorName, template);
+    onExport(exportFormat, overallStatus, doctorName, template, observations);
   };
 
   if (!report) return null;
@@ -106,6 +108,17 @@ export default function ExportReportDialog({
               value={doctorName}
               onChange={(e) => setDoctorName(e.target.value)}
               placeholder="Dr. Nom Prénom"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="observations">Observations (facultatif)</Label>
+            <Textarea 
+              id="observations" 
+              placeholder="Ajoutez vos observations ici..." 
+              value={observations}
+              onChange={(e) => setObservations(e.target.value)}
+              rows={3}
             />
           </div>
 

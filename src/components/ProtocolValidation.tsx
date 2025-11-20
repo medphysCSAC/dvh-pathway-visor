@@ -82,7 +82,7 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
     });
   };
 
-  const handleExport = async (format: 'html' | 'pdf', overallStatus: 'PASS' | 'FAIL', doctorName: string, template: 'classic' | 'modern' | 'minimal') => {
+  const handleExport = async (format: 'html' | 'pdf', overallStatus: 'PASS' | 'FAIL', doctorName: string, template: 'classic' | 'modern' | 'minimal', observations?: string) => {
     if (!report) return;
     
     try {
@@ -92,13 +92,13 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
           title: 'Génération du PDF...',
           description: 'Veuillez patienter',
         });
-        await downloadPDFReport(report, overallStatus, doctorName, template);
+        await downloadPDFReport(report, overallStatus, doctorName, template, observations);
         toast({
           title: 'PDF exporté',
           description: 'Le rapport a été téléchargé avec succès',
         });
       } else {
-        downloadHTMLReport(report, overallStatus, doctorName, template);
+        downloadHTMLReport(report, overallStatus, doctorName, template, observations);
         toast({
           title: 'HTML exporté',
           description: 'Le rapport a été téléchargé avec succès',
