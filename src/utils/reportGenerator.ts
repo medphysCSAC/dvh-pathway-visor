@@ -24,22 +24,29 @@ export function generateHTMLReport(
   }).join('');
 
   const oarRows = constraintResults.map(c => {
-    let constraintType = '', threshold = '';
+    let constraintType = '', threshold = '', measuredUnit = '';
+    
     if (c.constraint.constraintType === 'Dmean') {
       constraintType = 'Dmean';
       threshold = `${c.constraint.value} Gy`;
+      measuredUnit = 'Gy';
     } else if (c.constraint.constraintType === 'Dmax') {
       constraintType = 'Dmax';
       threshold = `${c.constraint.value} Gy`;
+      measuredUnit = 'Gy';
     } else if (c.constraint.constraintType === 'Vx') {
       constraintType = `V${c.constraint.target}Gy`;
-      threshold = `${c.constraint.value}${c.constraint.targetUnit === '%' ? '%' : 'cc'}`;
+      const unit = c.constraint.targetUnit === '%' ? '%' : 'cc';
+      threshold = `${c.constraint.value}${unit}`;
+      measuredUnit = unit;
     } else if (c.constraint.constraintType === 'Dx') {
       constraintType = `D${c.constraint.target}${c.constraint.targetUnit === '%' ? '%' : 'cc'}`;
       threshold = `${c.constraint.value} Gy`;
+      measuredUnit = 'Gy';
     }
+    
     const statusClass = c.status === 'PASS' ? 'pass' : c.status === 'FAIL' ? 'fail' : 'warning';
-    return `<tr><td>${c.constraint.organName}</td><td>${constraintType}</td><td>${threshold}</td><td>${c.measuredValue.toFixed(2)} ${c.constraint.constraintType.includes('V') ? (c.constraint.targetUnit === '%' ? '%' : 'cc') : 'Gy'}</td><td class="${statusClass}">${c.status}</td></tr>`;
+    return `<tr><td>${c.constraint.organName}</td><td>${constraintType}</td><td>${threshold}</td><td>${c.measuredValue.toFixed(2)} ${measuredUnit}</td><td class="${statusClass}">${c.status}</td></tr>`;
   }).join('');
 
   const styles = `*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Times New Roman',serif;line-height:1.4;color:#000;background:white;padding:20mm 25mm;max-width:210mm;margin:0 auto}.header{text-align:center;border-bottom:3px double #000;padding-bottom:8mm;margin-bottom:8mm}.header h1{font-size:18pt;font-weight:bold;margin-bottom:3mm;text-transform:uppercase}.header p{font-size:11pt}.info-section{margin-bottom:6mm;padding:4mm;border:1px solid #ddd;background:#f9f9f9}.info-row{display:flex;margin-bottom:2mm;font-size:10pt}.info-label{font-weight:bold;width:140px}.status-box{text-align:center;padding:4mm;margin:6mm 0;border:2px solid ${statusColor};background:${statusColor}15}.status-text{font-size:14pt;font-weight:bold;color:${statusColor}}.section{margin-top:6mm}.section-title{font-size:13pt;font-weight:bold;margin-bottom:4mm;padding-bottom:2mm;border-bottom:2px solid #000}.summary-text{font-size:8pt;color:#666;margin-top:3mm;margin-bottom:6mm;padding:3mm;background:#f9f9f9;border-left:3px solid #333}table{width:100%;border-collapse:collapse;margin-bottom:6mm;font-size:9pt}thead{background:#333;color:white}th{text-align:left;padding:2.5mm;font-weight:bold;border:1px solid #000}td{padding:2.5mm;border:1px solid #ddd}tbody tr:nth-child(even){background:#f5f5f5}.pass{color:#22c55e;font-weight:bold}.fail{color:#ef4444;font-weight:bold}.warning{color:#f59e0b;font-weight:bold}.validation-section{margin-top:10mm}.validation-box{border:1px solid #333;padding:4mm;background:#f9f9f9}.validation-label{font-weight:bold;font-size:10pt;margin-bottom:2mm}.observations-text{font-size:9pt;margin-top:3mm;padding:3mm;background:white;border:1px solid #ddd;white-space:pre-wrap}.footer{margin-top:8mm;padding-top:3mm;border-top:1px solid #ddd;font-size:8pt;text-align:center;color:#666}`;
