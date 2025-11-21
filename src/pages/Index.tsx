@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
-import { MultiFileUpload } from '@/components/MultiFileUpload';
 import { ProtocolDocumentConverter } from '@/components/ProtocolDocumentConverter';
 import { DVHChart } from '@/components/DVHChart';
 import { StructureTable } from '@/components/StructureTable';
@@ -22,8 +21,6 @@ const Index = () => {
   const [dvhData, setDvhData] = useState<DVHData | null>(null);
   const [selectedStructures, setSelectedStructures] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<StructureCategory | 'ALL'>('ALL');
-  const [multiPlans, setMultiPlans] = useState<PlanData[]>([]);
-  const [multiPlanMode, setMultiPlanMode] = useState<'summation' | 'comparison' | 'multi-patient' | null>(null);
   const handleFilesUploaded = async (relFile: File, absFile?: File) => {
     try {
       const relContent = await relFile.text();
@@ -96,36 +93,6 @@ const Index = () => {
     });
   };
 
-  const handleMultiPlansLoaded = (plans: PlanData[], mode: 'summation' | 'comparison' | 'multi-patient') => {
-    setMultiPlans(plans);
-    setMultiPlanMode(mode);
-    
-    if (mode === 'summation') {
-      // Sommer automatiquement les plans
-      try {
-        const summated = summatePlans(plans);
-        setDvhData({
-          patientId: summated.patientId,
-          structures: summated.structures
-        });
-        setSelectedStructures([]);
-        toast.success('Plans sommés avec succès', {
-          description: `${plans.length} plans combinés`
-        });
-      } catch (error) {
-        console.error('Erreur lors de la sommation:', error);
-        toast.error('Erreur lors de la sommation des plans');
-      }
-    } else {
-      // Pour comparaison, charger le premier plan
-      setDvhData({
-        patientId: plans[0].patientId,
-        structures: plans[0].structures
-      });
-      setSelectedStructures([]);
-      toast.success(`${plans.length} plans chargés en mode ${mode}`);
-    }
-  };
   return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
@@ -152,19 +119,14 @@ const Index = () => {
         <div className="space-y-8">
           {/* File Upload Section */}
           {!dvhData && <div className="max-w-4xl mx-auto space-y-6">
-              <Tabs defaultValue="single" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="single">Plan Simple</TabsTrigger>
-                  <TabsTrigger value="multi">Multi-Plans</TabsTrigger>
+              <Tabs defaultValue="upload" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="upload">Charger un plan</TabsTrigger>
                   <TabsTrigger value="converter">Convertisseur Protocole</TabsTrigger>
                 </TabsList>
                 
-                <TabsContent value="single" className="mt-6">
+                <TabsContent value="upload" className="mt-6">
                   <FileUpload onFilesUploaded={handleFilesUploaded} />
-                </TabsContent>
-                
-                <TabsContent value="multi" className="mt-6">
-                  <MultiFileUpload onPlansLoaded={handleMultiPlansLoaded} />
                 </TabsContent>
                 
                 <TabsContent value="converter" className="mt-6">
