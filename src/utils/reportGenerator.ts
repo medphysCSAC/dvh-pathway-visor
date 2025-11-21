@@ -36,9 +36,8 @@ export function generateHTMLReport(
       measuredUnit = 'Gy';
     } else if (c.constraint.constraintType === 'Vx') {
       constraintType = `V${c.constraint.target}Gy`;
-      const unit = c.constraint.targetUnit === '%' ? '%' : 'cc';
-      threshold = `${c.constraint.value}${unit}`;
-      measuredUnit = unit;
+      measuredUnit = c.constraint.targetUnit || '%';
+      threshold = `${c.constraint.value} ${measuredUnit}`;
     } else if (c.constraint.constraintType === 'Dx') {
       constraintType = `D${c.constraint.target}${c.constraint.targetUnit === '%' ? '%' : 'cc'}`;
       threshold = `${c.constraint.value} Gy`;
