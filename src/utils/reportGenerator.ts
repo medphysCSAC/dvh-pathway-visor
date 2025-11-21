@@ -504,71 +504,9 @@ export function generateHTMLReport(
     html.push('</div>');
   }
   
-  // ========== SECTION 4: ALERTS ==========
-  if (criticalFailures.length > 0 || warnings.length > 0) {
-    html.push('<div class="section">');
-    html.push('<div class="section-header">4. ALERTES ET POINTS D\'ATTENTION</div>');
-    
-    criticalFailures.forEach(c => {
-      let constraintText = '';
-      if (c.constraint.constraintType === 'Vx') {
-        constraintText = `V${c.constraint.target}Gy`;
-      } else if (c.constraint.constraintType === 'Dx') {
-        constraintText = `D${c.constraint.target}${c.constraint.targetUnit === '%' ? '%' : 'cc'}`;
-      } else {
-        constraintText = c.constraint.constraintType;
-      }
-      
-      html.push('<div class="alert-box critical">');
-      html.push('<div class="alert-title">⚠️ ALERTE CRITIQUE</div>');
-      html.push(`<strong>${c.constraint.organName}</strong> : ${constraintText} dépasse le seuil de ${c.constraint.value} (mesuré: ${c.measuredValue.toFixed(2)})<br>`);
-      html.push('<em>Action : Révision du plan requise avant validation clinique</em>');
-      html.push('</div>');
-    });
-    
-    warnings.forEach(c => {
-      let constraintText = '';
-      if (c.constraint.constraintType === 'Vx') {
-        constraintText = `V${c.constraint.target}Gy`;
-      } else if (c.constraint.constraintType === 'Dx') {
-        constraintText = `D${c.constraint.target}${c.constraint.targetUnit === '%' ? '%' : 'cc'}`;
-      } else {
-        constraintText = c.constraint.constraintType;
-      }
-      
-      const deviation = calculateDeviation(c.measuredValue, c.constraint.value);
-      html.push('<div class="alert-box warning">');
-      html.push('<div class="alert-title">⚠ AVERTISSEMENT</div>');
-      html.push(`<strong>${c.constraint.organName}</strong> : ${constraintText} approche le seuil (${deviation} d'écart)<br>`);
-      html.push('<em>Action : Vérifier la pertinence clinique</em>');
-      html.push('</div>');
-    });
-    
-    html.push('</div>');
-  }
-  
-  // ========== SECTION 5: RECOMMENDATIONS ==========
-  html.push('<div class="section">');
-  html.push('<div class="section-header">5. RECOMMANDATIONS</div>');
-  html.push('<div style="padding:10px;background:#F8F9FA;font-size:10pt">');
-  
-  if (finalStatus === 'PASS' && warningCount === 0) {
-    html.push(`<p>Le plan respecte toutes les contraintes du protocole <strong>${protocolName}</strong>. Aucune modification requise.</p>`);
-  } else if (failCount > 0) {
-    html.push(`<p><strong>Non-conformités détectées :</strong> ${failCount} contrainte(s) non respectée(s). Révision obligatoire du plan.</p>`);
-  } else if (warningCount > 0) {
-    html.push(`<p><strong>Points d'attention :</strong> ${warningCount} avertissement(s) détecté(s). Considérer optimisation si cliniquement faisable.</p>`);
-  }
-  
-  if (observations) {
-    html.push(`<p style="margin-top:10px"><strong>Observations complémentaires :</strong><br>${observations}</p>`);
-  }
-  
-  html.push('</div></div>');
-  
-  // ========== SECTION 6: VALIDATION ==========
+  // ========== SECTION 4: VALIDATION ==========
   html.push('<div class="section signature-section">');
-  html.push('<div class="section-header">6. VALIDATION ET SIGNATURE</div>');
+  html.push('<div class="section-header">4. VALIDATION ET SIGNATURE</div>');
   html.push('<table class="info-table">');
   html.push(`<tr><td>Analyse effectuée par</td><td>${doctorName || '___________________________'} (Dosimétriste/Physicien)</td></tr>`);
   html.push(`<tr><td>Date analyse</td><td>${new Date(evaluationDate).toLocaleDateString('fr-FR')} à ${new Date(evaluationDate).toLocaleTimeString('fr-FR')}</td></tr>`);
@@ -585,9 +523,9 @@ export function generateHTMLReport(
   html.push('</div>');
   html.push('</div>');
   
-  // ========== SECTION 7: METADATA ==========
+  // ========== SECTION 5: METADATA ==========
   html.push('<div class="section metadata-section">');
-  html.push('<div class="section-header">7. MÉTADONNÉES ET TRAÇABILITÉ</div>');
+  html.push('<div class="section-header">5. MÉTADONNÉES ET TRAÇABILITÉ</div>');
   html.push('<table class="metadata-table">');
   html.push('<tr><td>Application</td><td>DVH Analyzer v1.0</td></tr>');
   html.push('<tr><td>Méthode interpolation</td><td>Linéaire</td></tr>');
