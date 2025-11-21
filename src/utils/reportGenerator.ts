@@ -80,18 +80,44 @@ export function generateHTMLReport(
 
   // CSS Styles
   const styles = `
+    @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap');
+    
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
-      font-family: 'Times New Roman', serif; 
-      line-height: 1.2; 
+      font-family: 'Libre Baskerville', 'Times New Roman', serif; 
+      line-height: 1.3; 
       color: #000; 
       background: white; 
-      padding: 20mm 15mm; 
-      max-width: 210mm; 
-      margin: 0 auto; 
+      padding: 0;
+      margin: 0;
     }
-    .report-container { max-width: 100%; }
+    .report-container { 
+      max-width: 210mm; 
+      margin: 0 auto;
+      padding: 20mm 15mm;
+      position: relative;
+    }
     .section { margin-bottom: 20px; page-break-inside: avoid; }
+    
+    /* Institutional Header */
+    .institutional-header {
+      text-align: center;
+      border-bottom: 3px solid #000;
+      padding-bottom: 15px;
+      margin-bottom: 25px;
+    }
+    .institution-name {
+      font-size: 16pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 5px;
+    }
+    .department-name {
+      font-size: 12pt;
+      color: #333;
+      margin-bottom: 3px;
+    }
     
     /* Header */
     .report-header { 
@@ -99,13 +125,14 @@ export function generateHTMLReport(
       border: 3px solid #000; 
       padding: 15px; 
       background: #F8F9FA; 
-      margin-bottom: 20px; 
+      margin: 25px 0 20px 0; 
     }
     .report-title { 
       font-size: 18pt; 
       font-weight: bold; 
       text-transform: uppercase; 
-      margin-bottom: 5px; 
+      margin-bottom: 5px;
+      letter-spacing: 0.5px;
     }
     .report-subtitle { font-size: 14pt; color: #495057; }
     
@@ -282,19 +309,35 @@ export function generateHTMLReport(
     }
     
     /* Footer */
-    .footer { 
-      margin-top: 20px; 
-      padding-top: 10px; 
-      border-top: 1px solid #CED4DA; 
-      font-size: 9pt; 
-      text-align: center; 
-      color: #495057; 
+    .report-footer {
+      text-align: center;
+      border-top: 2px solid #000;
+      padding-top: 15px;
+      margin-top: 40px;
+      font-size: 9pt;
+      color: #666;
+    }
+    .footer-institution {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .footer-contact {
+      margin: 3px 0;
+    }
+    .footer-confidential {
+      margin-top: 10px;
+      font-size: 8pt;
+      font-style: italic;
     }
     
     /* Print optimization */
     @media print { 
       .section { page-break-inside: avoid; } 
-      * { print-color-adjust: exact; -webkit-print-color-adjust: exact; } 
+      * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      @page {
+        size: A4;
+        margin: 20mm 15mm;
+      }
     }
   `;
 
@@ -302,6 +345,12 @@ export function generateHTMLReport(
   html.push('<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">');
   html.push(`<title>Validation - ${protocolName}</title>`);
   html.push(`<style>${styles}</style></head><body><div class="report-container">`);
+  
+  // ========== INSTITUTIONAL HEADER ==========
+  html.push('<div class="institutional-header">');
+  html.push('<div class="institution-name">Centre Sidi Abdellah de Cancérologie</div>');
+  html.push('<div class="department-name">Service de Radiothérapie - Département de Physique Médicale</div>');
+  html.push('</div>');
   
   // ========== HEADER ==========
   html.push('<div class="report-header">');
@@ -548,9 +597,11 @@ export function generateHTMLReport(
   html.push('</table></div>');
   
   // ========== FOOTER ==========
-  html.push('<div class="footer">');
-  html.push(`<p>Rapport généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}</p>`);
-  html.push('<p>Document confidentiel - Usage clinique uniquement</p>');
+  html.push('<div class="report-footer">');
+  html.push('<p class="footer-institution">Centre Sidi Abdellah de Cancérologie</p>');
+  html.push('<p class="footer-contact">Service de Radiothérapie - Département de Physique Médicale</p>');
+  html.push('<p class="footer-contact">Adresse: Alger, Algérie | Tél: +213 XXX XXX XXX</p>');
+  html.push(`<p class="footer-confidential">Rapport généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')} - Document confidentiel - Usage clinique uniquement</p>`);
   html.push('</div>');
   
   html.push('</div></body></html>');
