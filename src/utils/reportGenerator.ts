@@ -508,15 +508,9 @@ export function generateHTMLReport(
   html.push('<div class="section signature-section">');
   html.push('<div class="section-header">4. VALIDATION ET SIGNATURE</div>');
   html.push('<table class="info-table">');
-  html.push(`<tr><td>Analyse effectuée par</td><td>${doctorName || '___________________________'} (Dosimétriste/Physicien)</td></tr>`);
-  html.push(`<tr><td>Date analyse</td><td>${new Date(evaluationDate).toLocaleDateString('fr-FR')} à ${new Date(evaluationDate).toLocaleTimeString('fr-FR')}</td></tr>`);
-  html.push('<tr><td>Plan validé par</td><td>___________________________</td></tr>');
-  html.push('<tr><td>Date validation</td><td>____/____/________</td></tr>');
+  html.push(`<tr><td>Plan validé par</td><td>${doctorName || '___________________________'}</td></tr>`);
+  html.push('<tr><td>Date de validation</td><td>____/____/________</td></tr>');
   html.push('</table>');
-  
-  html.push('<div class="signature-box">');
-  html.push('<div class="signature-label">Signature dosimétriste/physicien</div>');
-  html.push('</div>');
   
   html.push('<div class="signature-box">');
   html.push('<div class="signature-label">Signature médecin validateur</div>');
