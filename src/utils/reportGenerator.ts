@@ -272,8 +272,14 @@ export function generateHTMLReport(
     }
     .legend strong { font-style: normal; }
     
-    /* Signature Section */
-    .signature-section { margin-top: 25px; }
+    /* Signature Section - PROTECTION CONTRE LES COUPURES */
+    .signature-section { 
+      margin-top: 25px;
+      page-break-inside: avoid !important;
+      page-break-before: auto !important;
+      min-height: 150mm !important;
+      display: block !important;
+    }
     .signature-box { 
       border: 2px dashed #CED4DA; 
       padding: 30px 15px; 
@@ -333,6 +339,10 @@ export function generateHTMLReport(
     /* Print optimization */
     @media print { 
       .section { page-break-inside: avoid; } 
+      .signature-section { 
+        page-break-inside: avoid !important; 
+        page-break-before: always !important; 
+      }
       * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
       @page {
         size: A4;
@@ -547,7 +557,7 @@ export function generateHTMLReport(
   }
 
   // ========== SECTION 4: VALIDATION ==========
-  html.push('<div class="section signature-section">');
+  html.push('<div class="section signature-section" id="section-4">');
   html.push('<div class="section-header">4. VALIDATION ET SIGNATURE</div>');
   html.push('<table class="info-table">');
   html.push(`<tr><td>Plan validé par</td><td>${doctorName || "___________________________"}</td></tr>`);
@@ -604,6 +614,9 @@ export async function generatePDFReport(
   document.body.appendChild(container);
 
   try {
+    // Identify section 4 element for page break protection
+    const section4Element = container.querySelector("#section-4");
+    
     // Optimized html2canvas options for better quality
     const canvas = await html2canvas(container, {
       scale: 2,
@@ -631,6 +644,20 @@ export async function generatePDFReport(
     // Content area dimensions
     const contentWidth = pageWidth - margin.left - margin.right;
     const contentHeight = pageHeight - margin.top - margin.bottom;
+    
+    // Calculate section 4 position if found
+    let section4Position: { top: number; height: number } | null = null;
+    if (section4Element) {
+      const section4Rect = section4Element.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const imgWidth = contentWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      section4Position = {
+        top: ((section4Rect.top - containerRect.top) / containerRect.height) * imgHeight,
+        height: (section4Rect.height / containerRect.height) * imgHeight,
+      };
+    }
 
     const pdf = new jsPDF({
       orientation: "portrait",
@@ -660,7 +687,102 @@ export async function generatePDFReport(
     let pageNumber = 1;
 
     while (remainingHeight > 0) {
-      // Add new page except for the first one
+      // Check if section 4 would be split on this page
+      if (section4Position) {
+        const pageEndY = sourceY + contentHeight;
+        const section4StartsOnThisPage = sourceY <= section4Position.top && section4Position.top < pageEndY;
+        const section4EndsAfterThisPage = section4Position.top + section4Position.height > pageEndY;
+        
+        // If section 4 starts on this page but would be cut, force page break before it
+        if (section4StartsOnThisPage && section4EndsAfterThisPage) {
+          // Calculate remaining space on this page before section 4
+          const spaceBeforeSection4 = section4Position.top - sourceY;
+          
+          // If there's minimal content before section 4 (< 30mm), skip this page content
+          if (spaceBeforeSection4 > 30) {
+            // Add page with content up to section 4
+            if (pageNumber > 1) {
+              pdf.addPage();
+            }
+            
+            // Add header
+            pdf.setFontSize(10);
+            pdf.setFont("helvetica", "normal");
+            pdf.text("DVH Analyzer - Rapport d'analyse", margin.left, margin.top - 5);
+            pdf.text(`Page ${pageNumber}`, pageWidth - margin.right - 15, margin.top - 5);
+            
+            // Add content before section 4
+            const canvasSourceY = (sourceY / imgHeight) * canvas.height;
+            const canvasHeight = (spaceBeforeSection4 / imgHeight) * canvas.height;
+            
+            const pageCanvas = document.createElement("canvas");
+            pageCanvas.width = canvas.width;
+            pageCanvas.height = canvasHeight;
+            const pageContext = pageCanvas.getContext("2d");
+            
+            if (pageContext) {
+              pageContext.drawImage(canvas, 0, canvasSourceY, canvas.width, canvasHeight, 0, 0, canvas.width, canvasHeight);
+              const pageImgData = pageCanvas.toDataURL("image/jpeg", 0.95);
+              pdf.addImage(pageImgData, "JPEG", margin.left, margin.top, imgWidth, spaceBeforeSection4, "", "FAST");
+            }
+            
+            // Add footer
+            pdf.setFontSize(9);
+            const today = new Date().toLocaleDateString("fr-FR");
+            pdf.text(today, margin.left, pageHeight - margin.bottom + 10);
+            pdf.text("Centre Sidi Abdellah de Cancérologie", pageWidth / 2, pageHeight - margin.bottom + 10, {
+              align: "center",
+            });
+            pdf.text("DVH Analyzer v1.0", pageWidth - margin.right - 25, pageHeight - margin.bottom + 10);
+            
+            sourceY = section4Position.top;
+            pageNumber++;
+          }
+          
+          // Now add section 4 on a new page
+          pdf.addPage();
+          
+          // Add header
+          pdf.setFontSize(10);
+          pdf.setFont("helvetica", "normal");
+          pdf.text("DVH Analyzer - Rapport d'analyse", margin.left, margin.top - 5);
+          pdf.text(`Page ${pageNumber}`, pageWidth - margin.right - 15, margin.top - 5);
+          
+          // Add section 4 content
+          const section4CanvasY = (section4Position.top / imgHeight) * canvas.height;
+          const section4CanvasHeight = (section4Position.height / imgHeight) * canvas.height;
+          
+          const section4Canvas = document.createElement("canvas");
+          section4Canvas.width = canvas.width;
+          section4Canvas.height = section4CanvasHeight;
+          const section4Context = section4Canvas.getContext("2d");
+          
+          if (section4Context) {
+            section4Context.drawImage(canvas, 0, section4CanvasY, canvas.width, section4CanvasHeight, 0, 0, canvas.width, section4CanvasHeight);
+            const section4ImgData = section4Canvas.toDataURL("image/jpeg", 0.95);
+            pdf.addImage(section4ImgData, "JPEG", margin.left, margin.top, imgWidth, section4Position.height, "", "FAST");
+          }
+          
+          // Add footer
+          pdf.setFontSize(9);
+          const today = new Date().toLocaleDateString("fr-FR");
+          pdf.text(today, margin.left, pageHeight - margin.bottom + 10);
+          pdf.text("Centre Sidi Abdellah de Cancérologie", pageWidth / 2, pageHeight - margin.bottom + 10, {
+            align: "center",
+          });
+          pdf.text("DVH Analyzer v1.0", pageWidth - margin.right - 25, pageHeight - margin.bottom + 10);
+          
+          sourceY = section4Position.top + section4Position.height;
+          remainingHeight = imgHeight - sourceY;
+          pageNumber++;
+          
+          // Clear section4Position so we don't process it again
+          section4Position = null;
+          continue;
+        }
+      }
+      
+      // Normal page processing
       if (pageNumber > 1) {
         pdf.addPage();
       }
