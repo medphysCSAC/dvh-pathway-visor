@@ -549,24 +549,52 @@ export async function generatePDFReport(
   observations?: string
 ): Promise<Blob> {
   const htmlContent = generateHTMLReport(report, overallStatus, doctorName, template, observations);
+  
+  // Create temporary container with precise A4 dimensions
   const container = document.createElement('div');
   container.innerHTML = htmlContent;
   container.style.position = 'absolute';
   container.style.left = '-9999px';
+  container.style.width = '794px'; // A4 width in pixels at 96 DPI
+  container.style.backgroundColor = '#ffffff';
+  container.style.padding = '0';
+  container.style.margin = '0';
   document.body.appendChild(container);
 
   try {
+    // Optimized html2canvas options for better quality
     const canvas = await html2canvas(container, {
-      scale: 3,
+      scale: 2,
       useCORS: true,
+      allowTaint: true,
       logging: false,
-      backgroundColor: '#ffffff'
+      windowWidth: 794,
+      windowHeight: 1123,
+      scrollX: 0,
+      scrollY: 0,
+      backgroundColor: '#ffffff',
+      imageTimeout: 15000
     });
+
+    // A4 dimensions in mm
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = {
+      top: 20,
+      right: 15,
+      bottom: 20,
+      left: 15
+    };
+
+    // Content area dimensions
+    const contentWidth = pageWidth - margin.left - margin.right;
+    const contentHeight = pageHeight - margin.top - margin.bottom;
 
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: 'a4'
+      format: 'a4',
+      compress: true
     });
 
     // Add PDF metadata
@@ -578,21 +606,77 @@ export async function generatePDFReport(
       creator: 'DVH Analyzer v1.0'
     });
 
-    const imgData = canvas.toDataURL('image/png');
-    const imgWidth = 210;
-    const pageHeight = 297;
+    // Convert canvas to image
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    
+    // Calculate image dimensions
+    const imgWidth = contentWidth;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    let heightLeft = imgHeight;
-    let position = 0;
+    
+    let remainingHeight = imgHeight;
+    let sourceY = 0;
+    let pageNumber = 1;
 
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
+    while (remainingHeight > 0) {
+      // Add new page except for the first one
+      if (pageNumber > 1) {
+        pdf.addPage();
+      }
 
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      // Add header
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('DVH Analyzer - Rapport d\'analyse', margin.left, margin.top - 5);
+      pdf.text(`Page ${pageNumber}`, pageWidth - margin.right - 15, margin.top - 5);
+
+      // Calculate the height of content for this page
+      const pageContentHeight = Math.min(remainingHeight, contentHeight);
+      
+      // Calculate the source Y position on the canvas
+      const canvasSourceY = (sourceY / imgHeight) * canvas.height;
+      const canvasHeight = (pageContentHeight / imgHeight) * canvas.height;
+      
+      // Create a temporary canvas for this page slice
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = canvasHeight;
+      const pageContext = pageCanvas.getContext('2d');
+      
+      if (pageContext) {
+        pageContext.drawImage(
+          canvas,
+          0, canvasSourceY,
+          canvas.width, canvasHeight,
+          0, 0,
+          canvas.width, canvasHeight
+        );
+        
+        const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+        
+        // Add the image slice to the PDF
+        pdf.addImage(
+          pageImgData,
+          'JPEG',
+          margin.left,
+          margin.top,
+          imgWidth,
+          pageContentHeight,
+          '',
+          'FAST'
+        );
+      }
+
+      // Add footer
+      pdf.setFontSize(9);
+      const today = new Date().toLocaleDateString('fr-FR');
+      pdf.text(today, margin.left, pageHeight - margin.bottom + 10);
+      pdf.text('Centre Sidi Abdellah de Cancérologie', pageWidth / 2, pageHeight - margin.bottom + 10, { align: 'center' });
+      pdf.text('DVH Analyzer v1.0', pageWidth - margin.right - 25, pageHeight - margin.bottom + 10);
+
+      // Update position
+      sourceY += contentHeight;
+      remainingHeight -= contentHeight;
+      pageNumber++;
     }
 
     return pdf.output('blob');
