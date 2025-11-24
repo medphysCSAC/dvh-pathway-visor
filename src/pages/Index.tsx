@@ -10,7 +10,6 @@ import UnifiedMetricsCalculator from '@/components/UnifiedMetricsCalculator';
 import ProtocolValidation from '@/components/ProtocolValidation';
 import ProtocolManager from '@/components/ProtocolManager';
 import AnalysisHistory from '@/components/AnalysisHistory';
-
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { DVHData, StructureCategory, PlanData } from '@/types/dvh';
 import { summatePlans } from '@/utils/planSummation';
@@ -59,41 +58,33 @@ const Index = () => {
       }
     });
   };
-
   const handleFilterChange = (category: StructureCategory | 'ALL') => {
     setActiveFilter(category);
     if (!dvhData) return;
-
     if (category === 'ALL') {
       setSelectedStructures([]);
     } else {
-      const filtered = dvhData.structures
-        .filter(s => s.category === category)
-        .map(s => s.name);
+      const filtered = dvhData.structures.filter(s => s.category === category).map(s => s.name);
       setSelectedStructures(filtered);
     }
   };
-
   const handleSelectAll = () => {
     if (!dvhData) return;
     setSelectedStructures(dvhData.structures.map(s => s.name));
   };
-
   const handleDeselectAll = () => {
     setSelectedStructures([]);
   };
-
   const handleCategoryChange = (structureName: string, newCategory: StructureCategory) => {
     if (!dvhData) return;
-    
     setDvhData({
       ...dvhData,
-      structures: dvhData.structures.map(s =>
-        s.name === structureName ? { ...s, category: newCategory } : s
-      )
+      structures: dvhData.structures.map(s => s.name === structureName ? {
+        ...s,
+        category: newCategory
+      } : s)
     });
   };
-
   return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
@@ -107,7 +98,7 @@ const Index = () => {
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                   DVH Analyzer
                 </h1>
-                <p className="text-sm text-muted-foreground">Analyse des courbes Dose-Volume-Histogrames pour radiothérapie</p>
+                <p className="text-sm text-muted-foreground">Analyse des courbes Dose-Volume-Histogrames pour tomotherapy</p>
               </div>
             </div>
             <ThemeToggle />
@@ -176,31 +167,16 @@ const Index = () => {
                 {/* Onglet Analyse DVH */}
                 <TabsContent value="dvh" className="space-y-8">
                   {/* Filter Bar */}
-                  <FilterBar
-                    structures={dvhData.structures}
-                    selectedStructures={selectedStructures}
-                    onFilterChange={handleFilterChange}
-                    onSelectAll={handleSelectAll}
-                    onDeselectAll={handleDeselectAll}
-                    activeFilter={activeFilter}
-                  />
+                  <FilterBar structures={dvhData.structures} selectedStructures={selectedStructures} onFilterChange={handleFilterChange} onSelectAll={handleSelectAll} onDeselectAll={handleDeselectAll} activeFilter={activeFilter} />
 
                   {/* DVH Chart */}
                   <DVHChart structures={dvhData.structures} selectedStructures={selectedStructures} />
 
                   {/* Calculateur unifié de métriques DVH */}
-                  <UnifiedMetricsCalculator 
-                    structures={dvhData.structures} 
-                    selectedStructures={selectedStructures}
-                  />
+                  <UnifiedMetricsCalculator structures={dvhData.structures} selectedStructures={selectedStructures} />
 
                   {/* Structure Table */}
-                  <StructureTable 
-                    structures={dvhData.structures} 
-                    selectedStructures={selectedStructures} 
-                    onStructureToggle={handleStructureToggle}
-                    onCategoryChange={handleCategoryChange}
-                  />
+                  <StructureTable structures={dvhData.structures} selectedStructures={selectedStructures} onStructureToggle={handleStructureToggle} onCategoryChange={handleCategoryChange} />
                 </TabsContent>
 
                 {/* Onglet Évaluation de plan */}
@@ -243,7 +219,10 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t mt-16 py-6 bg-card/30">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>DVH Analyzer - Outil d'analyse pour plans de traitement en radiothérapie</p>
+          <p>DVH Analyzer - Outil d'analyse pour plans de traitement en radiothérapie
+Centre Sidi Abdellah de Cancérologie_Alger    
+
+        </p>
         </div>
       </footer>
     </div>;
