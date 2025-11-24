@@ -1,8 +1,8 @@
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-import { ValidationReport } from '@/types/protocol';
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import { ValidationReport } from "@/types/protocol";
 
-export type ReportTemplate = 'classic' | 'modern' | 'minimal';
+export type ReportTemplate = "classic" | "modern" | "minimal";
 
 export interface ReportConfig {
   patientId: string;
@@ -14,17 +14,17 @@ export interface ReportConfig {
   observations?: string;
   dvhFiles?: { rel: string; abs?: string };
   appVersion?: string;
-  watermark?: 'DRAFT' | 'FINAL' | null;
+  watermark?: "DRAFT" | "FINAL" | null;
 }
 
 // Helper functions
 function getStatusBadgeHTML(status: string): string {
-  const icons = { PASS: '✓', FAIL: '✗', WARNING: '⚠', NOT_EVALUATED: '—' };
+  const icons = { PASS: "✓", FAIL: "✗", WARNING: "⚠", NOT_EVALUATED: "—" };
   const colors = {
-    PASS: { bg: '#D3F9D8', color: '#2D7A3E', border: '#2D7A3E' },
-    FAIL: { bg: '#FFE0E0', color: '#C92A2A', border: '#C92A2A' },
-    WARNING: { bg: '#FFE8CC', color: '#E67700', border: '#E67700' },
-    NOT_EVALUATED: { bg: '#F1F3F5', color: '#868E96', border: '#868E96' }
+    PASS: { bg: "#D3F9D8", color: "#2D7A3E", border: "#2D7A3E" },
+    FAIL: { bg: "#FFE0E0", color: "#C92A2A", border: "#C92A2A" },
+    WARNING: { bg: "#FFE8CC", color: "#E67700", border: "#E67700" },
+    NOT_EVALUATED: { bg: "#F1F3F5", color: "#868E96", border: "#868E96" },
   };
   const c = colors[status as keyof typeof colors] || colors.NOT_EVALUATED;
   return `<span class="status-badge" style="background:${c.bg};color:${c.color};border:1px solid ${c.border}">${icons[status as keyof typeof icons]} ${status}</span>`;
@@ -32,51 +32,51 @@ function getStatusBadgeHTML(status: string): string {
 
 function calculateDeviation(measured: number, threshold: number): string {
   const deviation = ((measured - threshold) / threshold) * 100;
-  const sign = deviation > 0 ? '+' : '';
+  const sign = deviation > 0 ? "+" : "";
   return `${sign}${deviation.toFixed(1)}%`;
 }
 
 function getPriorityIcon(priority: string): string {
-  const icons = { 
-    'mandatory': '●', 
-    'optimal': '○', 
-    'desirable': '−' 
+  const icons = {
+    mandatory: "●",
+    optimal: "○",
+    desirable: "−",
   };
-  return icons[priority as keyof typeof icons] || '○';
+  return icons[priority as keyof typeof icons] || "○";
 }
 
 function getPriorityLabel(priority: string): string {
   const labels = {
-    'mandatory': 'Obligatoire',
-    'optimal': 'Optimale',
-    'desirable': 'Souhaitable'
+    mandatory: "Obligatoire",
+    optimal: "Optimale",
+    desirable: "Souhaitable",
   };
   return labels[priority as keyof typeof labels] || priority;
 }
 
 export function generateHTMLReport(
-  report: ValidationReport, 
-  overallStatus?: 'PASS' | 'FAIL', 
+  report: ValidationReport,
+  overallStatus?: "PASS" | "FAIL",
   doctorName?: string,
-  template: ReportTemplate = 'classic',
-  observations?: string
+  template: ReportTemplate = "classic",
+  observations?: string,
 ): string {
   const finalStatus = overallStatus || report.overallStatus;
   const { protocolName, patientId, evaluationDate, constraintResults, prescriptionResults } = report;
   const ptvMetrics = report.ptvQualityMetrics || [];
-  
+
   // Count statuses
-  const passCount = constraintResults.filter(c => c.status === 'PASS').length;
-  const failCount = constraintResults.filter(c => c.status === 'FAIL').length;
-  const warningCount = constraintResults.filter(c => c.status === 'WARNING').length;
-  const notEvaluatedCount = constraintResults.filter(c => c.status === 'NOT_EVALUATED').length;
+  const passCount = constraintResults.filter((c) => c.status === "PASS").length;
+  const failCount = constraintResults.filter((c) => c.status === "FAIL").length;
+  const warningCount = constraintResults.filter((c) => c.status === "WARNING").length;
+  const notEvaluatedCount = constraintResults.filter((c) => c.status === "NOT_EVALUATED").length;
   const totalConstraints = constraintResults.length;
-  
+
   // Identify critical failures
   const criticalFailures = constraintResults.filter(
-    c => c.status === 'FAIL' && c.constraint.priority === 'mandatory'
+    (c) => c.status === "FAIL" && c.constraint.priority === "mandatory",
   );
-  const warnings = constraintResults.filter(c => c.status === 'WARNING');
+  const warnings = constraintResults.filter((c) => c.status === "WARNING");
 
   // CSS Styles
   const styles = `
@@ -345,61 +345,78 @@ export function generateHTMLReport(
   html.push('<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">');
   html.push(`<title>Validation - ${protocolName}</title>`);
   html.push(`<style>${styles}</style></head><body><div class="report-container">`);
-  
+
   // ========== INSTITUTIONAL HEADER ==========
   html.push('<div class="institutional-header">');
   html.push('<div class="institution-name">Centre Sidi Abdellah de Cancérologie</div>');
-  html.push('<div class="department-name">Service de Radiothérapie - Département de Physique Médicale</div>');
-  html.push('</div>');
-  
+  html.push('<div class="department-name">Service de Radiothérapie</div>');
+  html.push("</div>");
+
   // ========== HEADER ==========
   html.push('<div class="report-header">');
   html.push('<div class="report-title">Rapport de Validation du Plan de Traitement</div>');
-  html.push('<div class="report-subtitle">Radiothérapie - Évaluation Dosimétrique</div>');
-  html.push('</div>');
-  
+  html.push('<div class="report-subtitle">Évaluation Dosimétrique</div>');
+  html.push("</div>");
+
   // ========== SUMMARY CARD ==========
   html.push('<div class="summary-card">');
-  html.push('<div class="summary-title">Résumé Exécutif</div>');
+  html.push('<div class="summary-title">Résumé</div>');
   html.push('<div class="summary-grid">');
   html.push(`<div class="global-status">${getStatusBadgeHTML(finalStatus)}</div>`);
-  html.push(`<div class="summary-item"><span class="summary-label">Protocole</span><span class="summary-value">${protocolName}</span></div>`);
-  html.push(`<div class="summary-item"><span class="summary-label">Patient ID</span><span class="summary-value"><strong>${patientId}</strong></span></div>`);
-  html.push(`<div class="summary-item"><span class="summary-label">Date de validation</span><span class="summary-value">${new Date(evaluationDate).toLocaleDateString('fr-FR')} à ${new Date(evaluationDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span></div>`);
-  html.push(`<div class="summary-item"><span class="summary-label">Contraintes évaluées</span><span class="summary-value">${totalConstraints} (${passCount} PASS / ${failCount} FAIL / ${warningCount} WARNING)</span></div>`);
-  html.push('</div></div>');
-  
+  html.push(
+    `<div class="summary-item"><span class="summary-label">Protocole</span><span class="summary-value">${protocolName}</span></div>`,
+  );
+  html.push(
+    `<div class="summary-item"><span class="summary-label">Patient ID</span><span class="summary-value"><strong>${patientId}</strong></span></div>`,
+  );
+  html.push(
+    `<div class="summary-item"><span class="summary-label">Date de validation</span><span class="summary-value">${new Date(evaluationDate).toLocaleDateString("fr-FR")} à ${new Date(evaluationDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span></div>`,
+  );
+  html.push(
+    `<div class="summary-item"><span class="summary-label">Contraintes évaluées</span><span class="summary-value">${totalConstraints} (${passCount} PASS / ${failCount} FAIL / ${warningCount} WARNING)</span></div>`,
+  );
+  html.push("</div></div>");
+
   // ========== SECTION 1: PATIENT INFO ==========
   html.push('<div class="section">');
   html.push('<div class="section-header">1. INFORMATIONS PATIENT ET PLAN</div>');
   html.push('<table class="info-table">');
   html.push(`<tr><td>ID Patient</td><td>${patientId}</td></tr>`);
   html.push(`<tr><td>Protocole de traitement</td><td>${protocolName}</td></tr>`);
-  
+
   if (prescriptionResults && prescriptionResults.length > 0) {
-    const prescriptions = prescriptionResults.map(p => 
-      `${p.prescription.ptvName}: ${p.prescription.totalDose} Gy en ${p.prescription.numberOfFractions} fractions (${p.prescription.dosePerFraction} Gy/fx)`
-    ).join('<br>');
+    const prescriptions = prescriptionResults
+      .map(
+        (p) =>
+          `${p.prescription.ptvName}: ${p.prescription.totalDose} Gy en ${p.prescription.numberOfFractions} fractions (${p.prescription.dosePerFraction} Gy/fx)`,
+      )
+      .join("<br>");
     html.push(`<tr><td>Prescription(s)</td><td>${prescriptions}</td></tr>`);
   }
-  
-  html.push(`<tr><td>Date d'analyse</td><td>${new Date(evaluationDate).toLocaleDateString('fr-FR')} à ${new Date(evaluationDate).toLocaleTimeString('fr-FR')}</td></tr>`);
+
+  html.push(
+    `<tr><td>Date d'analyse</td><td>${new Date(evaluationDate).toLocaleDateString("fr-FR")} à ${new Date(evaluationDate).toLocaleTimeString("fr-FR")}</td></tr>`,
+  );
   html.push(`<tr><td>Version logiciel</td><td>DVH Analyzer v1.0</td></tr>`);
-  html.push('</table></div>');
-  
+  html.push("</table></div>");
+
   // ========== SECTION 2: PTV EVALUATION ==========
   if (ptvMetrics.length > 0) {
     html.push('<div class="section">');
     html.push('<div class="section-header">2. ÉVALUATION DES VOLUMES CIBLES (PTVs)</div>');
-    html.push('<p style="font-size:10pt;margin-bottom:10px">Évaluation de la couverture et de l\'homogénéité de la dose dans les volumes tumoraux.</p>');
+    html.push(
+      '<p style="font-size:10pt;margin-bottom:10px">Évaluation de la couverture et de l\'homogénéité de la dose dans les volumes tumoraux.</p>',
+    );
     html.push('<table class="data-table">');
-    html.push('<thead><tr><th>PTV</th><th class="text-center">D95%<br>(Gy)</th><th class="text-center">D98%<br>(Gy)</th><th class="text-center">D50%<br>(Gy)</th><th class="text-center">D2%<br>(Gy)</th><th class="text-center">HI</th><th class="text-center">CI</th><th class="text-center">Statut</th></tr></thead><tbody>');
-    
-    ptvMetrics.forEach(m => {
-      const status = m.v95 >= 95 ? 'PASS' : 'FAIL';
-      const hiClass = m.hi > 0.15 ? 'highlight-critical' : '';
-      const ciClass = (m.ci < 0.9 || m.ci > 1.1) ? 'highlight-warning' : '';
-      html.push(`<tr class="${status === 'FAIL' ? 'fail-row' : ''}">`);
+    html.push(
+      '<thead><tr><th>PTV</th><th class="text-center">D95%<br>(Gy)</th><th class="text-center">D98%<br>(Gy)</th><th class="text-center">D50%<br>(Gy)</th><th class="text-center">D2%<br>(Gy)</th><th class="text-center">HI</th><th class="text-center">CI</th><th class="text-center">Statut</th></tr></thead><tbody>',
+    );
+
+    ptvMetrics.forEach((m) => {
+      const status = m.v95 >= 95 ? "PASS" : "FAIL";
+      const hiClass = m.hi > 0.15 ? "highlight-critical" : "";
+      const ciClass = m.ci < 0.9 || m.ci > 1.1 ? "highlight-warning" : "";
+      html.push(`<tr class="${status === "FAIL" ? "fail-row" : ""}">`);
       html.push(`<td>${m.structureName}</td>`);
       html.push(`<td class="text-center">${m.d95.toFixed(2)}</td>`);
       html.push(`<td class="text-center">${m.d98.toFixed(2)}</td>`);
@@ -408,157 +425,182 @@ export function generateHTMLReport(
       html.push(`<td class="text-center ${hiClass}">${m.hi.toFixed(3)}</td>`);
       html.push(`<td class="text-center ${ciClass}">${m.ci.toFixed(3)}</td>`);
       html.push(`<td class="text-center">${getStatusBadgeHTML(status)}</td>`);
-      html.push('</tr>');
+      html.push("</tr>");
     });
-    
-    html.push('</tbody></table>');
+
+    html.push("</tbody></table>");
     html.push('<div class="legend"><strong>Définitions et valeurs recommandées :</strong><br>');
-    html.push('• HI (Homogeneity Index) = (D2% - D98%) / D50% &nbsp;|&nbsp; Recommandation : HI &lt; 0.15<br>');
-    html.push('• CI (Conformity Index) = Volume traité / Volume PTV &nbsp;|&nbsp; Recommandation : 0.9 &lt; CI &lt; 1.1<br>');
-    html.push('• D95%, D98% : Doses de couverture (95% et 98% du PTV doivent recevoir ces doses)</div>');
-    html.push('</div>');
+    html.push("• HI (Homogeneity Index) = (D2% - D98%) / D50% &nbsp;|&nbsp; Recommandation : HI &lt; 0.15<br>");
+    html.push(
+      "• CI (Conformity Index) = Volume traité / Volume PTV &nbsp;|&nbsp; Recommandation : 0.9 &lt; CI &lt; 1.1<br>",
+    );
+    html.push("• D95%, D98% : Doses de couverture (95% et 98% du PTV doivent recevoir ces doses)</div>");
+    html.push("</div>");
   }
-  
+
   // ========== SECTION 3: OAR CONSTRAINTS ==========
   if (constraintResults.length > 0) {
     html.push('<div class="section">');
     html.push('<div class="section-header">3. CONTRAINTES ORGANES À RISQUE (OARs)</div>');
-    html.push('<p style="font-size:10pt;margin-bottom:10px">Vérification des contraintes de dose pour protéger les organes sains.</p>');
-    
+    html.push(
+      '<p style="font-size:10pt;margin-bottom:10px">Vérification des contraintes de dose pour protéger les organes sains.</p>',
+    );
+
     // Summary statistics
     html.push('<div class="summary-card" style="border-width:2px;margin-bottom:15px">');
     html.push('<div class="summary-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">');
-    html.push(`<div class="summary-item"><span class="summary-label">Total contraintes évaluées</span><span class="summary-value">${totalConstraints}</span></div>`);
-    html.push(`<div class="summary-item"><span class="summary-label">✓ Conformes (PASS)</span><span class="summary-value highlight-good">${passCount} (${((passCount/totalConstraints)*100).toFixed(0)}%)</span></div>`);
-    html.push(`<div class="summary-item"><span class="summary-label">⚠ Avertissements</span><span class="summary-value highlight-warning">${warningCount}</span></div>`);
-    html.push(`<div class="summary-item"><span class="summary-label">✗ Non conformes</span><span class="summary-value highlight-critical">${failCount}</span></div>`);
+    html.push(
+      `<div class="summary-item"><span class="summary-label">Total contraintes évaluées</span><span class="summary-value">${totalConstraints}</span></div>`,
+    );
+    html.push(
+      `<div class="summary-item"><span class="summary-label">✓ Conformes (PASS)</span><span class="summary-value highlight-good">${passCount} (${((passCount / totalConstraints) * 100).toFixed(0)}%)</span></div>`,
+    );
+    html.push(
+      `<div class="summary-item"><span class="summary-label">⚠ Avertissements</span><span class="summary-value highlight-warning">${warningCount}</span></div>`,
+    );
+    html.push(
+      `<div class="summary-item"><span class="summary-label">✗ Non conformes</span><span class="summary-value highlight-critical">${failCount}</span></div>`,
+    );
     if (notEvaluatedCount > 0) {
-      html.push(`<div class="summary-item"><span class="summary-label">— Non évaluées</span><span class="summary-value">${notEvaluatedCount}</span></div>`);
+      html.push(
+        `<div class="summary-item"><span class="summary-label">— Non évaluées</span><span class="summary-value">${notEvaluatedCount}</span></div>`,
+      );
     }
-    html.push('</div></div>');
-    
+    html.push("</div></div>");
+
     // Group by organ
     const organGroups = new Map<string, typeof constraintResults>();
-    constraintResults.forEach(c => {
+    constraintResults.forEach((c) => {
       const organ = c.constraint.organName;
       if (!organGroups.has(organ)) {
         organGroups.set(organ, []);
       }
       organGroups.get(organ)!.push(c);
     });
-    
+
     // Table for each organ
     organGroups.forEach((constraints, organName) => {
-      const organStatus = constraints.some(c => c.status === 'FAIL') ? 'FAIL' : 
-                          constraints.some(c => c.status === 'WARNING') ? 'WARNING' : 'PASS';
-      const borderColor = organStatus === 'FAIL' ? '#C92A2A' : 
-                          organStatus === 'WARNING' ? '#E67700' : '#2D7A3E';
-      
-      html.push(`<div class="subsection-header" style="border-left:4px solid ${borderColor};padding-left:8px">${organName}</div>`);
+      const organStatus = constraints.some((c) => c.status === "FAIL")
+        ? "FAIL"
+        : constraints.some((c) => c.status === "WARNING")
+          ? "WARNING"
+          : "PASS";
+      const borderColor = organStatus === "FAIL" ? "#C92A2A" : organStatus === "WARNING" ? "#E67700" : "#2D7A3E";
+
+      html.push(
+        `<div class="subsection-header" style="border-left:4px solid ${borderColor};padding-left:8px">${organName}</div>`,
+      );
       html.push('<table class="data-table">');
-      html.push('<thead><tr><th>Contrainte</th><th>Seuil</th><th>Valeur mesurée</th><th class="text-center">Écart</th><th class="text-center">Priorité</th><th class="text-center">Statut</th></tr></thead><tbody>');
-      
-      constraints.forEach(c => {
-        let constraintType = '', threshold = '', measuredValue = '', measuredUnit = '';
-        
-        if (c.constraint.constraintType === 'Dmean') {
-          constraintType = 'Dmean';
+      html.push(
+        '<thead><tr><th>Contrainte</th><th>Seuil</th><th>Valeur mesurée</th><th class="text-center">Écart</th><th class="text-center">Priorité</th><th class="text-center">Statut</th></tr></thead><tbody>',
+      );
+
+      constraints.forEach((c) => {
+        let constraintType = "",
+          threshold = "",
+          measuredValue = "",
+          measuredUnit = "";
+
+        if (c.constraint.constraintType === "Dmean") {
+          constraintType = "Dmean";
           threshold = `< ${c.constraint.value} Gy`;
-          measuredUnit = 'Gy';
+          measuredUnit = "Gy";
           measuredValue = c.measuredValue.toFixed(2);
-        } else if (c.constraint.constraintType === 'Dmax') {
-          constraintType = 'Dmax';
+        } else if (c.constraint.constraintType === "Dmax") {
+          constraintType = "Dmax";
           threshold = `< ${c.constraint.value} Gy`;
-          measuredUnit = 'Gy';
+          measuredUnit = "Gy";
           measuredValue = c.measuredValue.toFixed(2);
-        } else if (c.constraint.constraintType === 'Vx') {
+        } else if (c.constraint.constraintType === "Vx") {
           constraintType = `V${c.constraint.target}Gy`;
-          measuredUnit = c.constraint.targetUnit || '%';
+          measuredUnit = c.constraint.targetUnit || "%";
           threshold = `< ${c.constraint.value} ${measuredUnit}`;
           measuredValue = c.measuredValue.toFixed(2);
-        } else if (c.constraint.constraintType === 'Dx') {
-          constraintType = `D${c.constraint.target}${c.constraint.targetUnit === '%' ? '%' : 'cc'}`;
+        } else if (c.constraint.constraintType === "Dx") {
+          constraintType = `D${c.constraint.target}${c.constraint.targetUnit === "%" ? "%" : "cc"}`;
           threshold = `< ${c.constraint.value} Gy`;
-          measuredUnit = 'Gy';
+          measuredUnit = "Gy";
           measuredValue = c.measuredValue.toFixed(2);
         }
-        
-        const deviation = c.status !== 'NOT_EVALUATED' ? calculateDeviation(c.measuredValue, c.constraint.value) : '—';
-        const deviationClass = c.measuredValue > c.constraint.value ? 'highlight-critical' : 'highlight-good';
-        const rowClass = c.status === 'FAIL' ? 'fail-row' : c.status === 'WARNING' ? 'warning-row' : '';
-        const criticalPrefix = (c.status === 'FAIL' && c.constraint.priority === 'mandatory') ? '⚠️ ' : '';
-        
+
+        const deviation = c.status !== "NOT_EVALUATED" ? calculateDeviation(c.measuredValue, c.constraint.value) : "—";
+        const deviationClass = c.measuredValue > c.constraint.value ? "highlight-critical" : "highlight-good";
+        const rowClass = c.status === "FAIL" ? "fail-row" : c.status === "WARNING" ? "warning-row" : "";
+        const criticalPrefix = c.status === "FAIL" && c.constraint.priority === "mandatory" ? "⚠️ " : "";
+
         html.push(`<tr class="${rowClass}">`);
         html.push(`<td>${criticalPrefix}${constraintType}</td>`);
         html.push(`<td>${threshold}</td>`);
         html.push(`<td><strong>${measuredValue} ${measuredUnit}</strong></td>`);
         html.push(`<td class="text-center ${deviationClass}">${deviation}</td>`);
-        html.push(`<td class="text-center">${getPriorityIcon(c.constraint.priority || 'optimal')} ${getPriorityLabel(c.constraint.priority || 'optimal')}</td>`);
+        html.push(
+          `<td class="text-center">${getPriorityIcon(c.constraint.priority || "optimal")} ${getPriorityLabel(c.constraint.priority || "optimal")}</td>`,
+        );
         html.push(`<td class="text-center">${getStatusBadgeHTML(c.status)}</td>`);
-        html.push('</tr>');
+        html.push("</tr>");
       });
-      
-      html.push('</tbody></table>');
+
+      html.push("</tbody></table>");
     });
-    
-    html.push('</div>');
+
+    html.push("</div>");
   }
-  
+
   // ========== SECTION 4: VALIDATION ==========
   html.push('<div class="section signature-section">');
   html.push('<div class="section-header">4. VALIDATION ET SIGNATURE</div>');
   html.push('<table class="info-table">');
-  html.push(`<tr><td>Plan validé par</td><td>${doctorName || '___________________________'}</td></tr>`);
-  html.push('<tr><td>Date de validation</td><td>____/____/________</td></tr>');
-  html.push('</table>');
-  
+  html.push(`<tr><td>Plan validé par</td><td>${doctorName || "___________________________"}</td></tr>`);
+  html.push("<tr><td>Date de validation</td><td>____/____/________</td></tr>");
+  html.push("</table>");
+
   html.push('<div class="signature-box">');
   html.push('<div class="signature-label">Signature médecin validateur</div>');
-  html.push('</div>');
-  html.push('</div>');
-  
+  html.push("</div>");
+  html.push("</div>");
+
   // ========== SECTION 5: METADATA ==========
   html.push('<div class="section metadata-section">');
   html.push('<div class="section-header">5. MÉTADONNÉES ET TRAÇABILITÉ</div>');
   html.push('<table class="metadata-table">');
-  html.push('<tr><td>Application</td><td>DVH Analyzer v1.0</td></tr>');
-  html.push('<tr><td>Méthode interpolation</td><td>Linéaire</td></tr>');
-  html.push('<tr><td>Méthode Dmean</td><td>Intégration trapézoïdale</td></tr>');
-  html.push('<tr><td>Format DVH</td><td>TomoTherapy CSV</td></tr>');
+  html.push("<tr><td>Application</td><td>DVH Analyzer v1.0</td></tr>");
+  html.push("<tr><td>Méthode interpolation</td><td>Linéaire</td></tr>");
+  html.push("<tr><td>Méthode Dmean</td><td>Intégration trapézoïdale</td></tr>");
+  html.push("<tr><td>Format DVH</td><td>TomoTherapy CSV</td></tr>");
   html.push(`<tr><td>Protocole</td><td>${protocolName}</td></tr>`);
-  html.push('</table></div>');
-  
+  html.push("</table></div>");
+
   // ========== FOOTER ==========
   html.push('<div class="report-footer">');
   html.push('<p class="footer-institution">Centre Sidi Abdellah de Cancérologie</p>');
-  html.push('<p class="footer-contact">Service de Radiothérapie - Département de Physique Médicale</p>');
-  html.push('<p class="footer-contact">Adresse: Alger, Algérie | Tél: +213 XXX XXX XXX</p>');
-  html.push(`<p class="footer-confidential">Rapport généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')} - Document confidentiel - Usage clinique uniquement</p>`);
-  html.push('</div>');
-  
-  html.push('</div></body></html>');
-  
-  return html.join('');
+  html.push(
+    `<p class="footer-confidential">Rapport généré le ${new Date().toLocaleDateString("fr-FR")} à ${new Date().toLocaleTimeString("fr-FR")} - Document confidentiel - Usage clinique uniquement</p>`,
+  );
+  html.push("</div>");
+
+  html.push("</div></body></html>");
+
+  return html.join("");
 }
 
 export async function generatePDFReport(
-  report: ValidationReport, 
-  overallStatus?: 'PASS' | 'FAIL', 
+  report: ValidationReport,
+  overallStatus?: "PASS" | "FAIL",
   doctorName?: string,
-  template: ReportTemplate = 'classic',
-  observations?: string
+  template: ReportTemplate = "classic",
+  observations?: string,
 ): Promise<Blob> {
   const htmlContent = generateHTMLReport(report, overallStatus, doctorName, template, observations);
-  
+
   // Create temporary container with precise A4 dimensions
-  const container = document.createElement('div');
+  const container = document.createElement("div");
   container.innerHTML = htmlContent;
-  container.style.position = 'absolute';
-  container.style.left = '-9999px';
-  container.style.width = '794px'; // A4 width in pixels at 96 DPI
-  container.style.backgroundColor = '#ffffff';
-  container.style.padding = '0';
-  container.style.margin = '0';
+  container.style.position = "absolute";
+  container.style.left = "-9999px";
+  container.style.width = "794px"; // A4 width in pixels at 96 DPI
+  container.style.backgroundColor = "#ffffff";
+  container.style.padding = "0";
+  container.style.margin = "0";
   document.body.appendChild(container);
 
   try {
@@ -572,8 +614,8 @@ export async function generatePDFReport(
       windowHeight: 1123,
       scrollX: 0,
       scrollY: 0,
-      backgroundColor: '#ffffff',
-      imageTimeout: 15000
+      backgroundColor: "#ffffff",
+      imageTimeout: 15000,
     });
 
     // A4 dimensions in mm
@@ -583,7 +625,7 @@ export async function generatePDFReport(
       top: 20,
       right: 15,
       bottom: 20,
-      left: 15
+      left: 15,
     };
 
     // Content area dimensions
@@ -591,28 +633,28 @@ export async function generatePDFReport(
     const contentHeight = pageHeight - margin.top - margin.bottom;
 
     const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
-      compress: true
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+      compress: true,
     });
 
     // Add PDF metadata
     pdf.setProperties({
       title: `Validation - ${report.protocolName}`,
-      subject: 'Rapport de Validation du Plan de Traitement',
-      author: 'DVH Analyzer',
-      keywords: 'radiothérapie, dosimétrie, validation, DVH',
-      creator: 'DVH Analyzer v1.0'
+      subject: "Rapport de Validation du Plan de Traitement",
+      author: "DVH Analyzer",
+      keywords: "radiothérapie, dosimétrie, validation, DVH",
+      creator: "DVH Analyzer v1.0",
     });
 
     // Convert canvas to image
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-    
+    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+
     // Calculate image dimensions
     const imgWidth = contentWidth;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
+
     let remainingHeight = imgHeight;
     let sourceY = 0;
     let pageNumber = 1;
@@ -625,53 +667,40 @@ export async function generatePDFReport(
 
       // Add header
       pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text('DVH Analyzer - Rapport d\'analyse', margin.left, margin.top - 5);
+      pdf.setFont("helvetica", "normal");
+      pdf.text("DVH Analyzer - Rapport d'analyse", margin.left, margin.top - 5);
       pdf.text(`Page ${pageNumber}`, pageWidth - margin.right - 15, margin.top - 5);
 
       // Calculate the height of content for this page
       const pageContentHeight = Math.min(remainingHeight, contentHeight);
-      
+
       // Calculate the source Y position on the canvas
       const canvasSourceY = (sourceY / imgHeight) * canvas.height;
       const canvasHeight = (pageContentHeight / imgHeight) * canvas.height;
-      
+
       // Create a temporary canvas for this page slice
-      const pageCanvas = document.createElement('canvas');
+      const pageCanvas = document.createElement("canvas");
       pageCanvas.width = canvas.width;
       pageCanvas.height = canvasHeight;
-      const pageContext = pageCanvas.getContext('2d');
-      
+      const pageContext = pageCanvas.getContext("2d");
+
       if (pageContext) {
-        pageContext.drawImage(
-          canvas,
-          0, canvasSourceY,
-          canvas.width, canvasHeight,
-          0, 0,
-          canvas.width, canvasHeight
-        );
-        
-        const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
-        
+        pageContext.drawImage(canvas, 0, canvasSourceY, canvas.width, canvasHeight, 0, 0, canvas.width, canvasHeight);
+
+        const pageImgData = pageCanvas.toDataURL("image/jpeg", 0.95);
+
         // Add the image slice to the PDF
-        pdf.addImage(
-          pageImgData,
-          'JPEG',
-          margin.left,
-          margin.top,
-          imgWidth,
-          pageContentHeight,
-          '',
-          'FAST'
-        );
+        pdf.addImage(pageImgData, "JPEG", margin.left, margin.top, imgWidth, pageContentHeight, "", "FAST");
       }
 
       // Add footer
       pdf.setFontSize(9);
-      const today = new Date().toLocaleDateString('fr-FR');
+      const today = new Date().toLocaleDateString("fr-FR");
       pdf.text(today, margin.left, pageHeight - margin.bottom + 10);
-      pdf.text('Centre Sidi Abdellah de Cancérologie', pageWidth / 2, pageHeight - margin.bottom + 10, { align: 'center' });
-      pdf.text('DVH Analyzer v1.0', pageWidth - margin.right - 25, pageHeight - margin.bottom + 10);
+      pdf.text("Centre Sidi Abdellah de Cancérologie", pageWidth / 2, pageHeight - margin.bottom + 10, {
+        align: "center",
+      });
+      pdf.text("DVH Analyzer v1.0", pageWidth - margin.right - 25, pageHeight - margin.bottom + 10);
 
       // Update position
       sourceY += contentHeight;
@@ -679,7 +708,7 @@ export async function generatePDFReport(
       pageNumber++;
     }
 
-    return pdf.output('blob');
+    return pdf.output("blob");
   } finally {
     document.body.removeChild(container);
   }
@@ -687,7 +716,7 @@ export async function generatePDFReport(
 
 function downloadFile(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
+  const link = document.createElement("a");
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);
@@ -697,26 +726,26 @@ function downloadFile(blob: Blob, filename: string): void {
 }
 
 export function downloadHTMLReport(
-  report: ValidationReport, 
-  overallStatus?: 'PASS' | 'FAIL', 
+  report: ValidationReport,
+  overallStatus?: "PASS" | "FAIL",
   doctorName?: string,
-  template: ReportTemplate = 'classic',
-  observations?: string
+  template: ReportTemplate = "classic",
+  observations?: string,
 ): void {
   const htmlContent = generateHTMLReport(report, overallStatus, doctorName, template, observations);
-  const blob = new Blob([htmlContent], { type: 'text/html' });
-  const filename = `Validation_${report.patientId}_${new Date().toISOString().split('T')[0]}.html`;
+  const blob = new Blob([htmlContent], { type: "text/html" });
+  const filename = `Validation_${report.patientId}_${new Date().toISOString().split("T")[0]}.html`;
   downloadFile(blob, filename);
 }
 
 export async function downloadPDFReport(
-  report: ValidationReport, 
-  overallStatus?: 'PASS' | 'FAIL', 
+  report: ValidationReport,
+  overallStatus?: "PASS" | "FAIL",
   doctorName?: string,
-  template: ReportTemplate = 'classic',
-  observations?: string
+  template: ReportTemplate = "classic",
+  observations?: string,
 ): Promise<void> {
   const blob = await generatePDFReport(report, overallStatus, doctorName, template, observations);
-  const filename = `Validation_${report.patientId}_${new Date().toISOString().split('T')[0]}.pdf`;
+  const filename = `Validation_${report.patientId}_${new Date().toISOString().split("T")[0]}.pdf`;
   downloadFile(blob, filename);
 }
