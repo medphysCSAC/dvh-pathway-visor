@@ -74,6 +74,12 @@ export default function ExportReportDialog({
                     📋 Minimal - Style minimaliste compact
                   </Label>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="compact" id="compact" />
+                  <Label htmlFor="compact" className="font-normal cursor-pointer text-sm">
+                    📄 Compact - Rapport simplifié essentiel
+                  </Label>
+                </div>
               </RadioGroup>
             </div>
 
