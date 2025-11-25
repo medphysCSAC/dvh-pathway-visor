@@ -1129,28 +1129,9 @@ export function generateCompactHTMLReport(
 
   // ========== HEADER ==========
   html.push('<div class="report-header">');
-  html.push('<div class="report-title">Rapport de Validation du Plan de Traitement</div>');
-  html.push('<div class="report-subtitle">Format Compact</div>');
+  html.push(`<div class="report-title">Rapport de Validation du Plan : ${patientId}</div>`);
+  html.push(`<div class="report-subtitle">Protocole : ${protocolName}</div>`);
   html.push("</div>");
-
-  // ========== SUMMARY CARD ==========
-  html.push('<div class="summary-card">');
-  html.push('<div class="summary-title">Résumé</div>');
-  html.push('<div class="summary-grid">');
-  html.push(`<div class="global-status">${getStatusBadgeHTML(finalStatus)}</div>`);
-  html.push(
-    `<div class="summary-item"><span class="summary-label">Protocole</span><span class="summary-value">${protocolName}</span></div>`,
-  );
-  html.push(
-    `<div class="summary-item"><span class="summary-label">Patient ID</span><span class="summary-value"><strong>${patientId}</strong></span></div>`,
-  );
-  html.push(
-    `<div class="summary-item"><span class="summary-label">Date de validation</span><span class="summary-value">${new Date(evaluationDate).toLocaleDateString("fr-FR")} à ${new Date(evaluationDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span></div>`,
-  );
-  html.push(
-    `<div class="summary-item"><span class="summary-label">Contraintes évaluées</span><span class="summary-value">${totalConstraints} (${passCount} PASS / ${failCount} FAIL / ${warningCount} WARNING)</span></div>`,
-  );
-  html.push("</div></div>");
 
   // ========== SECTION: PTV EVALUATION ==========
   if (ptvMetrics.length > 0) {
@@ -1181,12 +1162,6 @@ export function generateCompactHTMLReport(
     });
 
     html.push("</tbody></table>");
-    html.push('<div class="legend"><strong>Définitions et valeurs recommandées :</strong><br>');
-    html.push("• HI (Homogeneity Index) = (D2% - D98%) / D50% &nbsp;|&nbsp; Recommandation : HI &lt; 0.15<br>");
-    html.push(
-      "• CI (Conformity Index) = Volume traité / Volume PTV &nbsp;|&nbsp; Recommandation : 0.9 &lt; CI &lt; 1.1<br>",
-    );
-    html.push("• D95%, D98% : Doses de couverture (95% et 98% du PTV doivent recevoir ces doses)</div>");
     html.push("</div>");
   }
 
