@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { ValidationReport } from "@/types/protocol";
 
-export type ReportTemplate = "classic" | "modern" | "minimal";
+export type ReportTemplate = "classic" | "modern" | "minimal" | "compact";
 
 export interface ReportConfig {
   patientId: string;
@@ -854,9 +854,18 @@ export function downloadHTMLReport(
   template: ReportTemplate = "classic",
   observations?: string,
 ): void {
-  const htmlContent = generateHTMLReport(report, overallStatus, doctorName, template, observations);
+  let htmlContent: string;
+  let filename: string;
+  
+  if (template === "compact") {
+    htmlContent = generateCompactHTMLReport(report, overallStatus, doctorName);
+    filename = `Validation_Compact_${report.patientId}_${new Date().toISOString().split("T")[0]}.html`;
+  } else {
+    htmlContent = generateHTMLReport(report, overallStatus, doctorName, template, observations);
+    filename = `Validation_${report.patientId}_${new Date().toISOString().split("T")[0]}.html`;
+  }
+  
   const blob = new Blob([htmlContent], { type: "text/html" });
-  const filename = `Validation_${report.patientId}_${new Date().toISOString().split("T")[0]}.html`;
   downloadFile(blob, filename);
 }
 
@@ -867,8 +876,17 @@ export async function downloadPDFReport(
   template: ReportTemplate = "classic",
   observations?: string,
 ): Promise<void> {
-  const blob = await generatePDFReport(report, overallStatus, doctorName, template, observations);
-  const filename = `Validation_${report.patientId}_${new Date().toISOString().split("T")[0]}.pdf`;
+  let blob: Blob;
+  let filename: string;
+  
+  if (template === "compact") {
+    blob = await generateCompactPDFReport(report, overallStatus, doctorName);
+    filename = `Validation_Compact_${report.patientId}_${new Date().toISOString().split("T")[0]}.pdf`;
+  } else {
+    blob = await generatePDFReport(report, overallStatus, doctorName, template, observations);
+    filename = `Validation_${report.patientId}_${new Date().toISOString().split("T")[0]}.pdf`;
+  }
+  
   downloadFile(blob, filename);
 }
 

@@ -3,7 +3,7 @@ import { Structure } from '@/types/dvh';
 import { TreatmentProtocol, ValidationReport, StructureMapping as StructureMappingType } from '@/types/protocol';
 import { getAllProtocols } from '@/data/predefinedProtocols';
 import { generateValidationReport, findBestStructureMatch } from '@/utils/protocolValidator';
-import { downloadHTMLReport, downloadPDFReport } from '@/utils/reportGenerator';
+import { downloadHTMLReport, downloadPDFReport, ReportTemplate } from '@/utils/reportGenerator';
 import { calculatePTVQualityMetrics } from '@/utils/planQualityMetrics';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -82,7 +82,7 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
     });
   };
 
-  const handleExport = async (format: 'html' | 'pdf', overallStatus: 'PASS' | 'FAIL', doctorName: string, template: 'classic' | 'modern' | 'minimal', observations?: string) => {
+  const handleExport = async (format: 'html' | 'pdf', overallStatus: 'PASS' | 'FAIL', doctorName: string, template: ReportTemplate, observations?: string) => {
     if (!report) return;
     
     try {
