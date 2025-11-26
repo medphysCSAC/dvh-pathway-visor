@@ -43,7 +43,7 @@ export default function ExportReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Exporter le Rapport de Validation</DialogTitle>
           <DialogDescription>
