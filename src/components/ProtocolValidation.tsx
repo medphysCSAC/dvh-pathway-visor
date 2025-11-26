@@ -3,7 +3,8 @@ import { Structure } from '@/types/dvh';
 import { TreatmentProtocol, ValidationReport, StructureMapping as StructureMappingType } from '@/types/protocol';
 import { getAllProtocols } from '@/data/predefinedProtocols';
 import { generateValidationReport, findBestStructureMatch } from '@/utils/protocolValidator';
-import { downloadHTMLReport, downloadPDFReport, ReportTemplate } from '@/utils/reportGenerator';
+import { downloadHTMLReport, ReportTemplate } from '@/utils/reportGenerator';
+import { generateAndDownloadPDF } from '@/utils/pdfGenerator';
 import { calculatePTVQualityMetrics } from '@/utils/planQualityMetrics';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -88,15 +89,8 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
     try {
       if (format === 'pdf') {
         setIsExportingPDF(true);
-        toast({
-          title: 'Génération du PDF...',
-          description: 'Veuillez patienter',
-        });
-        await downloadPDFReport(report, overallStatus, doctorName, template, observations);
-        toast({
-          title: 'PDF exporté',
-          description: 'Le rapport a été téléchargé avec succès',
-        });
+        await generateAndDownloadPDF(report, template, overallStatus, doctorName);
+        setIsExportingPDF(false);
       } else {
         downloadHTMLReport(report, overallStatus, doctorName, template, observations);
         toast({
