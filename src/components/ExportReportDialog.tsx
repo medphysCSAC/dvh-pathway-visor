@@ -51,7 +51,7 @@ export default function ExportReportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
+        <ScrollArea className="flex-1 pr-4 h-full">
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Modèle de rapport</Label>
