@@ -3,8 +3,9 @@ import { ValidationReport } from '@/types/protocol';
 import { CompactPDFReport } from '@/components/pdf/CompactPDFReport';
 import { toast } from 'sonner';
 import { generateTestPDFReport } from './reportGeneratorTest';
+import { generateTest2PDFReport } from './reportGeneratorTest2';
 
-export type ReportTemplate = 'classic' | 'modern' | 'minimal' | 'compact' | 'test';
+export type ReportTemplate = 'classic' | 'modern' | 'minimal' | 'compact' | 'test' | 'test2';
 
 /**
  * Generate and download PDF report using @react-pdf/renderer
@@ -31,6 +32,9 @@ export async function generateAndDownloadPDF(
     if (template === 'test') {
       blob = await generateTestPDFReport(report, overallStatus, doctorName, observations);
       filename = `Validation_TEST_${report.patientId}_${new Date().toISOString().split('T')[0]}.pdf`;
+    } else if (template === 'test2') {
+      blob = await generateTest2PDFReport(report, overallStatus, doctorName, observations);
+      filename = `Validation_TEST2_${report.patientId}_${new Date().toISOString().split('T')[0]}.pdf`;
     } else {
       // Use @react-pdf/renderer for other templates
       let pdfDocument;
