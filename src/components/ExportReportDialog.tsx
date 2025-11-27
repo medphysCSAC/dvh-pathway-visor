@@ -86,6 +86,12 @@ export default function ExportReportDialog({
                     🧪 TEST - Modèle optimisé (html2canvas)
                   </Label>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="test2" id="test2" />
+                  <Label htmlFor="test2" className="font-normal cursor-pointer text-sm">
+                    🔬 TEST2 - Ultra-compact (minimal)
+                  </Label>
+                </div>
               </RadioGroup>
             </div>
 
