@@ -2,8 +2,9 @@ import { pdf } from '@react-pdf/renderer';
 import { ValidationReport } from '@/types/protocol';
 import { CompactPDFReport } from '@/components/pdf/CompactPDFReport';
 import { toast } from 'sonner';
+import { generateTestPDFReport } from './reportGeneratorTest';
 
-export type ReportTemplate = 'classic' | 'modern' | 'minimal' | 'compact';
+export type ReportTemplate = 'classic' | 'modern' | 'minimal' | 'compact' | 'test';
 
 /**
  * Generate and download PDF report using @react-pdf/renderer
@@ -18,34 +19,43 @@ export async function generateAndDownloadPDF(
   template: ReportTemplate = 'classic',
   overallStatus?: 'PASS' | 'FAIL',
   doctorName?: string,
+  observations?: string,
 ): Promise<void> {
   try {
     toast.loading('Génération du rapport PDF...', { id: 'pdf-generation' });
     
-    let pdfDocument;
+    let blob: Blob;
     let filename: string;
     
-    // Select the appropriate PDF component based on template
-    if (template === 'compact') {
-      pdfDocument = <CompactPDFReport 
-        report={report} 
-        overallStatus={overallStatus} 
-        doctorName={doctorName} 
-      />;
-      filename = `Validation_Compact_${report.patientId}_${new Date().toISOString().split('T')[0]}.pdf`;
+    // Use TEST template with html2canvas + jsPDF
+    if (template === 'test') {
+      blob = await generateTestPDFReport(report, overallStatus, doctorName, observations);
+      filename = `Validation_TEST_${report.patientId}_${new Date().toISOString().split('T')[0]}.pdf`;
     } else {
-      // For now, use compact for all templates until we create the full report component
-      // TODO: Create CompletePDFReport component for other templates
-      pdfDocument = <CompactPDFReport 
-        report={report} 
-        overallStatus={overallStatus} 
-        doctorName={doctorName} 
-      />;
-      filename = `Validation_${report.patientId}_${new Date().toISOString().split('T')[0]}.pdf`;
+      // Use @react-pdf/renderer for other templates
+      let pdfDocument;
+      
+      if (template === 'compact') {
+        pdfDocument = <CompactPDFReport 
+          report={report} 
+          overallStatus={overallStatus} 
+          doctorName={doctorName} 
+        />;
+        filename = `Validation_Compact_${report.patientId}_${new Date().toISOString().split('T')[0]}.pdf`;
+      } else {
+        // For now, use compact for all templates until we create the full report component
+        // TODO: Create CompletePDFReport component for other templates
+        pdfDocument = <CompactPDFReport 
+          report={report} 
+          overallStatus={overallStatus} 
+          doctorName={doctorName} 
+        />;
+        filename = `Validation_${report.patientId}_${new Date().toISOString().split('T')[0]}.pdf`;
+      }
+      
+      // Generate PDF blob
+      blob = await pdf(pdfDocument).toBlob();
     }
-    
-    // Generate PDF blob
-    const blob = await pdf(pdfDocument).toBlob();
     
     // Download the file
     downloadFile(blob, filename);

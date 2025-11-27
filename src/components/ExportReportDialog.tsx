@@ -80,6 +80,12 @@ export default function ExportReportDialog({
                     📄 Compact - Rapport simplifié essentiel
                   </Label>
                 </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="test" id="test" />
+                  <Label htmlFor="test" className="font-normal cursor-pointer text-sm">
+                    🧪 TEST - Modèle optimisé (html2canvas)
+                  </Label>
+                </div>
               </RadioGroup>
             </div>
 

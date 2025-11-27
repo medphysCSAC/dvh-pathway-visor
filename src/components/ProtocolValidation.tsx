@@ -89,7 +89,7 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
     try {
       if (format === 'pdf') {
         setIsExportingPDF(true);
-        await generateAndDownloadPDF(report, template, overallStatus, doctorName);
+        await generateAndDownloadPDF(report, template, overallStatus, doctorName, observations);
         setIsExportingPDF(false);
       } else {
         downloadHTMLReport(report, overallStatus, doctorName, template, observations);
