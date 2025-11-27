@@ -115,7 +115,11 @@ export function generateUltraCompactHTMLReport(
         const status = c.status;
         html.push(`<tr class="constraint-row ${status === 'FAIL' ? 'fail-row' : status === 'WARNING' ? 'warning-row' : ''}">
           <td>${idx === 0 ? `<strong>${organName}</strong>` : ''}</td>
-          <td>${c.constraint.constraintType}${c.constraint.target ? c.constraint.target : ''}${c.constraint.targetUnit || ''}</td>
+          <td>${(() => {
+            if (c.constraint.constraintType === "Vx") return `V${c.constraint.target}Gy`;
+            if (c.constraint.constraintType === "Dx") return `D${c.constraint.target}${c.constraint.targetUnit === "%" ? "%" : "cc"}`;
+          return c.constraint.constraintType
+          ;})()}</td>
           <td class="numeric">&lt; ${c.constraint.value} ${c.constraint.constraintType.startsWith('D') ? 'Gy' : c.constraint.targetUnit || '%'}</td>
           <td class="numeric"><strong>${c.measuredValue.toFixed(2)}</strong></td>
           <td class="numeric">${deviation}</td>
