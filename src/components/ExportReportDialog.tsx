@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ValidationReport } from '@/types/protocol';
-import { ReportTemplate } from '@/utils/reportGenerator';
+import { ReportTemplate } from '@/utils/pdfGenerator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ interface ExportReportDialogProps {
   report: ValidationReport | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onExport: (format: 'html' | 'pdf', overallStatus: 'PASS' | 'FAIL', doctorName: string, template: ReportTemplate, observations?: string) => void;
+  onExport: (format: 'pdf', overallStatus: 'PASS' | 'FAIL', doctorName: string, template: ReportTemplate, observations?: string) => void;
   isExporting?: boolean;
 }
 
@@ -29,14 +29,13 @@ export default function ExportReportDialog({
   const [overallStatus, setOverallStatus] = useState<'PASS' | 'FAIL'>('PASS');
   const [doctorName, setDoctorName] = useState('');
   const [observations, setObservations] = useState('');
-  const [exportFormat, setExportFormat] = useState<'html' | 'pdf'>('pdf');
-  const [template, setTemplate] = useState<ReportTemplate>('classic');
+  const [template, setTemplate] = useState<ReportTemplate>('essential');
 
   const handleExport = () => {
     if (!doctorName.trim()) {
       return;
     }
-    onExport(exportFormat, overallStatus, doctorName, template, observations);
+    onExport('pdf', overallStatus, doctorName, template, observations);
   };
 
   if (!report) return null;
@@ -57,55 +56,18 @@ export default function ExportReportDialog({
               <Label>Modèle de rapport</Label>
               <RadioGroup value={template} onValueChange={(v) => setTemplate(v as ReportTemplate)} className="space-y-2">
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="classic" id="classic" />
-                  <Label htmlFor="classic" className="font-normal cursor-pointer text-sm">
-                    📜 Classic - Style traditionnel formel
+                  <RadioGroupItem value="essential" id="essential" />
+                  <Label htmlFor="essential" className="font-normal cursor-pointer text-sm">
+                    ⭐ Rapport Essentiel - Format ultra-compact (par défaut)
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="modern" id="modern" />
-                  <Label htmlFor="modern" className="font-normal cursor-pointer text-sm">
-                    ✨ Modern - Design épuré contemporain
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="minimal" id="minimal" />
-                  <Label htmlFor="minimal" className="font-normal cursor-pointer text-sm">
-                    📋 Minimal - Style minimaliste compact
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="compact" id="compact" />
-                  <Label htmlFor="compact" className="font-normal cursor-pointer text-sm">
-                    📄 Compact - Rapport simplifié essentiel
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="test" id="test" />
-                  <Label htmlFor="test" className="font-normal cursor-pointer text-sm">
-                    🧪 TEST - Modèle optimisé (html2canvas)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="test2" id="test2" />
-                  <Label htmlFor="test2" className="font-normal cursor-pointer text-sm">
-                    🔬 TEST2 - Ultra-compact (minimal)
+                  <RadioGroupItem value="official" id="official" />
+                  <Label htmlFor="official" className="font-normal cursor-pointer text-sm">
+                    📋 Rapport Officiel - Format complet institutionnel
                   </Label>
                 </div>
               </RadioGroup>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="format">Format d'export</Label>
-              <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as 'html' | 'pdf')}>
-                <SelectTrigger id="format">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pdf">PDF (Recommandé)</SelectItem>
-                  <SelectItem value="html">HTML</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="space-y-2">
@@ -145,7 +107,7 @@ export default function ExportReportDialog({
             <div className="bg-muted p-3 rounded-lg text-sm">
               <p className="font-medium mb-1">Nom du fichier :</p>
               <p className="text-muted-foreground font-mono text-xs break-all">
-                {report.patientId}_{report.protocolName.replace(/\s+/g, '_')}_{new Date().toISOString().split('T')[0]}.{exportFormat}
+                {report.patientId}_{report.protocolName.replace(/\s+/g, '_')}_{new Date().toISOString().split('T')[0]}.pdf
               </p>
             </div>
           </div>

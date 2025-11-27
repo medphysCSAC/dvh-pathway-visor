@@ -3,8 +3,7 @@ import { Structure } from '@/types/dvh';
 import { TreatmentProtocol, ValidationReport, StructureMapping as StructureMappingType } from '@/types/protocol';
 import { getAllProtocols } from '@/data/predefinedProtocols';
 import { generateValidationReport, findBestStructureMatch } from '@/utils/protocolValidator';
-import { downloadHTMLReport, ReportTemplate } from '@/utils/reportGenerator';
-import { generateAndDownloadPDF } from '@/utils/pdfGenerator';
+import { generateAndDownloadPDF, ReportTemplate } from '@/utils/pdfGenerator';
 import { calculatePTVQualityMetrics } from '@/utils/planQualityMetrics';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -83,21 +82,13 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
     });
   };
 
-  const handleExport = async (format: 'html' | 'pdf', overallStatus: 'PASS' | 'FAIL', doctorName: string, template: ReportTemplate, observations?: string) => {
+  const handleExport = async (format: 'pdf', overallStatus: 'PASS' | 'FAIL', doctorName: string, template: ReportTemplate, observations?: string) => {
     if (!report) return;
     
     try {
-      if (format === 'pdf') {
-        setIsExportingPDF(true);
-        await generateAndDownloadPDF(report, template, overallStatus, doctorName, observations);
-        setIsExportingPDF(false);
-      } else {
-        downloadHTMLReport(report, overallStatus, doctorName, template, observations);
-        toast({
-          title: 'HTML exporté',
-          description: 'Le rapport a été téléchargé avec succès',
-        });
-      }
+      setIsExportingPDF(true);
+      await generateAndDownloadPDF(report, template, overallStatus, doctorName, observations);
+      setIsExportingPDF(false);
     } catch (error) {
       toast({
         title: 'Erreur d\'export',
