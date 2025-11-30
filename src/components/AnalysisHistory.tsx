@@ -2,10 +2,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useAnalysisHistory, AnalysisHistoryEntry } from '@/hooks/useAnalysisHistory';
 import { Clock, Trash2, FileText, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useState } from 'react';
 
 interface AnalysisHistoryProps {
   onLoadReport?: (entry: AnalysisHistoryEntry) => void;
@@ -13,6 +15,8 @@ interface AnalysisHistoryProps {
 
 export default function AnalysisHistory({ onLoadReport }: AnalysisHistoryProps) {
   const { history, deleteEntry, clearHistory } = useAnalysisHistory();
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+  const [showClearAll, setShowClearAll] = useState(false);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -72,7 +76,7 @@ export default function AnalysisHistory({ onLoadReport }: AnalysisHistoryProps) 
           <Button 
             variant="destructive" 
             size="sm" 
-            onClick={clearHistory}
+            onClick={() => setShowClearAll(true)}
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Tout effacer
@@ -118,7 +122,7 @@ export default function AnalysisHistory({ onLoadReport }: AnalysisHistoryProps) 
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => deleteEntry(entry.id)}
+                        onClick={() => setEntryToDelete(entry.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -144,6 +148,57 @@ export default function AnalysisHistory({ onLoadReport }: AnalysisHistoryProps) 
           </div>
         </ScrollArea>
       </CardContent>
+
+      {/* Confirmation suppression individuelle */}
+      <AlertDialog open={!!entryToDelete} onOpenChange={() => setEntryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Voulez-vous vraiment supprimer cette analyse ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (entryToDelete) {
+                  deleteEntry(entryToDelete);
+                  setEntryToDelete(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmation tout effacer */}
+      <AlertDialog open={showClearAll} onOpenChange={setShowClearAll}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Effacer tout l'historique</AlertDialogTitle>
+            <AlertDialogDescription>
+              Voulez-vous vraiment supprimer toutes les analyses enregistrées ({history.length} entrée{history.length > 1 ? 's' : ''}) ? 
+              Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                clearHistory();
+                setShowClearAll(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Tout effacer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
