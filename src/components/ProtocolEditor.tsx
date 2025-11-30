@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TreatmentProtocol, PrescriptionDose, OARConstraint, ConstraintType } from '@/types/protocol';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,6 +22,8 @@ interface ProtocolEditorProps {
 export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }: ProtocolEditorProps) {
   const { toast } = useToast();
   const [editedProtocol, setEditedProtocol] = useState<TreatmentProtocol>(JSON.parse(JSON.stringify(protocol)));
+  const [prescriptionToDelete, setPrescriptionToDelete] = useState<number | null>(null);
+  const [constraintToDelete, setConstraintToDelete] = useState<number | null>(null);
 
   const handleSave = () => {
     if (!editedProtocol.name.trim()) {
@@ -247,7 +250,7 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => removePrescription(idx)}
+                          onClick={() => setPrescriptionToDelete(idx)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -340,7 +343,7 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeConstraint(idx)}
+                          onClick={() => setConstraintToDelete(idx)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -497,6 +500,58 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Confirmation suppression prescription */}
+      <AlertDialog open={prescriptionToDelete !== null} onOpenChange={() => setPrescriptionToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Voulez-vous vraiment supprimer cette prescription ? Cette action ne peut pas être annulée après l'enregistrement du protocole.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (prescriptionToDelete !== null) {
+                  removePrescription(prescriptionToDelete);
+                  setPrescriptionToDelete(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmation suppression contrainte */}
+      <AlertDialog open={constraintToDelete !== null} onOpenChange={() => setConstraintToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Voulez-vous vraiment supprimer cette contrainte OAR ? Cette action ne peut pas être annulée après l'enregistrement du protocole.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (constraintToDelete !== null) {
+                  removeConstraint(constraintToDelete);
+                  setConstraintToDelete(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
