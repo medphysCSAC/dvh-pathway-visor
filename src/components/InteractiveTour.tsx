@@ -6,7 +6,7 @@ const TOUR_KEY = 'dvh-analyzer-tour-completed';
 const steps: Step[] = [
   {
     target: 'body',
-    content: 'Bienvenue dans DVH Analyzer ! Ce tour rapide vous guidera à travers les fonctionnalités principales.',
+    content: 'Bienvenue dans DVH Analyzer pour Tomotherapy ! Ce tour rapide vous guidera à travers les fonctionnalités principales.',
     placement: 'center',
     disableBeacon: true,
   },
