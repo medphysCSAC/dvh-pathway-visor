@@ -3,7 +3,7 @@ import { PlanData, Structure, DVHPoint } from '@/types/dvh';
 /**
  * Trouve une structure par nom dans un plan (correspondance exacte ou fuzzy)
  */
-const findStructureByName = (structures: Structure[], targetName: string): Structure | null => {
+export const findStructureByName = (structures: Structure[], targetName: string): Structure | null => {
   // Correspondance exacte
   const exact = structures.find(s => s.name === targetName);
   if (exact) return exact;

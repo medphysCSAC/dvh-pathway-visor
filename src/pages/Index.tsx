@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { FileUpload } from '@/components/FileUpload';
+import { MultiFileUpload } from '@/components/MultiFileUpload';
+import { PlanComparison } from '@/components/PlanComparison';
 import { ProtocolDocumentConverter } from '@/components/ProtocolDocumentConverter';
 import { DVHChart } from '@/components/DVHChart';
 import { StructureTable } from '@/components/StructureTable';
@@ -24,6 +26,8 @@ const Index = () => {
   const [dvhData, setDvhData] = useState<DVHData | null>(null);
   const [selectedStructures, setSelectedStructures] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<StructureCategory | 'ALL'>('ALL');
+  const [comparisonPlans, setComparisonPlans] = useState<PlanData[]>([]);
+  const [comparisonMode, setComparisonMode] = useState<'summation' | 'comparison' | 'multi-patient' | null>(null);
   const handleFilesUploaded = async (relFile: File, absFile?: File) => {
     try {
       const relContent = await relFile.text();
@@ -88,6 +92,28 @@ const Index = () => {
       } : s)
     });
   };
+
+  const handlePlansLoaded = (plans: PlanData[], mode: 'summation' | 'comparison' | 'multi-patient') => {
+    setComparisonPlans(plans);
+    setComparisonMode(mode);
+    
+    if (mode === 'summation') {
+      // Summate plans into a single DVH
+      const summatedPlan = summatePlans(plans);
+      setDvhData({
+        patientId: summatedPlan.patientId,
+        structures: summatedPlan.structures
+      });
+      setSelectedStructures([]);
+    } else if (mode === 'comparison') {
+      // Load first plan as the main view
+      setDvhData({
+        patientId: plans[0].patientId,
+        structures: plans[0].structures
+      });
+      setSelectedStructures([]);
+    }
+  };
   return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       <InteractiveTour />
       
@@ -119,8 +145,9 @@ const Index = () => {
           {/* File Upload Section */}
           {!dvhData && <div className="max-w-4xl mx-auto space-y-6">
               <Tabs defaultValue="upload" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="upload">Charger un plan</TabsTrigger>
+                  <TabsTrigger value="multi">Comparer/Sommer plans</TabsTrigger>
                   <TabsTrigger value="converter">Convertisseur Protocole</TabsTrigger>
                 </TabsList>
                 
@@ -130,6 +157,10 @@ const Index = () => {
                   </div>
                 </TabsContent>
                 
+                <TabsContent value="multi" className="mt-6">
+                  <MultiFileUpload onPlansLoaded={handlePlansLoaded} />
+                </TabsContent>
+                
                 <TabsContent value="converter" className="mt-6">
                   <ProtocolDocumentConverter />
                 </TabsContent>
@@ -137,12 +168,19 @@ const Index = () => {
             </div>}
 
           {/* Tabs Section - Always visible with or without DVH */}
-          <Tabs defaultValue={dvhData ? "dvh" : "protocols"} className="w-full">
-            <TabsList data-tour="tabs" className="grid w-full max-w-5xl mx-auto grid-cols-7">
+          <Tabs defaultValue={dvhData && comparisonMode === 'comparison' ? "comparison" : dvhData ? "dvh" : "protocols"} className="w-full">
+            <TabsList data-tour="tabs" className="grid w-full max-w-6xl mx-auto grid-cols-8">
               <TabsTrigger value="dvh" disabled={!dvhData} className="flex items-center gap-1">
                 Analyse DVH
                 <ContextualHelp 
                   content="Visualisez et analysez les courbes dose-volume, calculez des métriques et consultez les statistiques des structures."
+                  side="bottom"
+                />
+              </TabsTrigger>
+              <TabsTrigger value="comparison" disabled={comparisonMode !== 'comparison'} className="flex items-center gap-1">
+                Comparaison
+                <ContextualHelp 
+                  content="Comparez les métriques dosimétriques de plusieurs plans côte-à-côte avec différences visuelles."
                   side="bottom"
                 />
               </TabsTrigger>
@@ -253,6 +291,13 @@ const Index = () => {
 
                   {/* Structure Table */}
                   <StructureTable structures={dvhData.structures} selectedStructures={selectedStructures} onStructureToggle={handleStructureToggle} onCategoryChange={handleCategoryChange} />
+                </TabsContent>
+
+                {/* Onglet Comparaison de plans */}
+                <TabsContent value="comparison">
+                  {comparisonMode === 'comparison' && comparisonPlans.length > 0 && (
+                    <PlanComparison plans={comparisonPlans} />
+                  )}
                 </TabsContent>
 
                 {/* Onglet Évaluation de plan */}
