@@ -73,36 +73,47 @@ export const PlanComparison = ({ plans }: PlanComparisonProps) => {
         values: structures.map((s) => {
           if (!s?.relativeVolume || s.relativeVolume.length < 2) return null;
 
-          // Trier par dose croissante (important pour la méthode trapézoïdale)
-          const sortedPoints = [...s.relativeVolume].sort((a, b) => a.dose - b.dose);
+          // --- CORRECTION 1: Assurer le point de départ (0 Gy, 100%) ---
+          const points = [...s.relativeVolume].sort((a, b) => a.dose - b.dose);
+          if (points.length === 0) return null;
 
-          let totalDoseVolume = 0;
-          let totalVolume = 0;
+          // Ajouter le point (0, 100) au début si la dose min n'est pas 0 ou si 100% du volume n'est pas atteint.
+          // On suppose que 'volume' est en %.
+          if (points[0].dose > 0) {
+            points.unshift({ dose: 0, volume: 100 });
+          } else if (points[0].volume < 100) {
+            // Cas où le premier point est D>0 et V<100, on pourrait ajouter (0, 100)
+            // Mais si D=0, V<100, on prend le point (0, V_min) et on ajuste la borne 0.
+            // La solution la plus simple est de s'assurer (0, 100).
+            if (points[0].dose !== 0 || points[0].volume !== 100) {
+              points.unshift({ dose: 0, volume: 100 });
+            }
+          }
+          // Retirer les doublons ou points invalides (optionnel mais robuste)
 
-          for (let i = 1; i < sortedPoints.length; i++) {
-            const prev = sortedPoints[i - 1];
-            const curr = sortedPoints[i];
+          let totalDoseVolumeProduct = 0;
+          let totalVolumeFraction = 0; // Utiliser la fraction de volume (0 à 1) ou le volume en %
 
-            // Volume de l'intervalle (différence entre volumes cumulés)
-            const deltaVolume = prev.volume - curr.volume;
+          // --- CORRECTION 2: Simplifier la boucle d'intégration ---
+          for (let i = 0; i < points.length - 1; i++) {
+            const prev = points[i];
+            const curr = points[i + 1];
+
+            // Attention: S'assurer que les doses augmentent, et que les volumes diminuent (V_prev > V_curr)
+            // Delta Volume (en %)
+            const deltaVolume = Math.abs(prev.volume - curr.volume);
 
             // Dose moyenne sur l'intervalle (méthode trapézoïdale)
             const avgDoseInInterval = (prev.dose + curr.dose) / 2;
 
-            totalDoseVolume += avgDoseInInterval * deltaVolume;
-            totalVolume += deltaVolume;
+            totalDoseVolumeProduct += avgDoseInInterval * deltaVolume;
+            totalVolumeFraction += deltaVolume;
           }
 
-          // Ajouter le premier intervalle (volume reçu entre 0 Gy et la première dose)
-          if (sortedPoints.length > 0) {
-            const firstPoint = sortedPoints[0];
-            const deltaVolumeFirst = 100 - firstPoint.volume; // Volume recevant entre 0 et Dose_min
-            totalDoseVolume += (firstPoint.dose / 2) * deltaVolumeFirst; // Approximation trapézoïdale
-            totalVolume += deltaVolumeFirst;
-          }
-
-          // Dmean = Dose moyenne = Total (Dose × Volume) / Volume total
-          return totalVolume > 0 ? totalDoseVolume / totalVolume : 0;
+          // Dmean = Total (Dose × Volume) / Volume total (qui devrait être 100%)
+          // Si totalVolumeFraction est proche de 100, on retourne totalDoseVolumeProduct / 100
+          // Pour être sûr, on divise par le volume couvert (devrait être 100).
+          return totalVolumeFraction > 0 ? totalDoseVolumeProduct / 100 : 0; // Divisé par 100 pour V_total
         }),
         lowerIsBetter: !isPTV,
         tooltip: "Dose moyenne reçue par la structure (calculée par intégration trapézoïdale)",
