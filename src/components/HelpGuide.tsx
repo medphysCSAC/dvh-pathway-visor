@@ -17,7 +17,7 @@ const HelpGuide = () => {
             Guide d'utilisation
           </CardTitle>
           <CardDescription>
-            Apprenez à utiliser DVH Analyzer pour analyser vos plans de traitement
+            Apprenez à utiliser DVH Analyzer pour analyser vos plans de traitement de tomotherapy
           </CardDescription>
         </CardHeader>
         <CardContent>
