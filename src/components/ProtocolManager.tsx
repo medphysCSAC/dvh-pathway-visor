@@ -38,6 +38,7 @@ import { Label } from '@/components/ui/label';
 import ProtocolEditor from './ProtocolEditor';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useHiddenProtocols } from '@/hooks/useHiddenProtocols';
+import { ContextualHelp } from './ContextualHelp';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -493,7 +494,13 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Gestion des Protocoles</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle>Gestion des Protocoles</CardTitle>
+            <ContextualHelp 
+              content="Gérez tous vos protocoles de traitement radiothérapeutiques. Les protocoles prédéfinis sont protégés contre la modification, mais vous pouvez les copier pour créer des versions personnalisées."
+              side="right"
+            />
+          </div>
           <CardDescription>
             Gérez vos protocoles de validation : protocoles prédéfinis et protocoles personnalisés
           </CardDescription>
@@ -502,7 +509,13 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
           <div className="mb-6 space-y-4">
             <div className="flex gap-4 items-end">
               <div className="flex-1">
-                <Label htmlFor="search">Rechercher</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="search">Rechercher</Label>
+                  <ContextualHelp 
+                    content="Recherchez un protocole par son nom ou sa localisation anatomique."
+                    side="top"
+                  />
+                </div>
                 <div className="relative mt-2">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
@@ -516,7 +529,13 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
               </div>
               
               <div className="flex-1">
-                <Label htmlFor="sort-by">Trier par</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="sort-by">Trier par</Label>
+                  <ContextualHelp 
+                    content="Choisissez l'ordre d'affichage des protocoles : alphabétique, récents, plus utilisés, ou favoris en premier."
+                    side="top"
+                  />
+                </div>
                 <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
                   <SelectTrigger className="mt-2">
                     <SelectValue />
@@ -536,6 +555,10 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
                 <Upload className="h-4 w-4 mr-2" />
                 Importer JSON
               </Button>
+              <ContextualHelp 
+                content="Importez un fichier JSON contenant un protocole personnalisé. Format standard de l'application requis."
+                side="top"
+              />
               
               <Button 
                 onClick={() => setShowHidden(!showHidden)} 
@@ -544,6 +567,10 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
                 <EyeOff className="h-4 w-4 mr-2" />
                 {showHidden ? 'Masquer cachés' : 'Afficher cachés'}
               </Button>
+              <ContextualHelp 
+                content="Affichez ou masquez les protocoles que vous avez marqués comme cachés."
+                side="top"
+              />
               
               <div className="ml-auto text-sm text-muted-foreground">
                 {favorites.length > 0 && `${favorites.length} favoris · `}

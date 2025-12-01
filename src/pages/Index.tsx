@@ -13,6 +13,7 @@ import AnalysisHistory from '@/components/AnalysisHistory';
 import HelpGuide from '@/components/HelpGuide';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { InteractiveTour } from '@/components/InteractiveTour';
+import { ContextualHelp } from '@/components/ContextualHelp';
 import { DVHData, StructureCategory, PlanData } from '@/types/dvh';
 import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
@@ -138,13 +139,55 @@ const Index = () => {
           {/* Tabs Section - Always visible with or without DVH */}
           <Tabs defaultValue={dvhData ? "dvh" : "protocols"} className="w-full">
             <TabsList data-tour="tabs" className="grid w-full max-w-5xl mx-auto grid-cols-7">
-              <TabsTrigger value="dvh" disabled={!dvhData}>Analyse DVH</TabsTrigger>
-              <TabsTrigger value="evaluation" disabled={!dvhData}>Évaluation de plan</TabsTrigger>
-              <TabsTrigger value="validation" disabled={!dvhData}>Validation Protocole</TabsTrigger>
-              <TabsTrigger value="protocols" data-tour="protocols">Gestion Protocoles</TabsTrigger>
-              <TabsTrigger value="converter" data-tour="converter">Convertisseur</TabsTrigger>
-              <TabsTrigger value="history" data-tour="history">Historique</TabsTrigger>
-              <TabsTrigger value="help" data-tour="help">Aide</TabsTrigger>
+              <TabsTrigger value="dvh" disabled={!dvhData} className="flex items-center gap-1">
+                Analyse DVH
+                <ContextualHelp 
+                  content="Visualisez et analysez les courbes dose-volume, calculez des métriques et consultez les statistiques des structures."
+                  side="bottom"
+                />
+              </TabsTrigger>
+              <TabsTrigger value="evaluation" disabled={!dvhData} className="flex items-center gap-1">
+                Évaluation de plan
+                <ContextualHelp 
+                  content="Évaluez la qualité globale de votre plan de traitement avec des indices de conformité et d'homogénéité."
+                  side="bottom"
+                />
+              </TabsTrigger>
+              <TabsTrigger value="validation" disabled={!dvhData} className="flex items-center gap-1">
+                Validation Protocole
+                <ContextualHelp 
+                  content="Comparez votre plan avec un protocole de traitement et vérifiez le respect des contraintes dosimétriques."
+                  side="bottom"
+                />
+              </TabsTrigger>
+              <TabsTrigger value="protocols" data-tour="protocols" className="flex items-center gap-1">
+                Gestion Protocoles
+                <ContextualHelp 
+                  content="Gérez vos protocoles de traitement : créez, modifiez, importez ou exportez des protocoles personnalisés."
+                  side="bottom"
+                />
+              </TabsTrigger>
+              <TabsTrigger value="converter" data-tour="converter" className="flex items-center gap-1">
+                Convertisseur
+                <ContextualHelp 
+                  content="Convertissez des documents protocoles (PDF, Word) en format JSON utilisable par l'application."
+                  side="bottom"
+                />
+              </TabsTrigger>
+              <TabsTrigger value="history" data-tour="history" className="flex items-center gap-1">
+                Historique
+                <ContextualHelp 
+                  content="Consultez l'historique de vos analyses et validations précédentes."
+                  side="bottom"
+                />
+              </TabsTrigger>
+              <TabsTrigger value="help" data-tour="help" className="flex items-center gap-1">
+                Aide
+                <ContextualHelp 
+                  content="Guide d'utilisation complet avec exemples et cas d'usage de l'application."
+                  side="bottom"
+                />
+              </TabsTrigger>
             </TabsList>
 
           {/* Analysis Section */}
@@ -153,19 +196,43 @@ const Index = () => {
               <div className="bg-card border rounded-lg p-4">
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Patient ID</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">Patient ID</p>
+                      <ContextualHelp 
+                        content="Identifiant unique du patient extrait du nom du fichier DVH."
+                        side="top"
+                      />
+                    </div>
                     <p className="text-lg font-semibold">{dvhData.patientId}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Structures</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">Structures</p>
+                      <ContextualHelp 
+                        content="Nombre total de structures anatomiques détectées dans les fichiers DVH (PTVs + OARs)."
+                        side="top"
+                      />
+                    </div>
                     <p className="text-lg font-semibold">{dvhData.structures.length}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Sélectionnées</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">Sélectionnées</p>
+                      <ContextualHelp 
+                        content="Nombre de structures actuellement sélectionnées pour l'affichage sur le graphique DVH."
+                        side="top"
+                      />
+                    </div>
                     <p className="text-lg font-semibold text-primary">{selectedStructures.length}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Dose max globale</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-muted-foreground">Dose max globale</p>
+                      <ContextualHelp 
+                        content="Dose maximale trouvée parmi toutes les structures du plan (Dmax). Utile pour identifier les points chauds."
+                        side="top"
+                      />
+                    </div>
                     <p className="text-lg font-semibold text-accent">
                       {findMaxDoseAcrossStructures(dvhData.structures).toFixed(2)} Gy
                     </p>
