@@ -281,7 +281,7 @@ const HelpGuide = () => {
         </CardHeader>
         <CardContent className="space-y-2 text-muted-foreground">
           <p>
-            Si vous rencontrez des difficultés ou avez des questions spécifiques, contactez l'équipe de physique médicale du Centre Sidi Abdellah de Cancérologie.
+            Si vous rencontrez des difficultés ou avez des questions spécifiques, contactez : n.sissaoui@csac-dz.com .
           </p>
           <p className="text-sm">
             Version de l'application : 1.0.0 | Dernière mise à jour : Décembre 2025
