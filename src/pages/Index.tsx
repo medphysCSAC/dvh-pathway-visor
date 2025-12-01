@@ -12,6 +12,7 @@ import ProtocolManager from '@/components/ProtocolManager';
 import AnalysisHistory from '@/components/AnalysisHistory';
 import HelpGuide from '@/components/HelpGuide';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { InteractiveTour } from '@/components/InteractiveTour';
 import { DVHData, StructureCategory, PlanData } from '@/types/dvh';
 import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
@@ -87,6 +88,8 @@ const Index = () => {
     });
   };
   return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
+      <InteractiveTour />
+      
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-6">
@@ -102,7 +105,9 @@ const Index = () => {
                 <p className="text-sm text-muted-foreground">Analyse des courbes Dose-Volume-Histogrames pour tomotherapy</p>
               </div>
             </div>
-            <ThemeToggle />
+            <div data-tour="theme-toggle">
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </header>
@@ -119,7 +124,9 @@ const Index = () => {
                 </TabsList>
                 
                 <TabsContent value="upload" className="mt-6">
-                  <FileUpload onFilesUploaded={handleFilesUploaded} />
+                  <div data-tour="file-upload">
+                    <FileUpload onFilesUploaded={handleFilesUploaded} />
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="converter" className="mt-6">
@@ -130,14 +137,14 @@ const Index = () => {
 
           {/* Tabs Section - Always visible with or without DVH */}
           <Tabs defaultValue={dvhData ? "dvh" : "protocols"} className="w-full">
-            <TabsList className="grid w-full max-w-5xl mx-auto grid-cols-7">
+            <TabsList data-tour="tabs" className="grid w-full max-w-5xl mx-auto grid-cols-7">
               <TabsTrigger value="dvh" disabled={!dvhData}>Analyse DVH</TabsTrigger>
               <TabsTrigger value="evaluation" disabled={!dvhData}>Évaluation de plan</TabsTrigger>
               <TabsTrigger value="validation" disabled={!dvhData}>Validation Protocole</TabsTrigger>
-              <TabsTrigger value="protocols">Gestion Protocoles</TabsTrigger>
-              <TabsTrigger value="converter">Convertisseur</TabsTrigger>
-              <TabsTrigger value="history">Historique</TabsTrigger>
-              <TabsTrigger value="help">Aide</TabsTrigger>
+              <TabsTrigger value="protocols" data-tour="protocols">Gestion Protocoles</TabsTrigger>
+              <TabsTrigger value="converter" data-tour="converter">Convertisseur</TabsTrigger>
+              <TabsTrigger value="history" data-tour="history">Historique</TabsTrigger>
+              <TabsTrigger value="help" data-tour="help">Aide</TabsTrigger>
             </TabsList>
 
           {/* Analysis Section */}
