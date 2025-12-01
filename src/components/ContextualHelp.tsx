@@ -17,8 +17,8 @@ export const ContextualHelp = ({
             <Info className="w-[8px] h-[8px]" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side={side} className="max-w-xs">
-          <p className="text-sm">{content}</p>
+        <TooltipContent side={side} className="max-w-md">
+          <p className="text-sm whitespace-normal break-words">{content}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>;
