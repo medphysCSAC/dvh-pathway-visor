@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Calculator, Trash2 } from 'lucide-react';
+import { ContextualHelp } from '@/components/ContextualHelp';
 
 interface DVHMetricsCalculatorProps {
   structures: Structure[];
@@ -90,6 +91,7 @@ export default function DVHMetricsCalculator({ structures }: DVHMetricsCalculato
         <CardTitle className="flex items-center gap-2">
           <Calculator className="h-5 w-5" />
           Calculateur de Métriques DVH - Volume Absolu
+          <ContextualHelp content="Cet outil permet de calculer le volume absolu (en cc) d'une structure qui reçoit une dose supérieure ou égale à un seuil défini. Exemple : V45Gy = volume recevant au moins 45 Gy." />
         </CardTitle>
         <CardDescription>
           Calculez le volume (en cc) d'une structure qui reçoit une dose ≥ à une valeur spécifiée
@@ -153,9 +155,24 @@ export default function DVHMetricsCalculator({ structures }: DVHMetricsCalculato
                 <thead className="bg-muted">
                   <tr>
                     <th className="text-left p-3 text-sm font-medium">Structure</th>
-                    <th className="text-left p-3 text-sm font-medium">Dose (Gy)</th>
-                    <th className="text-left p-3 text-sm font-medium">Volume (%)</th>
-                    <th className="text-left p-3 text-sm font-medium">Volume (cc)</th>
+                    <th className="text-left p-3 text-sm font-medium">
+                      <div className="flex items-center gap-1">
+                        Dose (Gy)
+                        <ContextualHelp content="Dose seuil utilisée pour le calcul. Le résultat indique le volume recevant au moins cette dose." />
+                      </div>
+                    </th>
+                    <th className="text-left p-3 text-sm font-medium">
+                      <div className="flex items-center gap-1">
+                        Volume (%)
+                        <ContextualHelp content="Pourcentage du volume total de la structure qui reçoit au moins la dose seuil." />
+                      </div>
+                    </th>
+                    <th className="text-left p-3 text-sm font-medium">
+                      <div className="flex items-center gap-1">
+                        Volume (cc)
+                        <ContextualHelp content="Volume absolu en centimètres cubes qui reçoit au moins la dose seuil. Calculé à partir du volume total et du pourcentage." />
+                      </div>
+                    </th>
                     <th className="w-12"></th>
                   </tr>
                 </thead>

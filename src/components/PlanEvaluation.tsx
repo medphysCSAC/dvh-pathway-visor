@@ -22,6 +22,7 @@ import {
 import { Target, Shield, Award, AlertCircle, CheckCircle, Download, FileJson } from 'lucide-react';
 import { exportMetricsToCSV, exportMetricsToJSON } from '@/utils/exportUtils';
 import { toast } from 'sonner';
+import { ContextualHelp } from '@/components/ContextualHelp';
 
 interface PlanEvaluationProps {
   structures: Structure[];
@@ -150,14 +151,54 @@ export const PlanEvaluation = ({ structures, patientId = 'UNKNOWN' }: PlanEvalua
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead>Structure</TableHead>
-                  <TableHead className="text-right">D<sub>95%</sub> (Gy)</TableHead>
-                  <TableHead className="text-right">D<sub>98%</sub> (Gy)</TableHead>
-                  <TableHead className="text-right">D<sub>50%</sub> (Gy)</TableHead>
-                  <TableHead className="text-right">D<sub>2%</sub> (Gy)</TableHead>
-                  <TableHead className="text-right">V<sub>95%</sub></TableHead>
-                  <TableHead className="text-right">HI</TableHead>
-                  <TableHead className="text-right">CI</TableHead>
-                  <TableHead className="text-right">CN</TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      D<sub>95%</sub> (Gy)
+                      <ContextualHelp content="Dose reçue par 95% du volume. Indicateur de couverture du volume cible." />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      D<sub>98%</sub> (Gy)
+                      <ContextualHelp content="Dose reçue par 98% du volume. Proche de la dose minimale, indicateur de sous-dosage." />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      D<sub>50%</sub> (Gy)
+                      <ContextualHelp content="Dose médiane, reçue par 50% du volume. Sert de référence pour le calcul du HI." />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      D<sub>2%</sub> (Gy)
+                      <ContextualHelp content="Dose reçue par 2% du volume. Proche de la dose maximale, indicateur de surdosage." />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      V<sub>95%</sub>
+                      <ContextualHelp content="Pourcentage du volume recevant au moins 95% de la dose prescrite. Objectif clinique : ≥ 95%." />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      HI
+                      <ContextualHelp content="Homogeneity Index = (D2% - D98%) / D50%. Mesure l'homogénéité de dose dans le PTV. Valeur idéale < 0.1, acceptable < 0.15." />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      CI
+                      <ContextualHelp content="Conformity Index = V95% / 95%. Mesure la conformité de la dose au volume cible. Valeur idéale proche de 1 (entre 0.95 et 1.1)." />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      CN
+                      <ContextualHelp content="Conformation Number. Mesure la conformation tridimensionnelle. Valeur idéale proche de 1. Prend en compte le volume traité hors cible." />
+                    </div>
+                  </TableHead>
                   <TableHead>Qualité</TableHead>
                 </TableRow>
               </TableHeader>
@@ -218,12 +259,42 @@ export const PlanEvaluation = ({ structures, patientId = 'UNKNOWN' }: PlanEvalua
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead>Structure</TableHead>
-                  <TableHead className="text-right">Volume (cc)</TableHead>
-                  <TableHead className="text-right">D<sub>max</sub> (Gy)</TableHead>
-                  <TableHead className="text-right">D<sub>mean</sub> (Gy)</TableHead>
-                  <TableHead className="text-right">V<sub>20Gy</sub> (%)</TableHead>
-                  <TableHead className="text-right">V<sub>30Gy</sub> (%)</TableHead>
-                  <TableHead className="text-right">V<sub>40Gy</sub> (%)</TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      Volume (cc)
+                      <ContextualHelp content="Volume total de l'organe en centimètres cubes." />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      D<sub>max</sub> (Gy)
+                      <ContextualHelp content="Dose maximale ponctuelle reçue par l'organe. Critique pour les organes sériels (moelle, nerfs)." />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      D<sub>mean</sub> (Gy)
+                      <ContextualHelp content="Dose moyenne à l'organe. Importante pour les organes parallèles (poumon, rein) et le risque de complications." />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      V<sub>20Gy</sub> (%)
+                      <ContextualHelp content="Pourcentage du volume recevant au moins 20 Gy. Contrainte courante pour le poumon (objectif < 30-35%)." />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      V<sub>30Gy</sub> (%)
+                      <ContextualHelp content="Pourcentage du volume recevant au moins 30 Gy. Utile pour évaluer le risque de toxicité intermédiaire." />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      V<sub>40Gy</sub> (%)
+                      <ContextualHelp content="Pourcentage du volume recevant au moins 40 Gy. Contrainte pour évaluer le risque de toxicité tardive." />
+                    </div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
