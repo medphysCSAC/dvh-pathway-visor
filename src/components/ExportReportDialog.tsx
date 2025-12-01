@@ -9,7 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { FileDown } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FileDown, Eye } from 'lucide-react';
+import ReportHTMLPreview from './ReportHTMLPreview';
 
 interface ExportReportDialogProps {
   report: ValidationReport | null;
@@ -42,76 +44,102 @@ export default function ExportReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Exporter le Rapport de Validation</DialogTitle>
           <DialogDescription>
-            Configurez les paramètres avant d'exporter le rapport
+            Configurez les paramètres et prévisualisez le rapport avant l'export
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4 h-full">
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Modèle de rapport</Label>
-              <RadioGroup value={template} onValueChange={(v) => setTemplate(v as ReportTemplate)} className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="essential" id="essential" />
-                  <Label htmlFor="essential" className="font-normal cursor-pointer text-sm">
-                    ⭐ Rapport Essentiel - Format ultra-compact (par défaut)
-                  </Label>
+        <Tabs defaultValue="config" className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="config">
+              Configuration
+            </TabsTrigger>
+            <TabsTrigger value="preview">
+              <Eye className="h-4 w-4 mr-2" />
+              Aperçu
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="config" className="flex-1 overflow-hidden mt-4">
+            <ScrollArea className="h-full pr-4">
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label>Modèle de rapport</Label>
+                  <RadioGroup value={template} onValueChange={(v) => setTemplate(v as ReportTemplate)} className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="essential" id="essential" />
+                      <Label htmlFor="essential" className="font-normal cursor-pointer text-sm">
+                        ⭐ Rapport Essentiel - Format ultra-compact (par défaut)
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="official" id="official" />
+                      <Label htmlFor="official" className="font-normal cursor-pointer text-sm">
+                        📋 Rapport Officiel - Format complet institutionnel
+                      </Label>
+                    </div>
+                  </RadioGroup>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="official" id="official" />
-                  <Label htmlFor="official" className="font-normal cursor-pointer text-sm">
-                    📋 Rapport Officiel - Format complet institutionnel
-                  </Label>
+
+                <div className="space-y-2">
+                  <Label htmlFor="status">Statut global du plan</Label>
+                  <Select value={overallStatus} onValueChange={(v) => setOverallStatus(v as 'PASS' | 'FAIL')}>
+                    <SelectTrigger id="status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PASS">✅ PASS - Plan validé</SelectItem>
+                      <SelectItem value="FAIL">❌ FAIL - Plan rejeté</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </RadioGroup>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="status">Statut global du plan</Label>
-              <Select value={overallStatus} onValueChange={(v) => setOverallStatus(v as 'PASS' | 'FAIL')}>
-                <SelectTrigger id="status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PASS">✅ PASS - Plan validé</SelectItem>
-                  <SelectItem value="FAIL">❌ FAIL - Plan rejeté</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="doctor">Nom du médecin validateur *</Label>
+                  <Input
+                    id="doctor"
+                    value={doctorName}
+                    onChange={(e) => setDoctorName(e.target.value)}
+                    placeholder="Dr. Nom Prénom"
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="doctor">Nom du médecin validateur *</Label>
-              <Input
-                id="doctor"
-                value={doctorName}
-                onChange={(e) => setDoctorName(e.target.value)}
-                placeholder="Dr. Nom Prénom"
+                <div className="space-y-2">
+                  <Label htmlFor="observations">Observations (facultatif)</Label>
+                  <Textarea 
+                    id="observations" 
+                    placeholder="Ajoutez vos observations ici..." 
+                    value={observations}
+                    onChange={(e) => setObservations(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+
+                <div className="bg-muted p-3 rounded-lg text-sm">
+                  <p className="font-medium mb-1">Nom du fichier :</p>
+                  <p className="text-muted-foreground font-mono text-xs break-all">
+                    {report.patientId}_{report.protocolName.replace(/\s+/g, '_')}_{new Date().toISOString().split('T')[0]}.pdf
+                  </p>
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="preview" className="flex-1 overflow-hidden mt-4">
+            <ScrollArea className="h-full">
+              <ReportHTMLPreview 
+                report={report}
+                overallStatus={overallStatus}
+                doctorName={doctorName}
+                observations={observations}
+                template={template}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="observations">Observations (facultatif)</Label>
-              <Textarea 
-                id="observations" 
-                placeholder="Ajoutez vos observations ici..." 
-                value={observations}
-                onChange={(e) => setObservations(e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            <div className="bg-muted p-3 rounded-lg text-sm">
-              <p className="font-medium mb-1">Nom du fichier :</p>
-              <p className="text-muted-foreground font-mono text-xs break-all">
-                {report.patientId}_{report.protocolName.replace(/\s+/g, '_')}_{new Date().toISOString().split('T')[0]}.pdf
-              </p>
-            </div>
-          </div>
-        </ScrollArea>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
 
         <DialogFooter className="mt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -122,7 +150,7 @@ export default function ExportReportDialog({
             disabled={!doctorName.trim() || isExporting}
           >
             <FileDown className="h-4 w-4 mr-2" />
-            {isExporting ? 'Export en cours...' : 'Exporter'}
+            {isExporting ? 'Export en cours...' : 'Exporter PDF'}
           </Button>
         </DialogFooter>
       </DialogContent>
