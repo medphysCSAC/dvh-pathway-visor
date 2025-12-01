@@ -2,6 +2,7 @@ import { Upload, FileText, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useState } from 'react';
+import { ContextualHelp } from './ContextualHelp';
 
 interface FileUploadProps {
   onFilesUploaded: (relFile: File, absFile?: File) => void;
@@ -38,7 +39,13 @@ export const FileUpload = ({ onFilesUploaded }: FileUploadProps) => {
           </div>
           
           <div className="text-center">
-            <h3 className="text-xl font-semibold mb-2">Importer les fichiers DVH</h3>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <h3 className="text-xl font-semibold">Importer les fichiers DVH</h3>
+              <ContextualHelp 
+                content="Importez vos fichiers DVH exportés depuis TomoTherapy. Le fichier REL contient les doses relatives en %, le fichier ABS contient les doses absolues en cc. Au minimum, le fichier REL est nécessaire."
+                side="right"
+              />
+            </div>
             <p className="text-muted-foreground">
               Le fichier REL est requis. Le fichier ABS est optionnel (nécessaire pour les métriques en cc).
             </p>
@@ -46,9 +53,15 @@ export const FileUpload = ({ onFilesUploaded }: FileUploadProps) => {
 
           <div className="grid md:grid-cols-2 gap-4 w-full max-w-2xl">
             <div className="space-y-2">
-              <label className="block text-sm font-medium">
-                Fichier DVH Relatif (REL)
-              </label>
+              <div className="flex items-center gap-2">
+                <label className="block text-sm font-medium">
+                  Fichier DVH Relatif (REL)
+                </label>
+                <ContextualHelp 
+                  content="Fichier contenant les données DVH en pourcentage (%). Ce fichier est obligatoire pour l'analyse."
+                  side="top"
+                />
+              </div>
               <div className="relative">
                 <input
                   type="file"
@@ -70,9 +83,15 @@ export const FileUpload = ({ onFilesUploaded }: FileUploadProps) => {
             </div>
 
             <div className="space-y-2">
-              <label className="block text-sm font-medium">
-                Fichier DVH Absolu (ABS)
-              </label>
+              <div className="flex items-center gap-2">
+                <label className="block text-sm font-medium">
+                  Fichier DVH Absolu (ABS)
+                </label>
+                <ContextualHelp 
+                  content="Fichier contenant les volumes absolus en cc. Optionnel mais nécessaire pour calculer les métriques volumiques absolues (ex: V20cc, D0.03cc)."
+                  side="top"
+                />
+              </div>
               <div className="relative">
                 <input
                   type="file"

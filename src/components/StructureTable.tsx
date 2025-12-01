@@ -9,6 +9,7 @@ import { calculateMetrics } from '@/utils/dvhParser';
 import { Target, Shield, Circle, Star } from 'lucide-react';
 import { useFavorites } from '@/hooks/useFavorites';
 import { toast } from 'sonner';
+import { ContextualHelp } from './ContextualHelp';
 import {
   Table,
   TableBody,
@@ -79,7 +80,13 @@ export const StructureTable = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Structures anatomiques et métriques</CardTitle>
+        <div className="flex items-center gap-2">
+          <CardTitle>Structures anatomiques et métriques</CardTitle>
+          <ContextualHelp 
+            content="Tableau récapitulatif de toutes les structures avec leurs métriques dosimétriques. Cliquez sur les structures pour les afficher/masquer du graphique DVH. Utilisez les favoris pour accéder rapidement aux structures importantes."
+            side="right"
+          />
+        </div>
       </CardHeader>
       <CardContent>
         <div className="rounded-lg border overflow-hidden">
@@ -87,17 +94,67 @@ export const StructureTable = ({
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="w-12">
-                  <span className="sr-only">Favori</span>
+                  <div className="flex items-center justify-center">
+                    <Star className="h-4 w-4" />
+                  </div>
                 </TableHead>
                 <TableHead className="w-12">
                   <span className="sr-only">Sélection</span>
                 </TableHead>
-                <TableHead>Structure</TableHead>
-                <TableHead>Catégorie</TableHead>
-                <TableHead className="text-right">Volume (cc)</TableHead>
-                <TableHead className="text-right">D<sub>max</sub> (Gy)</TableHead>
-                <TableHead className="text-right">D<sub>mean</sub> (Gy)</TableHead>
-                <TableHead className="text-right">V<sub>20Gy</sub> (%)</TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-1">
+                    Structure
+                    <ContextualHelp 
+                      content="Nom de la structure anatomique (PTV ou OAR). Les favoris apparaissent en premier."
+                      side="top"
+                    />
+                  </div>
+                </TableHead>
+                <TableHead>
+                  <div className="flex items-center gap-1">
+                    Catégorie
+                    <ContextualHelp 
+                      content="Type de structure : PTV (Planning Target Volume), OAR (Organ At Risk), ou OTHER."
+                      side="top"
+                    />
+                  </div>
+                </TableHead>
+                <TableHead className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    Volume (cc)
+                    <ContextualHelp 
+                      content="Volume total de la structure en centimètres cubes."
+                      side="top"
+                    />
+                  </div>
+                </TableHead>
+                <TableHead className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    D<sub>max</sub> (Gy)
+                    <ContextualHelp 
+                      content="Dose maximale reçue par la structure. Correspond à D0.03cc ou D2% selon les standards."
+                      side="top"
+                    />
+                  </div>
+                </TableHead>
+                <TableHead className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    D<sub>mean</sub> (Gy)
+                    <ContextualHelp 
+                      content="Dose moyenne reçue par l'ensemble de la structure."
+                      side="top"
+                    />
+                  </div>
+                </TableHead>
+                <TableHead className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    V<sub>20Gy</sub> (%)
+                    <ContextualHelp 
+                      content="Pourcentage du volume recevant au moins 20 Gy. Métrique clé pour les OARs."
+                      side="top"
+                    />
+                  </div>
+                </TableHead>
                 <TableHead className="text-right">V<sub>20Gy</sub> (cc)</TableHead>
                 <TableHead className="text-right">V<sub>40Gy</sub> (%)</TableHead>
                 <TableHead className="text-right">V<sub>40Gy</sub> (cc)</TableHead>

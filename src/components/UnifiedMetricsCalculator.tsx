@@ -10,6 +10,7 @@ import { calculateDx, calculateVx } from '@/utils/planQualityMetrics';
 import { Calculator, Trash2, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ContextualHelp } from './ContextualHelp';
 
 interface UnifiedMetricsCalculatorProps {
   structures: Structure[];
@@ -100,22 +101,38 @@ export default function UnifiedMetricsCalculator({ structures, selectedStructure
         <div className="flex items-center gap-2">
           <Calculator className="w-5 h-5 text-primary" />
           <CardTitle>Calculateur de Métriques DVH</CardTitle>
+          <ContextualHelp 
+            content="Calculez des métriques dosimétriques précises (Vx et Dx) pour chaque structure. Les résultats sont enregistrés dans un historique consultable."
+            side="right"
+          />
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <Tabs value={calculationType} onValueChange={(v) => setCalculationType(v as any)}>
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="Vx">
-              <TrendingUp className="w-4 h-4 mr-2" />
+            <TabsTrigger value="Vx" className="flex items-center gap-1">
+              <TrendingUp className="w-4 h-4" />
               Vx (%)
+              <ContextualHelp 
+                content="Volume relatif (%): Calcule quel pourcentage du volume reçoit au moins une dose spécifiée. Ex: V20Gy = 30% signifie que 30% du volume reçoit au moins 20 Gy."
+                side="top"
+              />
             </TabsTrigger>
-            <TabsTrigger value="VxAbsolute">
-              <Calculator className="w-4 h-4 mr-2" />
+            <TabsTrigger value="VxAbsolute" className="flex items-center gap-1">
+              <Calculator className="w-4 h-4" />
               Vx (cc)
+              <ContextualHelp 
+                content="Volume absolu (cc): Calcule le volume absolu en centimètres cubes recevant au moins une dose spécifiée. Ex: V20Gy = 45cc."
+                side="top"
+              />
             </TabsTrigger>
-            <TabsTrigger value="Dx">
-              <TrendingUp className="w-4 h-4 mr-2" />
+            <TabsTrigger value="Dx" className="flex items-center gap-1">
+              <TrendingUp className="w-4 h-4" />
               Dx
+              <ContextualHelp 
+                content="Dose au volume (%): Calcule la dose minimale reçue par un certain pourcentage du volume. Ex: D95% = 45Gy signifie que 95% du volume reçoit au moins 45 Gy."
+                side="top"
+              />
             </TabsTrigger>
           </TabsList>
 
