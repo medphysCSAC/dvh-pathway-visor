@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { MultiFileUpload } from '@/components/MultiFileUpload';
 import { PlanComparison } from '@/components/PlanComparison';
@@ -16,9 +16,11 @@ import HelpGuide from '@/components/HelpGuide';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { InteractiveTour } from '@/components/InteractiveTour';
 import { ContextualHelp } from '@/components/ContextualHelp';
+import { CriticalDoseAlerts } from '@/components/CriticalDoseAlerts';
 import { DVHData, StructureCategory, PlanData } from '@/types/dvh';
 import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
+import { checkCriticalDoses, DoseAlert } from '@/utils/criticalDoseAlerts';
 import { toast } from 'sonner';
 import { Activity } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -28,6 +30,29 @@ const Index = () => {
   const [activeFilter, setActiveFilter] = useState<StructureCategory | 'ALL'>('ALL');
   const [comparisonPlans, setComparisonPlans] = useState<PlanData[]>([]);
   const [comparisonMode, setComparisonMode] = useState<'summation' | 'comparison' | 'multi-patient' | null>(null);
+  const [criticalAlerts, setCriticalAlerts] = useState<DoseAlert[]>([]);
+
+  // Check for critical dose exceedances when DVH data changes
+  useEffect(() => {
+    if (dvhData?.structures) {
+      const alerts = checkCriticalDoses(dvhData.structures);
+      setCriticalAlerts(alerts);
+      
+      // Show toast for critical alerts
+      const criticalCount = alerts.filter(a => a.severity === 'critical').length;
+      if (criticalCount > 0) {
+        toast.error(`${criticalCount} dépassement${criticalCount > 1 ? 's' : ''} critique${criticalCount > 1 ? 's' : ''} détecté${criticalCount > 1 ? 's' : ''}`, {
+          description: 'Vérifiez les alertes de dose en haut de la page'
+        });
+      } else if (alerts.length > 0) {
+        toast.warning(`${alerts.length} avertissement${alerts.length > 1 ? 's' : ''} de dose`, {
+          description: 'Consultez les alertes pour plus de détails'
+        });
+      }
+    } else {
+      setCriticalAlerts([]);
+    }
+  }, [dvhData]);
   const handleFilesUploaded = async (relFile: File, absFile?: File) => {
     try {
       const relContent = await relFile.text();
@@ -230,6 +255,9 @@ const Index = () => {
 
           {/* Analysis Section */}
           {dvhData && <>
+              {/* Critical Dose Alerts */}
+              <CriticalDoseAlerts alerts={criticalAlerts} />
+
               {/* Patient Info */}
               <div className="bg-card border rounded-lg p-4">
                 <div className="flex items-center justify-between flex-wrap gap-4">
