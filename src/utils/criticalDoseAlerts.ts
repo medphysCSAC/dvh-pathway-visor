@@ -22,7 +22,7 @@ export interface DoseAlert {
 export const CRITICAL_THRESHOLDS: CriticalThreshold[] = [
   // Système nerveux central
   {
-    structurePatterns: ['moelle', 'spinal', 'cord', 'medulla'],
+    structurePatterns: ['moelle', 'moelle epiniere', 'spinal', 'cord', 'medulla'],
     metricType: 'Dmax',
     threshold: 45,
     unit: 'Gy',
@@ -30,7 +30,7 @@ export const CRITICAL_THRESHOLDS: CriticalThreshold[] = [
     severity: 'critical'
   },
   {
-    structurePatterns: ['tronc', 'brainstem', 'brain stem'],
+    structurePatterns: ['tronc', 'tronc cerebral ', 'TC' , 'brainstem', 'brain stem'],
     metricType: 'Dmax',
     threshold: 54,
     unit: 'Gy',
@@ -46,7 +46,7 @@ export const CRITICAL_THRESHOLDS: CriticalThreshold[] = [
     severity: 'critical'
   },
   {
-    structurePatterns: ['chiasma', 'chiasm'],
+    structurePatterns: ['chiasma', 'chiasma optique', 'chiasm'],
     metricType: 'Dmax',
     threshold: 54,
     unit: 'Gy',
