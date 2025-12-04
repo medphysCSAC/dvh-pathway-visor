@@ -23,11 +23,6 @@ interface DicomRTUploadProps {
   onDataLoaded?: (data: DicomRTData) => void;
 }
 
-interface FileWithPath {
-  name: string;
-  webkitRelativePath?: string;
-  webkitRelativePath?: string;
-}
 
 export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) => {
   const inputRef = useRef<HTMLInputElement>(null);
