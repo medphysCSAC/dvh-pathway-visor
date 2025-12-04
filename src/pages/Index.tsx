@@ -37,7 +37,7 @@ const Index = () => {
     if (dvhData?.structures) {
       const alerts = checkCriticalDoses(dvhData.structures);
       setCriticalAlerts(alerts);
-      
+
       // Show toast for critical alerts
       const criticalCount = alerts.filter(a => a.severity === 'critical').length;
       if (criticalCount > 0) {
@@ -117,11 +117,9 @@ const Index = () => {
       } : s)
     });
   };
-
   const handlePlansLoaded = (plans: PlanData[], mode: 'summation' | 'comparison' | 'multi-patient') => {
     setComparisonPlans(plans);
     setComparisonMode(mode);
-    
     if (mode === 'summation') {
       // Summate plans into a single DVH
       const summatedPlan = summatePlans(plans);
@@ -197,59 +195,35 @@ const Index = () => {
             <TabsList data-tour="tabs" className="grid w-full max-w-6xl mx-auto grid-cols-8">
               <TabsTrigger value="dvh" disabled={!dvhData} className="flex items-center gap-1">
                 Analyse DVH
-                <ContextualHelp 
-                  content="Visualisez et analysez les courbes dose-volume, calculez des métriques et consultez les statistiques des structures."
-                  side="bottom"
-                />
+                <ContextualHelp content="Visualisez et analysez les courbes dose-volume, calculez des métriques et consultez les statistiques des structures." side="bottom" />
               </TabsTrigger>
               <TabsTrigger value="comparison" disabled={comparisonMode !== 'comparison'} className="flex items-center gap-1">
                 Comparaison
-                <ContextualHelp 
-                  content="Comparez les métriques dosimétriques de plusieurs plans côte-à-côte avec différences visuelles."
-                  side="bottom"
-                />
+                <ContextualHelp content="Comparez les métriques dosimétriques de plusieurs plans côte-à-côte avec différences visuelles." side="bottom" />
               </TabsTrigger>
               <TabsTrigger value="evaluation" disabled={!dvhData} className="flex items-center gap-1">
                 Évaluation de plan
-                <ContextualHelp 
-                  content="Évaluez la qualité globale de votre plan de traitement avec des indices de conformité et d'homogénéité."
-                  side="bottom"
-                />
+                <ContextualHelp content="Évaluez la qualité globale de votre plan de traitement avec des indices de conformité et d'homogénéité." side="bottom" />
               </TabsTrigger>
               <TabsTrigger value="validation" disabled={!dvhData} className="flex items-center gap-1">
                 Validation Protocole
-                <ContextualHelp 
-                  content="Comparez votre plan avec un protocole de traitement et vérifiez le respect des contraintes dosimétriques."
-                  side="bottom"
-                />
+                <ContextualHelp content="Comparez votre plan avec un protocole de traitement et vérifiez le respect des contraintes dosimétriques." side="bottom" />
               </TabsTrigger>
               <TabsTrigger value="protocols" data-tour="protocols" className="flex items-center gap-1">
                 Gestion Protocoles
-                <ContextualHelp 
-                  content="Gérez vos protocoles de traitement : créez, modifiez, importez ou exportez des protocoles personnalisés."
-                  side="bottom"
-                />
+                <ContextualHelp content="Gérez vos protocoles de traitement : créez, modifiez, importez ou exportez des protocoles personnalisés." side="bottom" />
               </TabsTrigger>
               <TabsTrigger value="converter" data-tour="converter" className="flex items-center gap-1">
                 Convertisseur
-                <ContextualHelp 
-                  content="Convertissez des documents protocoles (PDF, Word) en format JSON utilisable par l'application."
-                  side="bottom"
-                />
+                <ContextualHelp content="Convertissez des documents protocoles (PDF, Word) en format JSON utilisable par l'application." side="bottom" />
               </TabsTrigger>
               <TabsTrigger value="history" data-tour="history" className="flex items-center gap-1">
                 Historique
-                <ContextualHelp 
-                  content="Consultez l'historique de vos analyses et validations précédentes."
-                  side="bottom"
-                />
+                <ContextualHelp content="Consultez l'historique de vos analyses et validations précédentes." side="bottom" />
               </TabsTrigger>
               <TabsTrigger value="help" data-tour="help" className="flex items-center gap-1">
                 Aide
-                <ContextualHelp 
-                  content="Guide d'utilisation complet avec exemples et cas d'usage de l'application."
-                  side="bottom"
-                />
+                <ContextualHelp content="Guide d'utilisation complet avec exemples et cas d'usage de l'application." side="bottom" />
               </TabsTrigger>
             </TabsList>
 
@@ -264,40 +238,28 @@ const Index = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-muted-foreground">Patient ID</p>
-                      <ContextualHelp 
-                        content="Identifiant unique du patient extrait du nom du fichier DVH."
-                        side="top"
-                      />
+                      <ContextualHelp content="Identifiant unique du patient extrait du nom du fichier DVH." side="top" />
                     </div>
                     <p className="text-lg font-semibold">{dvhData.patientId}</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-muted-foreground">Structures</p>
-                      <ContextualHelp 
-                        content="Nombre total de structures anatomiques détectées dans les fichiers DVH (PTVs + OARs)."
-                        side="top"
-                      />
+                      <ContextualHelp content="Nombre total de structures anatomiques détectées dans les fichiers DVH (PTVs + OARs)." side="top" />
                     </div>
                     <p className="text-lg font-semibold">{dvhData.structures.length}</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-muted-foreground">Sélectionnées</p>
-                      <ContextualHelp 
-                        content="Nombre de structures actuellement sélectionnées pour l'affichage sur le graphique DVH."
-                        side="top"
-                      />
+                      <ContextualHelp content="Nombre de structures actuellement sélectionnées pour l'affichage sur le graphique DVH." side="top" />
                     </div>
                     <p className="text-lg font-semibold text-primary">{selectedStructures.length}</p>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-muted-foreground">Dose max globale</p>
-                      <ContextualHelp 
-                        content="Dose maximale trouvée parmi toutes les structures du plan (Dmax). Utile pour identifier les points chauds."
-                        side="top"
-                      />
+                      <ContextualHelp content="Dose maximale trouvée parmi toutes les structures du plan (Dmax). Utile pour identifier les points chauds." side="top" />
                     </div>
                     <p className="text-lg font-semibold text-accent">
                       {findMaxDoseAcrossStructures(dvhData.structures).toFixed(2)} Gy
@@ -323,9 +285,7 @@ const Index = () => {
 
                 {/* Onglet Comparaison de plans */}
                 <TabsContent value="comparison">
-                  {comparisonMode === 'comparison' && comparisonPlans.length > 0 && (
-                    <PlanComparison plans={comparisonPlans} />
-                  )}
+                  {comparisonMode === 'comparison' && comparisonPlans.length > 0 && <PlanComparison plans={comparisonPlans} />}
                 </TabsContent>
 
                 {/* Onglet Évaluation de plan */}
@@ -372,10 +332,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t mt-16 py-6 bg-card/30">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>DVH Analyzer - Outil d'analyse pour plans de traitement en radiothérapie
-Centre Sidi Abdellah de Cancérologie_Alger    
-
-        </p>
+          <p>DVH Analyzer - Outil d'analyse pour plans de traitement de tomotherapy_ Centre Sidi Abdellah de Cancérologie d'Alger </p>
         </div>
       </footer>
     </div>;
