@@ -1,4 +1,4 @@
-import dicomParser from 'dicom-parser';
+import * as dicomParser from 'dicom-parser';
 import {
   DicomRTData,
   DicomRTStructure,
