@@ -17,7 +17,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useDicomWorker } from '@/hooks/useDicomWorker';
+import { parseDicomFile } from '@/utils/dicomRTParser';
 import { DicomRTData, DicomRTStructure } from '@/types/dicomRT';
 
 interface DicomRTUploadProps {
@@ -26,7 +26,6 @@ interface DicomRTUploadProps {
 
 export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { parseFiles } = useDicomWorker();
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [parsedData, setParsedData] = useState<DicomRTData | null>(null);
@@ -144,19 +143,62 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
     setError(null);
 
     try {
-      const combinedData = await parseFiles(selectedFiles, (parsed, total) => {
+      let combinedData: DicomRTData = {
+        patientId: '',
+        patientName: '',
+        studyDate: '',
+        modality: '',
+        structures: [],
+        dose: undefined,
+        plan: undefined
+      };
+
+      const total = selectedFiles.length;
+      let parsed = 0;
+
+      // Process files one by one with progress updates
+      for (const file of selectedFiles) {
+        try {
+          const data = await parseDicomFile(file);
+          
+          // Merge data
+          if (data.patientId) combinedData.patientId = data.patientId;
+          if (data.patientName) combinedData.patientName = data.patientName;
+          if (data.studyDate) combinedData.studyDate = data.studyDate;
+          if (data.modality) combinedData.modality = data.modality;
+          
+          if (data.structures?.length) {
+            combinedData.structures = [...(combinedData.structures || []), ...data.structures];
+          }
+          if (data.dose) {
+            combinedData.dose = combinedData.dose 
+              ? { ...combinedData.dose, ...data.dose, dvhs: [...(combinedData.dose.dvhs || []), ...(data.dose.dvhs || [])] }
+              : data.dose;
+          }
+          if (data.plan) {
+            combinedData.plan = { ...combinedData.plan, ...data.plan };
+          }
+        } catch (err) {
+          console.warn(`Failed to parse ${file.name}:`, err);
+        }
+
+        parsed++;
         setProgress(Math.round((parsed / total) * 100));
-      });
+        
+        // Yield to UI thread every 5 files
+        if (parsed % 5 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+      }
 
       setParsedData(combinedData);
       onDataLoaded?.(combinedData);
 
       const structCount = combinedData.structures?.length || 0;
       const dvhCount = combinedData.dose?.dvhs?.length || 0;
-      const fileCount = selectedFiles.length;
 
       toast.success(`Dossier DICOM RT chargé`, {
-        description: `${fileCount} fichiers, ${structCount} structures, ${dvhCount} DVH`,
+        description: `${total} fichiers, ${structCount} structures, ${dvhCount} DVH`,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur de parsing DICOM';
