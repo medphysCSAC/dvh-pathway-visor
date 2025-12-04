@@ -17,10 +17,13 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { InteractiveTour } from '@/components/InteractiveTour';
 import { ContextualHelp } from '@/components/ContextualHelp';
 import { CriticalDoseAlerts } from '@/components/CriticalDoseAlerts';
+import { DicomRTUpload } from '@/components/DicomRTUpload';
 import { DVHData, StructureCategory, PlanData } from '@/types/dvh';
 import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
 import { checkCriticalDoses, DoseAlert } from '@/utils/criticalDoseAlerts';
+import { convertDicomDVHToAppFormat } from '@/utils/dicomRTParser';
+import { DicomRTData } from '@/types/dicomRT';
 import { toast } from 'sonner';
 import { Activity } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -137,6 +140,36 @@ const Index = () => {
       setSelectedStructures([]);
     }
   };
+
+  const handleDicomRTLoaded = (data: DicomRTData) => {
+    // Convert DICOM RT data to app format
+    if (data.structures && data.dose?.dvhs) {
+      const convertedDVH = convertDicomDVHToAppFormat(data.structures, data.dose.dvhs);
+      
+      // Create DVHData structure compatible with the app
+      const dvhData: DVHData = {
+        patientId: data.patientId || 'DICOM Patient',
+        structures: convertedDVH.map((dvh, index) => ({
+          name: dvh.name,
+          type: 'STANDARD',
+          category: dvh.name.toUpperCase().startsWith('PTV') ? 'PTV' : 'OAR',
+          relativeVolume: dvh.relativeVolume,
+          absoluteVolume: [],
+        })),
+      };
+
+      setDvhData(dvhData);
+      setSelectedStructures([]);
+      toast.success('DICOM RT importé', {
+        description: `${dvhData.structures.length} structures avec DVH chargées`,
+      });
+    } else if (data.structures) {
+      toast.info('Structures détectées', {
+        description: `${data.structures.length} structures sans données DVH. Chargez un fichier RTDOSE pour les DVH.`,
+      });
+    }
+  };
+
   return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       <InteractiveTour />
       
@@ -168,8 +201,9 @@ const Index = () => {
           {/* File Upload Section */}
           {!dvhData && <div className="max-w-4xl mx-auto space-y-6">
               <Tabs defaultValue="upload" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="upload">Charger un plan</TabsTrigger>
+                  <TabsTrigger value="dicom">DICOM RT</TabsTrigger>
                   <TabsTrigger value="multi">Comparer/Sommer plans</TabsTrigger>
                   <TabsTrigger value="converter">Convertisseur Protocole</TabsTrigger>
                 </TabsList>
@@ -178,6 +212,10 @@ const Index = () => {
                   <div data-tour="file-upload">
                     <FileUpload onFilesUploaded={handleFilesUploaded} />
                   </div>
+                </TabsContent>
+
+                <TabsContent value="dicom" className="mt-6">
+                  <DicomRTUpload onDataLoaded={handleDicomRTLoaded} />
                 </TabsContent>
                 
                 <TabsContent value="multi" className="mt-6">
