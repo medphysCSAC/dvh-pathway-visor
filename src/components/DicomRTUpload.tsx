@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 import { 
   Upload, 
   CheckCircle2, 
@@ -16,17 +17,18 @@ import {
   Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { parseDicomFile } from '@/utils/dicomRTParser';
+import { useDicomWorker } from '@/hooks/useDicomWorker';
 import { DicomRTData, DicomRTStructure } from '@/types/dicomRT';
 
 interface DicomRTUploadProps {
   onDataLoaded?: (data: DicomRTData) => void;
 }
 
-
 export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const { parseFiles } = useDicomWorker();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [parsedData, setParsedData] = useState<DicomRTData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -138,51 +140,13 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
     if (selectedFiles.length === 0) return;
 
     setIsProcessing(true);
+    setProgress(0);
     setError(null);
 
     try {
-      let combinedData: DicomRTData = {
-        patientId: '',
-        patientName: '',
-        studyDate: '',
-        modality: '',
-        structures: [],
-        dose: undefined,
-        plan: undefined
-      };
-
-      // Parser tous les fichiers en parallèle avec limite de concurrence
-      const BATCH_SIZE = 3;
-      for (let i = 0; i < selectedFiles.length; i += BATCH_SIZE) {
-        const batch = selectedFiles.slice(i, i + BATCH_SIZE);
-        const results = await Promise.allSettled(
-          batch.map(file => parseDicomFile(file))
-        );
-
-        results.forEach((result, idx) => {
-          if (result.status === 'fulfilled') {
-            const data = result.value;
-            // Fusion intelligente
-            if (data.patientId) combinedData.patientId = data.patientId;
-            if (data.patientName) combinedData.patientName = data.patientName;
-            if (data.studyDate) combinedData.studyDate = data.studyDate;
-            if (data.modality) combinedData.modality = data.modality;
-            
-            // Append arrays
-            if (data.structures?.length) {
-              combinedData.structures = [...(combinedData.structures || []), ...data.structures];
-            }
-            if (data.dose) {
-              combinedData.dose = { ...combinedData.dose, ...data.dose };
-            }
-            if (data.plan) {
-              combinedData.plan = { ...combinedData.plan, ...data.plan };
-            }
-          } else {
-            console.warn(`Échec parsing ${batch[idx].name}:`, result.reason);
-          }
-        });
-      }
+      const combinedData = await parseFiles(selectedFiles, (parsed, total) => {
+        setProgress(Math.round((parsed / total) * 100));
+      });
 
       setParsedData(combinedData);
       onDataLoaded?.(combinedData);
@@ -200,6 +164,7 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
       toast.error('Erreur de parsing', { description: message });
     } finally {
       setIsProcessing(false);
+      setProgress(0);
     }
   };
 
@@ -329,12 +294,13 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
         )}
 
         {/* Loading Progress */}
-        {isProcessing && selectedFiles.length > 10 && (
-          <div className="w-full bg-muted rounded-full h-2">
-            <div 
-              className="bg-primary h-2 rounded-full transition-all duration-300 animate-pulse"
-              style={{ width: '100%' }}
-            />
+        {isProcessing && (
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Analyse en cours...</span>
+              <span>{progress}%</span>
+            </div>
+            <Progress value={progress} className="h-2" />
           </div>
         )}
 
