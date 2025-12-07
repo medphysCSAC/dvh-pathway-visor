@@ -148,11 +148,11 @@ function parseRTDose(dataSet: dicomParser.DataSet, byteArray: Uint8Array): Dicom
   };
 
   // Données 3D dose
-  //const pixelDataElement = dataSet.elements["x7fe00010"];
-  //if (pixelDataElement) {
-  //const bitsAllocated = dataSet.uint16("x00280100") || 16;
-  //dose.doseData = extractDoseData(dataSet, byteArray, bitsAllocated);
-  //}
+  const pixelDataElement = dataSet.elements["x7fe00010"];
+  if (pixelDataElement) {
+    const bitsAllocated = dataSet.uint16("x00280100") || 16;
+    dose.doseData = extractDoseData(dataSet, byteArray, bitsAllocated);
+  }
 
   // 🔥 PARSING CORRIGÉ DES DVH
   const dvhSequence = getSequence(dataSet, "x30040050");
