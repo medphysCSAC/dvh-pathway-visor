@@ -26,6 +26,7 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
   const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [folderName, setFolderName] = useState<string>("");
+  const [isDragActive, setIsDragActive] = useState(false);
 
   const readDirectory = useCallback(async (entry: FileSystemDirectoryEntry): Promise<File[]> => {
     const files: File[] = [];
@@ -159,10 +160,10 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
           structures: convertedDVH.map((s) => ({
             name: s.name,
             type: "STANDARD",
-            category: s.name.toUpperCase().startsWith("PTV") ? "PTV" : "OAR",
+            category: s.name.toUpperCase().startsWith("PTV") ? "PTV" as const : "OAR" as const,
             relativeVolume: s.relativeVolume,
-            absoluteVolume: s.absoluteVolume,
-            totalVolume: s.absoluteVolume,
+            absoluteVolume: s.relativeVolume.map((p) => ({ dose: p.dose, volume: p.volume })),
+            totalVolume: typeof s.absoluteVolume === 'number' ? s.absoluteVolume : undefined,
           })),
         });
       }
