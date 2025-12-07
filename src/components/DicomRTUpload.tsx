@@ -1,20 +1,27 @@
-import React, { useState, useCallback, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Progress } from "@/components/ui/progress";
-import { Upload, CheckCircle2, AlertCircle, Loader2, FolderOpen, Trash2, Activity } from "lucide-react";
-import { toast } from "sonner";
-import { parseDicomFile, convertDicomDVHToAppFormat } from "@/utils/dicomRTParser";
-import { parseTomoTherapyDVH } from "@/utils/dvhParser";
-import { DicomRTData, DicomRTStructure } from "@/types/dicomRT";
-import { DVHData } from "@/types/dvh";
+import React, { useState, useCallback, useRef } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
+import { 
+  Upload, 
+  CheckCircle2, 
+  AlertCircle, 
+  Loader2,
+  FolderOpen,
+  Activity,
+  FileText,
+  Trash2
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { parseDicomFile } from '@/utils/dicomRTParser';
+import { DicomRTData, DicomRTStructure } from '@/types/dicomRT';
 
 interface DicomRTUploadProps {
-  onDataLoaded?: (data: { dicomData: DicomRTData; dvhData?: DVHData }) => void;
+  onDataLoaded?: (data: DicomRTData) => void;
 }
 
 export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) => {
@@ -22,58 +29,70 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [parsedData, setParsedData] = useState<DicomRTData | null>(null);
-  const [dvhData, setDvhData] = useState<DVHData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [folderName, setFolderName] = useState<string>("");
+  const [folderName, setFolderName] = useState<string>('');
+  const [isDragActive, setIsDragActive] = useState(false);
 
+  // Lecture récursive d'un dossier (pour drag & drop)
   const readDirectory = useCallback(async (entry: FileSystemDirectoryEntry): Promise<File[]> => {
     const files: File[] = [];
-    const reader = entry.createReader();
+    
+    const readEntries = (directoryEntry: FileSystemDirectoryEntry): Promise<FileSystemEntry[]> => {
+      return new Promise((resolve, reject) => {
+        const reader = directoryEntry.createReader();
+        reader.readEntries(resolve, reject);
+      });
+    };
 
-    return new Promise((resolve, reject) => {
-      const readBatch = () => {
-        reader.readEntries(async (entries) => {
-          if (!entries.length) resolve(files);
-          else {
-            for (const entry of entries) {
-              if (entry.isDirectory) {
-                const subFiles = await readDirectory(entry as FileSystemDirectoryEntry);
-                files.push(...subFiles);
-              } else if (entry.isFile && entry.name.toLowerCase().endsWith(".dcm")) {
-                const file = await new Promise<File>((res, rej) => {
-                  (entry as FileSystemFileEntry).file(res, rej);
-                });
-                files.push(file);
-              }
-            }
-            readBatch();
+    const processEntries = async (entries: FileSystemEntry[]) => {
+      for (const entry of entries) {
+        if (entry.isDirectory) {
+          const subFiles = await readDirectory(entry as FileSystemDirectoryEntry);
+          files.push(...subFiles);
+        } else if (entry.isFile) {
+          const fileEntry = entry as FileSystemFileEntry;
+          if (fileEntry.name.toLowerCase().endsWith('.dcm')) {
+            const file = await new Promise<File>((resolve, reject) => {
+              fileEntry.file(resolve, reject);
+            });
+            files.push(file);
           }
-        }, reject);
-      };
-      readBatch();
-    });
+        }
+      }
+    };
+
+    const entries = await readEntries(entry);
+    await processEntries(entries);
+    return files;
+  }, []);
+
+  const filterDicomFiles = useCallback((files: File[]) => {
+    return files.filter(f => /\.dcm$/i.test(f.name));
   }, []);
 
   const handleFilesSelected = useCallback(async (files: FileList | null) => {
-    if (!files?.length) return;
+    if (!files || files.length === 0) return;
 
     const fileArray = Array.from(files);
-    const hasWebkitPath = fileArray.some((f) => (f as any).webkitRelativePath);
+    const dicomFiles: File[] = filterDicomFiles(fileArray);
+    
+    // Détecter si c'est une sélection de dossier (webkitdirectory)
+    const hasWebkitPath = fileArray.some(f => (f as any).webkitRelativePath);
     if (hasWebkitPath) {
       const firstPath = (fileArray[0] as any).webkitRelativePath;
-      setFolderName(firstPath?.split("/")[0] || "Dossier");
+      const folder = firstPath?.split('/')[0] || 'Dossier sélectionné';
+      setFolderName(folder);
     }
 
-    const dicomFiles = fileArray.filter((f) => /\.dcm$/i.test(f.name));
-    if (!dicomFiles.length) {
-      setError("Aucun fichier DICOM trouvé");
+    if (dicomFiles.length === 0) {
+      setError('Aucun fichier DICOM (.dcm) trouvé dans la sélection');
       return;
     }
 
     setSelectedFiles(dicomFiles);
     setError(null);
-  }, []);
+  }, [filterDicomFiles]);
 
   const handleDrop = useCallback(
     async (e: React.DragEvent<HTMLDivElement>) => {
@@ -83,100 +102,108 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
       const items = Array.from(e.dataTransfer.items || []);
       const allFiles: File[] = [];
 
+      // Gérer les dossiers (Chrome/Edge)
       for (const item of items) {
         const entry = item.webkitGetAsEntry();
-        if (entry?.isDirectory) {
-          const dirFiles = await readDirectory(entry as FileSystemDirectoryEntry);
-          allFiles.push(...dirFiles);
-          setFolderName(entry.name);
-        } else if (entry?.isFile && entry.name.toLowerCase().endsWith(".dcm")) {
-          const file = await new Promise<File>((res, rej) => {
-            (entry as FileSystemFileEntry).file(res, rej);
-          });
-          allFiles.push(file);
-        } else if (item.kind === "file") {
+        if (entry) {
+          if (entry.isDirectory) {
+            const dirFiles = await readDirectory(entry as FileSystemDirectoryEntry);
+            allFiles.push(...dirFiles);
+            setFolderName(entry.name);
+          } else if (entry.isFile && entry.name.toLowerCase().endsWith('.dcm')) {
+            const file = await new Promise<File>((resolve, reject) => {
+              (entry as FileSystemFileEntry).file(resolve, reject);
+            });
+            allFiles.push(file);
+          }
+        } else if (item.kind === 'file') {
           const file = item.getAsFile();
-          if (file && /\.dcm$/i.test(file.name)) allFiles.push(file);
+          if (file && /\.dcm$/i.test(file.name)) {
+            allFiles.push(file);
+          }
         }
       }
 
-      if (!allFiles.length) {
-        setError("Aucun fichier DICOM dans le dossier");
+      if (allFiles.length === 0) {
+        setError('Aucun fichier DICOM (.dcm) trouvé dans le dossier');
         return;
       }
 
       setSelectedFiles(allFiles);
       setError(null);
     },
-    [readDirectory],
+    [readDirectory]
   );
 
   const processFiles = async () => {
-    if (!selectedFiles.length) return;
+    if (selectedFiles.length === 0) return;
 
     setIsProcessing(true);
     setProgress(0);
     setError(null);
 
     try {
-      // 🔥 ORDRE DE CHARGEMENT CRITIQUE
-      const results = await Promise.all(selectedFiles.map((f) => parseDicomFile(f)));
-
-      // Fusion ordonnée
-      const combinedData: DicomRTData = {
-        patientId: "",
-        patientName: "",
-        studyDate: "",
-        modality: "",
+      let combinedData: DicomRTData = {
+        patientId: '',
+        patientName: '',
+        studyDate: '',
+        modality: '',
         structures: [],
         dose: undefined,
-        plan: undefined,
+        plan: undefined
       };
 
-      results.forEach((data) => {
-        if (data.patientId) combinedData.patientId = data.patientId;
-        if (data.patientName) combinedData.patientName = data.patientName;
-        if (data.studyDate) combinedData.studyDate = data.studyDate;
-        if (data.modality) combinedData.modality = data.modality;
+      const total = selectedFiles.length;
+      let parsed = 0;
 
-        if (data.structures?.length) {
-          combinedData.structures = [...(combinedData.structures || []), ...data.structures];
+      // Process files one by one with progress updates
+      for (const file of selectedFiles) {
+        try {
+          const data = await parseDicomFile(file);
+          
+          // Merge data
+          if (data.patientId) combinedData.patientId = data.patientId;
+          if (data.patientName) combinedData.patientName = data.patientName;
+          if (data.studyDate) combinedData.studyDate = data.studyDate;
+          if (data.modality) combinedData.modality = data.modality;
+          
+          if (data.structures?.length) {
+            combinedData.structures = [...(combinedData.structures || []), ...data.structures];
+          }
+          if (data.dose) {
+            combinedData.dose = combinedData.dose 
+              ? { ...combinedData.dose, ...data.dose, dvhs: [...(combinedData.dose.dvhs || []), ...(data.dose.dvhs || [])] }
+              : data.dose;
+          }
+          if (data.plan) {
+            combinedData.plan = { ...combinedData.plan, ...data.plan };
+          }
+        } catch (err) {
+          console.warn(`Failed to parse ${file.name}:`, err);
         }
-        if (data.dose) {
-          combinedData.dose = data.dose;
-        }
-        if (data.plan) {
-          combinedData.plan = { ...combinedData.plan, ...data.plan };
-        }
-      });
 
-      // 🔥 CONVERSION DVH APRÈS CHARGEMENT COMPLET
-      if (combinedData.dose?.dvhs?.length && combinedData.structures?.length) {
-        const convertedDVH = convertDicomDVHToAppFormat(combinedData.structures, combinedData.dose.dvhs);
-
-        setDvhData({
-          patientId: combinedData.patientId,
-          structures: convertedDVH.map((s) => ({
-            name: s.name,
-            type: "STANDARD",
-            category: s.name.toUpperCase().startsWith("PTV") ? "PTV" : "OAR",
-            relativeVolume: s.relativeVolume,
-            absoluteVolume: s.absoluteVolume,
-            totalVolume: s.absoluteVolume,
-          })),
-        });
+        parsed++;
+        setProgress(Math.round((parsed / total) * 100));
+        
+        // Yield to UI thread every 5 files
+        if (parsed % 5 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
       }
 
       setParsedData(combinedData);
-      onDataLoaded?.({ dicomData: combinedData, dvhData: dvhData || undefined });
+      onDataLoaded?.(combinedData);
+
+      const structCount = combinedData.structures?.length || 0;
+      const dvhCount = combinedData.dose?.dvhs?.length || 0;
 
       toast.success(`Dossier DICOM RT chargé`, {
-        description: `${selectedFiles.length} fichiers, ${combinedData.structures?.length || 0} structures, ${combinedData.dose?.dvhs?.length || 0} DVH`,
+        description: `${total} fichiers, ${structCount} structures, ${dvhCount} DVH`,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erreur parsing";
+      const message = err instanceof Error ? err.message : 'Erreur de parsing DICOM';
       setError(message);
-      toast.error("Erreur", { description: message });
+      toast.error('Erreur de parsing', { description: message });
     } finally {
       setIsProcessing(false);
       setProgress(0);
@@ -186,10 +213,11 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
   const clearSelection = () => {
     setSelectedFiles([]);
     setParsedData(null);
-    setDvhData(null);
     setError(null);
-    setFolderName("");
-    if (inputRef.current) inputRef.current.value = "";
+    setFolderName('');
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
   };
 
   return (
@@ -199,12 +227,15 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
           <FolderOpen className="h-5 w-5 text-primary" />
           Import Dossier DICOM RT
         </CardTitle>
-        <CardDescription>Sélectionnez un dossier contenant RT Structure, RT Dose et RT Plan</CardDescription>
+        <CardDescription>
+          Sélectionnez un dossier contenant vos fichiers RT Structure, RT Dose et RT Plan
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Drop Zone - supporte les dossiers */}
         <div
           className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer
-            ${isDragActive ? "border-primary bg-primary/5" : "border-border/50 hover:border-primary/50"}
+            ${isDragActive ? 'border-primary bg-primary/5' : 'border-border/50 hover:border-primary/50'}
           `}
           onDrop={handleDrop}
           onDragOver={(e) => {
@@ -213,22 +244,42 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
           }}
           onDragLeave={() => setIsDragActive(false)}
           onClick={() => inputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              inputRef.current?.click();
+            }
+          }}
         >
           <input
             ref={inputRef}
+            id="dicom-input"
             type="file"
             multiple
-            // @ts-ignore webkitdirectory
+            // @ts-ignore - webkitdirectory est non-standard mais supporté
             webkitdirectory=""
+            // @ts-ignore
+            directory=""
             accept=".dcm"
             className="hidden"
             onChange={(e) => handleFilesSelected(e.target.files)}
           />
           <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Glissez-déposez un dossier DICOM</p>
-          <p className="text-xs text-muted-foreground mt-1">Tous les fichiers .dcm seront analysés</p>
+          <p className="text-sm text-muted-foreground">
+            Glissez-déposez un dossier DICOM ou cliquez pour sélectionner
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Tous les fichiers .dcm du dossier seront analysés automatiquement
+          </p>
+          {!isProcessing && selectedFiles.length === 0 && (
+            <p className="text-xs text-primary mt-2 font-medium">
+              💡 Astuce : Vous pouvez aussi sélectionner des fichiers individuels en maintenant Ctrl/Cmd
+            </p>
+          )}
         </div>
 
+        {/* Selected Folder/Files */}
         {(selectedFiles.length > 0 || folderName) && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -239,14 +290,16 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
                     {folderName}
                   </Badge>
                 )}
-                <span className="text-sm font-medium">{selectedFiles.length} fichier(s)</span>
+                <span className="text-sm font-medium">
+                  {selectedFiles.length} fichier(s) DICOM
+                </span>
               </div>
               <Button variant="ghost" size="sm" onClick={clearSelection}>
                 <Trash2 className="h-4 w-4 mr-1" />
                 Effacer
               </Button>
             </div>
-
+            
             <ScrollArea className="h-32 rounded border border-border/50 p-2">
               <div className="grid grid-cols-2 gap-1">
                 {selectedFiles.slice(0, 20).map((file, i) => (
@@ -256,28 +309,33 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
                 ))}
                 {selectedFiles.length > 20 && (
                   <div className="text-xs text-muted-foreground col-span-2 text-center py-1">
-                    ... et {selectedFiles.length - 20} autres
+                    ... et {selectedFiles.length - 20} autres fichiers
                   </div>
                 )}
               </div>
             </ScrollArea>
-
-            <Button onClick={processFiles} disabled={isProcessing} className="w-full">
+            
+            <Button
+              onClick={processFiles}
+              disabled={isProcessing}
+              className="w-full"
+            >
               {isProcessing ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Analyse... ({selectedFiles.length} fichiers)
+                  Analyse en cours... ({selectedFiles.length} fichiers)
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Extraire données DICOM RT
+                  Extraire les données DICOM RT
                 </>
               )}
             </Button>
           </div>
         )}
 
+        {/* Loading Progress */}
         {isProcessing && (
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
@@ -288,6 +346,7 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
           </div>
         )}
 
+        {/* Error */}
         {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -295,25 +354,28 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
           </Alert>
         )}
 
+        {/* Parsed Data Display */}
         {parsedData && (
           <Tabs defaultValue="patient" className="w-full">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="patient">Patient</TabsTrigger>
-              <TabsTrigger value="structures">Structures ({parsedData.structures?.length || 0})</TabsTrigger>
-              <TabsTrigger value="dose">Dose ({parsedData.dose?.dvhs?.length || 0} DVH)</TabsTrigger>
+              <TabsTrigger value="structures">
+                Structures ({parsedData.structures?.length || 0})
+              </TabsTrigger>
+              <TabsTrigger value="dose">Dose</TabsTrigger>
               <TabsTrigger value="plan">Plan</TabsTrigger>
             </TabsList>
 
             <TabsContent value="patient" className="space-y-2">
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="text-muted-foreground">ID Patient:</div>
-                <div className="font-mono">{parsedData.patientId}</div>
+                <div className="font-medium">{parsedData.patientId || 'N/A'}</div>
                 <div className="text-muted-foreground">Nom:</div>
-                <div className="font-medium">{parsedData.patientName}</div>
-                <div className="text-muted-foreground">Date étude:</div>
-                <div>{parsedData.studyDate}</div>
+                <div className="font-medium">{parsedData.patientName || 'N/A'}</div>
+                <div className="text-muted-foreground">Date d'étude:</div>
+                <div className="font-medium">{parsedData.studyDate || 'N/A'}</div>
                 <div className="text-muted-foreground">Modalité:</div>
-                <div>{parsedData.modality}</div>
+                <div className="font-medium">{parsedData.modality || 'N/A'}</div>
               </div>
             </TabsContent>
 
@@ -321,69 +383,115 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
               <ScrollArea className="h-48">
                 <div className="space-y-1">
                   {parsedData.structures?.map((struct, i) => (
-                    <div key={i} className="flex items-center gap-2 p-2 rounded bg-muted/50">
-                      <div
-                        className="w-4 h-4 rounded-full border border-border"
-                        style={
-                          struct.color
-                            ? { backgroundColor: `rgb(${struct.color.join(",")})` }
-                            : { backgroundColor: "#888" }
-                        }
-                      />
-                      <span className="text-sm font-medium flex-1">{struct.name}</span>
-                      <Badge variant="outline" className="text-xs">
-                        ROI #{struct.roiNumber}
-                      </Badge>
-                    </div>
+                    <StructureItem key={i} structure={struct} />
                   ))}
+                  {(!parsedData.structures || parsedData.structures.length === 0) && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Aucune structure trouvée
+                    </p>
+                  )}
                 </div>
               </ScrollArea>
             </TabsContent>
 
             <TabsContent value="dose" className="space-y-2">
-              {dvhData ? (
-                <div className="space-y-2">
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">DVH disponibles:</span>{" "}
-                    <span className="font-bold">{dvhData.structures.length}</span>
-                  </div>
-                  <ScrollArea className="h-32 rounded border border-border/50 p-2">
-                    <div className="flex flex-wrap gap-2">
-                      {dvhData.structures.map((s, i) => (
-                        <Badge key={i} variant="secondary" className="text-xs">
-                          <Activity className="h-3 w-3 mr-1" />
-                          {s.name}
-                        </Badge>
-                      ))}
+              {parsedData.dose ? (
+                <div className="space-y-2 text-sm">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="text-muted-foreground">Unité de dose:</div>
+                    <div className="font-medium">{parsedData.dose.doseUnits || 'N/A'}</div>
+                    <div className="text-muted-foreground">Type de dose:</div>
+                    <div className="font-medium">{parsedData.dose.doseType || 'N/A'}</div>
+                    <div className="text-muted-foreground">Dimensions grille:</div>
+                    <div className="font-medium">
+                      {`${parsedData.dose.rows} × ${parsedData.dose.columns}`}
                     </div>
-                  </ScrollArea>
+                    <div className="text-muted-foreground">DVH disponibles:</div>
+                    <div className="font-medium">{parsedData.dose.dvhs?.length || 0}</div>
+                  </div>
+                  {parsedData.dose.dvhs && parsedData.dose.dvhs.length > 0 && (
+                    <div className="mt-2">
+                      <div className="text-muted-foreground mb-1">Structures avec DVH:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {parsedData.dose.dvhs.map((dvh, i) => (
+                          <Badge key={i} variant="secondary" className="text-xs">
+                            <Activity className="h-3 w-3 mr-1" />
+                            ROI #{dvh.referencedROINumber}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <Alert>
-                  <AlertDescription>Aucun DVH trouvé dans le fichier RTDOSE</AlertDescription>
-                </Alert>
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Aucune donnée de dose trouvée
+                </p>
               )}
             </TabsContent>
 
-            <TabsContent value="plan">
+            <TabsContent value="plan" className="space-y-2">
               {parsedData.plan ? (
                 <div className="space-y-2 text-sm">
-                  <div>{parsedData.plan.planName || "Plan sans nom"}</div>
                   <div className="grid grid-cols-2 gap-2">
-                    <span className="text-muted-foreground">Fractions:</span>
-                    <span>{parsedData.plan.fractionGroups[0]?.numberOfFractionsPlanned || 1}</span>
-                    <span className="text-muted-foreground">Faisceaux:</span>
-                    <span>{parsedData.plan.beams?.length || 0}</span>
+                    <div className="text-muted-foreground">Nom du plan:</div>
+                    <div className="font-medium">{parsedData.plan.planName || 'N/A'}</div>
+                    <div className="text-muted-foreground">Nombre de fractions:</div>
+                    <div className="font-medium">{parsedData.plan.fractionGroups[0]?.numberOfFractionsPlanned || 'N/A'}</div>
+                    <div className="text-muted-foreground">Date:</div>
+                    <div className="font-medium">{parsedData.plan.planDate || 'N/A'}</div>
+                    <div className="text-muted-foreground">Nombre de faisceaux:</div>
+                    <div className="font-medium">{parsedData.plan.beams?.length || 0}</div>
                   </div>
+                  {parsedData.plan.beams && parsedData.plan.beams.length > 0 && (
+                    <div className="mt-2">
+                      <div className="text-muted-foreground mb-1">Faisceaux:</div>
+                      <ScrollArea className="h-24">
+                        <div className="space-y-1">
+                          {parsedData.plan.beams.map((beam, i) => (
+                            <div key={i} className="flex items-center gap-2 text-xs bg-muted/50 rounded px-2 py-1">
+                              <FileText className="h-3 w-3" />
+                              <span className="font-medium">{beam.beamName || `Beam ${beam.beamNumber}`}</span>
+                              <span className="text-muted-foreground">
+                                {beam.radiationType} - {beam.treatmentMachineName}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">Aucun plan</p>
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Aucune donnée de plan trouvée
+                </p>
               )}
             </TabsContent>
           </Tabs>
         )}
       </CardContent>
     </Card>
+  );
+};
+
+// Helper component for structure display
+const StructureItem: React.FC<{ structure: DicomRTStructure }> = ({ structure }) => {
+  const colorStyle = structure.color ? {
+    backgroundColor: `rgb(${structure.color.join(',')})`
+  } : {};
+
+  return (
+    <div className="flex items-center gap-2 p-2 rounded bg-muted/50">
+      <div 
+        className="w-4 h-4 rounded-full border border-border"
+        style={colorStyle}
+      />
+      <span className="text-sm font-medium flex-1">{structure.name}</span>
+      <Badge variant="outline" className="text-xs">
+        ROI #{structure.roiNumber}
+      </Badge>
+    </div>
   );
 };
 
