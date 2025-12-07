@@ -7,6 +7,7 @@ import { DVHChart } from '@/components/DVHChart';
 import { StructureTable } from '@/components/StructureTable';
 import { FilterBar } from '@/components/FilterBar';
 import { PlanEvaluation } from '@/components/PlanEvaluation';
+import { DoseCalculator } from '@/components/DoseCalculator';
 import UnifiedMetricsCalculator from '@/components/UnifiedMetricsCalculator';
 import ProtocolValidation from '@/components/ProtocolValidation';
 import ProtocolManager from '@/components/ProtocolManager';
@@ -26,7 +27,6 @@ import { DicomRTData } from '@/types/dicomRT';
 import { toast } from 'sonner';
 import { Activity } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
 const Index = () => {
   const [dvhData, setDvhData] = useState<DVHData | null>(null);
   const [selectedStructures, setSelectedStructures] = useState<string[]>([]);
@@ -348,12 +348,21 @@ const Index = () => {
                   <ProtocolValidation structures={dvhData.structures} patientId={dvhData.patientId} />
                 </TabsContent>
 
+                {/* Onglet Gestion Protocoles */}
+                <TabsContent value="protocols">
+                  <ProtocolManager />
+                </TabsContent>
+
+                {/* Onglet Convertisseur */}
+                <TabsContent value="converter">
+                  <ProtocolDocumentConverter />
+                </TabsContent>
               </>}
 
-            {/* Onglets toujours disponibles */}
-            <TabsContent value="protocols">
-              <ProtocolManager />
-            </TabsContent>
+              {/* Onglets toujours disponibles sans DVH */}
+              <TabsContent value="protocols">
+                <ProtocolManager />
+              </TabsContent>
 
             <TabsContent value="converter">
               <ProtocolDocumentConverter />
