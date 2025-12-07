@@ -152,10 +152,12 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
       });
 
       // 🔥 CONVERSION DVH APRÈS CHARGEMENT COMPLET
+      let convertedDvhData: DVHData | undefined;
+      
       if (combinedData.dose?.dvhs?.length && combinedData.structures?.length) {
         const convertedDVH = convertDicomDVHToAppFormat(combinedData.structures, combinedData.dose.dvhs);
 
-        setDvhData({
+        convertedDvhData = {
           patientId: combinedData.patientId,
           structures: convertedDVH.map((s) => ({
             name: s.name,
@@ -165,11 +167,22 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
             absoluteVolume: s.relativeVolume.map((p) => ({ dose: p.dose, volume: p.volume })),
             totalVolume: typeof s.absoluteVolume === 'number' ? s.absoluteVolume : undefined,
           })),
+        };
+        
+        setDvhData(convertedDvhData);
+        console.log("✅ DVH extraits:", convertedDvhData.structures.length, "structures");
+        convertedDvhData.structures.forEach(s => {
+          console.log(`  - ${s.name}: ${s.relativeVolume.length} points DVH`);
+        });
+      } else {
+        console.warn("⚠️ Pas de DVH dans RTDOSE ou structures manquantes", {
+          dvhCount: combinedData.dose?.dvhs?.length || 0,
+          structCount: combinedData.structures?.length || 0
         });
       }
 
       setParsedData(combinedData);
-      onDataLoaded?.({ dicomData: combinedData, dvhData: dvhData || undefined });
+      onDataLoaded?.({ dicomData: combinedData, dvhData: convertedDvhData });
 
       toast.success(`Dossier DICOM RT chargé`, {
         description: `${selectedFiles.length} fichiers, ${combinedData.structures?.length || 0} structures, ${combinedData.dose?.dvhs?.length || 0} DVH`,
