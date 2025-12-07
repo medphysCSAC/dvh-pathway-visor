@@ -178,9 +178,11 @@ function parseDVH(dvhItem: dicomParser.DataSet): DicomDVH | null {
 
   const offset = dvhDataElement.dataOffset;
   const length = dvhDataElement.length;
+  const rawData = dvhItem.byteArray.slice(offset, offset + length);
 
   // Les données DVH sont des flottants 32-bit
-  const floatData = new Float32Array(dvhItem.byteArray.buffer, offset, length / 4);
+  const alignedBuffer = rawData.buffer.slice(rawData.byteOffset, rawData.byteOffset + rawData.byteLength);
+  const floatData = new Float32Array(alignedBuffer);
 
   const numBins = dvhItem.uint32("x30040056") || floatData.length / 2;
   const binWidth = dvhItem.floatString("x30040054") || 1.0;
@@ -193,10 +195,8 @@ function parseDVH(dvhItem: dicomParser.DataSet): DicomDVH | null {
     if (i * 2 + 1 >= floatData.length) break;
 
     if (dvhType === "DIFFERENTIAL") {
-      // Dose = bin * width, puis appliquer scaling
       doses.push(i * binWidth * doseScaling);
     } else {
-      // CUMULATIVE: dose directe
       doses.push(floatData[i * 2] * doseScaling);
     }
     volumes.push(floatData[i * 2 + 1]);
