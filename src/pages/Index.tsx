@@ -348,21 +348,12 @@ const Index = () => {
                   <ProtocolValidation structures={dvhData.structures} patientId={dvhData.patientId} />
                 </TabsContent>
 
-                {/* Onglet Gestion Protocoles */}
-                <TabsContent value="protocols">
-                  <ProtocolManager />
-                </TabsContent>
-
-                {/* Onglet Convertisseur */}
-                <TabsContent value="converter">
-                  <ProtocolDocumentConverter />
-                </TabsContent>
               </>}
 
-              {/* Onglets toujours disponibles sans DVH */}
-              <TabsContent value="protocols">
-                <ProtocolManager />
-              </TabsContent>
+            {/* Onglets toujours disponibles */}
+            <TabsContent value="protocols">
+              <ProtocolManager />
+            </TabsContent>
 
             <TabsContent value="converter">
               <ProtocolDocumentConverter />
