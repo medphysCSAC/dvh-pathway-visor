@@ -1,22 +1,13 @@
-export type DicomRTFileType = "RTSTRUCT" | "RTDOSE" | "RTPLAN" | "CT" | "UNKNOWN";
-
-export interface DicomRTData {
-  patientId?: string;
-  patientName?: string;
-  studyDate?: string;
-  modality?: string;
-  structures?: DicomRTStructure[];
-  dose?: DicomRTDose;
-  plan?: DicomRTPlan;
-}
+// Types for DICOM RT objects
 
 export interface DicomRTStructure {
   roiNumber: number;
   name: string;
-  description?: string;
-  generationAlgorithm?: string;
-  color?: [number, number, number] | null;
+  description: string;
+  generationAlgorithm: string;
+  color: [number, number, number] | null;
   contours: DicomContour[];
+  volume?: number;
 }
 
 export interface DicomContour {
@@ -50,7 +41,10 @@ export interface DicomDVH {
   maximumDose: number;
   meanDose: number;
   referencedROINumber?: number;
-  data: { doses: number[]; volumes: number[] };
+  data: {
+    doses: number[];
+    volumes: number[];
+  };
 }
 
 export interface DicomRTPlan {
@@ -58,17 +52,37 @@ export interface DicomRTPlan {
   planDescription: string;
   planDate: string;
   planTime: string;
-  fractionGroups: Array<{
-    fractionGroupNumber: number;
-    numberOfFractionsPlanned: number;
-    numberOfBeams: number;
-    referencedBeams: Array<{ beamNumber: number; beamDose: number; beamMeterset: number }>;
-  }>;
-  beams: Array<{
+  fractionGroups: DicomFractionGroup[];
+  beams: DicomBeam[];
+}
+
+export interface DicomFractionGroup {
+  fractionGroupNumber: number;
+  numberOfFractionsPlanned: number;
+  numberOfBeams: number;
+  referencedBeams: Array<{
     beamNumber: number;
-    beamName: string;
-    beamType: string;
-    radiationType: string;
-    treatmentMachineName: string;
+    beamDose: number;
+    beamMeterset: number;
   }>;
 }
+
+export interface DicomBeam {
+  beamNumber: number;
+  beamName: string;
+  beamType: string;
+  radiationType: string;
+  treatmentMachineName: string;
+}
+
+export interface DicomRTData {
+  patientId: string;
+  patientName: string;
+  studyDate: string;
+  modality: string;
+  structures?: DicomRTStructure[];
+  dose?: DicomRTDose;
+  plan?: DicomRTPlan;
+}
+
+export type DicomRTFileType = 'RTSTRUCT' | 'RTDOSE' | 'RTPLAN' | 'CT' | 'UNKNOWN';
