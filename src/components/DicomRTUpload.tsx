@@ -26,7 +26,6 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
   const [error, setError] = useState<string | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [folderName, setFolderName] = useState<string>("");
-  const [isDragActive, setIsDragActive] = useState(false);
 
   const readDirectory = useCallback(async (entry: FileSystemDirectoryEntry): Promise<File[]> => {
     const files: File[] = [];
@@ -152,37 +151,24 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
       });
 
       // 🔥 CONVERSION DVH APRÈS CHARGEMENT COMPLET
-      let convertedDvhData: DVHData | undefined;
-      
       if (combinedData.dose?.dvhs?.length && combinedData.structures?.length) {
         const convertedDVH = convertDicomDVHToAppFormat(combinedData.structures, combinedData.dose.dvhs);
 
-        convertedDvhData = {
+        setDvhData({
           patientId: combinedData.patientId,
           structures: convertedDVH.map((s) => ({
             name: s.name,
             type: "STANDARD",
-            category: s.name.toUpperCase().startsWith("PTV") ? "PTV" as const : "OAR" as const,
+            category: s.name.toUpperCase().startsWith("PTV") ? "PTV" : "OAR",
             relativeVolume: s.relativeVolume,
-            absoluteVolume: s.relativeVolume.map((p) => ({ dose: p.dose, volume: p.volume })),
-            totalVolume: typeof s.absoluteVolume === 'number' ? s.absoluteVolume : undefined,
+            absoluteVolume: s.absoluteVolume,
+            totalVolume: s.absoluteVolume,
           })),
-        };
-        
-        setDvhData(convertedDvhData);
-        console.log("✅ DVH extraits:", convertedDvhData.structures.length, "structures");
-        convertedDvhData.structures.forEach(s => {
-          console.log(`  - ${s.name}: ${s.relativeVolume.length} points DVH`);
-        });
-      } else {
-        console.warn("⚠️ Pas de DVH dans RTDOSE ou structures manquantes", {
-          dvhCount: combinedData.dose?.dvhs?.length || 0,
-          structCount: combinedData.structures?.length || 0
         });
       }
 
       setParsedData(combinedData);
-      onDataLoaded?.({ dicomData: combinedData, dvhData: convertedDvhData });
+      onDataLoaded?.({ dicomData: combinedData, dvhData: dvhData || undefined });
 
       toast.success(`Dossier DICOM RT chargé`, {
         description: `${selectedFiles.length} fichiers, ${combinedData.structures?.length || 0} structures, ${combinedData.dose?.dvhs?.length || 0} DVH`,

@@ -27,18 +27,3 @@ export interface DVHMetrics {
   v20Gy: number;
   v40Gy: number;
 }
-
-export interface FilePair {
-  relFile: File;
-  absFile: File;
-  planName: string;
-  detected: boolean;
-}
-
-export interface PlanData {
-  id: string;
-  name: string;
-  patientId: string;
-  structures: Structure[];
-  uploadDate: Date;
-}

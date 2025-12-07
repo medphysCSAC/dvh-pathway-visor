@@ -148,7 +148,7 @@ export const findCommonStructures = (plans: PlanData[]): string[] => {
   const firstPlanStructures = new Set(plans[0].structures.map(s => s.name));
   
   // Garder seulement les structures présentes dans tous les plans
-  return (Array.from(firstPlanStructures) as string[]).filter((structureName: string) => 
+  return Array.from(firstPlanStructures).filter(structureName => 
     plans.every(plan => findStructureByName(plan.structures, structureName) !== null)
   );
 };

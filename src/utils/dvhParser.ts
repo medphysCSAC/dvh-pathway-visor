@@ -1,13 +1,15 @@
+import Papa from "papaparse";
 import { DVHData, Structure, DVHPoint, StructureCategory } from "@/types/dvh";
-import { parseCSV } from "./csvParser"; // ✅ Notre parser autonome
 
 export const classifyStructure = (name: string): StructureCategory => {
   const nameUpper = name.toUpperCase().trim();
 
+  // ✅ PTV en priorité absolue
   if (/^(PTV|GTV|CTV)/.test(nameUpper)) {
     return "PTV";
   }
 
+  // ✅ OAR avec mots-clés renforcés
   const oarKeywords = [
     "bladder",
     "vessie",
@@ -41,6 +43,10 @@ export const classifyStructure = (name: string): StructureCategory => {
     "cochlea",
     "breast",
     "sein",
+    "thyroid",
+    "thymus",
+    "trachea",
+    "aorta",
   ];
 
   if (oarKeywords.some((k) => name.toLowerCase().includes(k))) {
@@ -50,29 +56,39 @@ export const classifyStructure = (name: string): StructureCategory => {
   return "OTHER";
 };
 
+export const findMaxDoseAcrossStructures = (structures: Structure[]): number => {
+  return Math.max(
+    ...structures.map((s) => (s.relativeVolume.length ? Math.max(...s.relativeVolume.map((p) => p.dose)) : 0)),
+    0,
+  );
+};
+
 export const parseTomoTherapyDVH = (relContent: string, absContent?: string): DVHData => {
-  if (!relContent?.trim()) {
-    throw new Error("Contenu DVH vide");
-  }
+  if (!relContent?.trim()) throw new Error("Contenu DVH vide");
 
-  // ✅ Utilisation du parser CSV autonome
-  const { data: relData, errors: relErrors } = parseCSV(relContent);
-  const { data: absData, errors: absErrors } = absContent ? parseCSV(absContent) : { data: [], errors: [] };
+  // ✅ Parsing CSV robuste avec PapaParse
+  const relParsed = Papa.parse(relContent.trim(), {
+    header: false,
+    dynamicTyping: true,
+    skipEmptyLines: true,
+  });
+  const absParsed = absContent
+    ? Papa.parse(absContent.trim(), {
+        header: false,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+      })
+    : null;
 
-  if (relErrors.length > 0) {
-    console.warn("Erreurs parsing CSV REL:", relErrors);
-  }
-  if (absErrors.length > 0) {
-    console.warn("Erreurs parsing CSV ABS:", absErrors);
-  }
+  const relData = relParsed.data as any[][];
+  const absData = absParsed?.data as any[][] | null;
 
-  if (!relData?.length) {
-    throw new Error("Aucune donnée DVH valide");
-  }
+  if (!relData?.length) throw new Error("Aucune donnée DVH valide");
 
   const structures: Structure[] = [];
   const header = relData[0] as string[];
 
+  // ✅ Indexation robuste des colonnes
   for (let i = 0; i < header.length; i += 3) {
     const structureName = (header[i] || "").replace("(STANDARD)", "").trim();
     if (!structureName) continue;
@@ -80,26 +96,28 @@ export const parseTomoTherapyDVH = (relContent: string, absContent?: string): DV
     const relativeVolume: DVHPoint[] = [];
     const absoluteVolume: DVHPoint[] = [];
 
+    // ✅ Vérification des lignes complètes
     for (let rowIdx = 1; rowIdx < relData.length; rowIdx++) {
       const row = relData[rowIdx];
       if (!row || row.length < i + 3) continue;
 
-      const dose = typeof row[i + 1] === "number" ? row[i + 1] : parseFloat(row[i + 1]);
-      const relVol = typeof row[i + 2] === "number" ? row[i + 2] : parseFloat(row[i + 2]);
+      const dose = parseFloat(row[i + 1]);
+      const relVol = parseFloat(row[i + 2]);
 
-      if (typeof dose === "number" && !isNaN(dose) && typeof relVol === "number" && !isNaN(relVol)) {
+      if (!isNaN(dose) && !isNaN(relVol)) {
         relativeVolume.push({ dose, volume: relVol });
       }
 
-      if (absData[rowIdx]) {
+      if (absData && absData[rowIdx]) {
         const absRow = absData[rowIdx];
-        const absVol = typeof absRow[i + 2] === "number" ? absRow[i + 2] : parseFloat(absRow[i + 2]);
-        if (typeof absVol === "number" && !isNaN(absVol)) {
+        const absVol = parseFloat(absRow[i + 2]);
+        if (!isNaN(dose) && !isNaN(absVol)) {
           absoluteVolume.push({ dose, volume: absVol });
         }
       }
     }
 
+    // ✅ Volume total = maximum du volume absolu
     const totalVolume = absoluteVolume.length > 0 ? Math.max(...absoluteVolume.map((p) => p.volume)) : undefined;
 
     structures.push({
@@ -123,13 +141,16 @@ export const calculateMetrics = (structure: Structure) => {
 
   const { relativeVolume } = structure;
   const doses = relativeVolume.map((p) => p.dose);
+  const volumes = relativeVolume.map((p) => p.volume);
 
+  // ✅ Calcul Dmean correct (intégration trapézoïdale)
   let dmean = 0;
   for (let i = 1; i < relativeVolume.length; i++) {
-    const dv = relativeVolume[i - 1].volume - relativeVolume[i].volume;
-    const avgDose = (relativeVolume[i - 1].dose + relativeVolume[i].dose) / 2;
+    const dv = volumes[i - 1] - volumes[i];
+    const avgDose = (doses[i - 1] + doses[i]) / 2;
     dmean += avgDose * dv;
   }
+  // ❌ SUPPRIMÉ: dmean = dmean / 100; (normalisation incorrecte)
 
   return {
     structureName: structure.name,
@@ -150,11 +171,4 @@ const interpolateVolume = (points: DVHPoint[], targetDose: number): number => {
   }
 
   return targetDose >= points[points.length - 1].dose ? points[points.length - 1].volume : 0;
-};
-
-export const findMaxDoseAcrossStructures = (structures: Structure[]): number => {
-  return Math.max(
-    ...structures.map((s) => (s.relativeVolume.length ? Math.max(...s.relativeVolume.map((p) => p.dose)) : 0)),
-    0,
-  );
 };

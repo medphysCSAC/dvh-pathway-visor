@@ -141,43 +141,31 @@ const Index = () => {
     }
   };
 
-  const handleDicomRTLoaded = (payload: { dicomData: DicomRTData; dvhData?: DVHData }) => {
-    const { dicomData, dvhData: parsedDvhData } = payload;
-    
-    // Use parsed DVH data if available
-    if (parsedDvhData) {
-      setDvhData(parsedDvhData);
-      setSelectedStructures([]);
-      toast.success('DICOM RT importé', {
-        description: `${parsedDvhData.structures.length} structures avec DVH chargées`,
-      });
-      return;
-    }
-    
+  const handleDicomRTLoaded = (data: DicomRTData) => {
     // Convert DICOM RT data to app format
-    if (dicomData.structures && dicomData.dose?.dvhs) {
-      const convertedDVH = convertDicomDVHToAppFormat(dicomData.structures, dicomData.dose.dvhs);
+    if (data.structures && data.dose?.dvhs) {
+      const convertedDVH = convertDicomDVHToAppFormat(data.structures, data.dose.dvhs);
       
       // Create DVHData structure compatible with the app
-      const newDvhData: DVHData = {
-        patientId: dicomData.patientId || 'DICOM Patient',
-        structures: convertedDVH.map((dvh) => ({
+      const dvhData: DVHData = {
+        patientId: data.patientId || 'DICOM Patient',
+        structures: convertedDVH.map((dvh, index) => ({
           name: dvh.name,
           type: 'STANDARD',
-          category: dvh.name.toUpperCase().startsWith('PTV') ? 'PTV' as const : 'OAR' as const,
+          category: dvh.name.toUpperCase().startsWith('PTV') ? 'PTV' : 'OAR',
           relativeVolume: dvh.relativeVolume,
           absoluteVolume: [],
         })),
       };
 
-      setDvhData(newDvhData);
+      setDvhData(dvhData);
       setSelectedStructures([]);
       toast.success('DICOM RT importé', {
-        description: `${newDvhData.structures.length} structures avec DVH chargées`,
+        description: `${dvhData.structures.length} structures avec DVH chargées`,
       });
-    } else if (dicomData.structures) {
+    } else if (data.structures) {
       toast.info('Structures détectées', {
-        description: `${dicomData.structures.length} structures sans données DVH. Chargez un fichier RTDOSE pour les DVH.`,
+        description: `${data.structures.length} structures sans données DVH. Chargez un fichier RTDOSE pour les DVH.`,
       });
     }
   };

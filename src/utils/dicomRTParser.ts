@@ -148,13 +148,13 @@ function parseRTDose(dataSet: dicomParser.DataSet, byteArray: Uint8Array): Dicom
   };
 
   // Données 3D dose
-  //const pixelDataElement = dataSet.elements["x7fe00010"];
-  //if (pixelDataElement) {
-  //const bitsAllocated = dataSet.uint16("x00280100") || 16;
-  //dose.doseData = extractDoseData(dataSet, byteArray, bitsAllocated);
-  //}
+  const pixelDataElement = dataSet.elements["x7fe00010"];
+  if (pixelDataElement) {
+    const bitsAllocated = dataSet.uint16("x00280100") || 16;
+    dose.doseData = extractDoseData(dataSet, byteArray, bitsAllocated);
+  }
 
-  // 🔥 PARSE DVH
+  // 🔥 PARSING CORRIGÉ DES DVH
   const dvhSequence = getSequence(dataSet, "x30040050");
   if (dvhSequence) {
     for (const dvhItem of dvhSequence) {
@@ -178,27 +178,25 @@ function parseDVH(dvhItem: dicomParser.DataSet): DicomDVH | null {
 
   const offset = dvhDataElement.dataOffset;
   const length = dvhDataElement.length;
-  const rawData = new Uint8Array(dvhItem.byteArray.slice(offset, offset + length));
 
   // Les données DVH sont des flottants 32-bit
-  const alignedBuffer = new ArrayBuffer(rawData.length);
-  const alignedView = new Uint8Array(alignedBuffer);
-  alignedView.set(rawData);
+  const floatData = new Float32Array(dvhItem.byteArray.buffer, offset, length / 4);
 
-  const floatData = new Float32Array(alignedBuffer);
   const numBins = dvhItem.uint32("x30040056") || floatData.length / 2;
   const binWidth = dvhItem.floatString("x30040054") || 1.0;
 
   const doses: number[] = [];
   const volumes: number[] = [];
 
-  // PARSING SELON LE TYPE DVH
+  // 🔥 PARSING SELON LE TYPE DVH
   for (let i = 0; i < numBins; i++) {
     if (i * 2 + 1 >= floatData.length) break;
 
     if (dvhType === "DIFFERENTIAL") {
+      // Dose = bin * width, puis appliquer scaling
       doses.push(i * binWidth * doseScaling);
     } else {
+      // CUMULATIVE: dose directe
       doses.push(floatData[i * 2] * doseScaling);
     }
     volumes.push(floatData[i * 2 + 1]);
