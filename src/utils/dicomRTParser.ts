@@ -154,7 +154,7 @@ function parseRTDose(dataSet: dicomParser.DataSet, byteArray: Uint8Array): Dicom
   //dose.doseData = extractDoseData(dataSet, byteArray, bitsAllocated);
   //}
 
-  // 🔥 PARSING CORRIGÉ DES DVH
+  // 🔥 PARSE DVH
   const dvhSequence = getSequence(dataSet, "x30040050");
   if (dvhSequence) {
     for (const dvhItem of dvhSequence) {
@@ -167,40 +167,61 @@ function parseRTDose(dataSet: dicomParser.DataSet, byteArray: Uint8Array): Dicom
 }
 
 function parseDVH(dvhItem: dicomParser.DataSet): DicomDVH | null {
-  const dvhType = dvhItem.string("x30040001") || "CUMULATIVE";
-  const doseUnits = dvhItem.string("x30040002") || "GY";
-  const volumeUnits = dvhItem.string("x30040004") || "CM3";
-  const doseScaling = dvhItem.floatString("x30040005") || 1.0;
+  const dvhType = dvhItem.string('x30040001') || 'CUMULATIVE';
+  const doseUnits = dvhItem.string('x30040002') || 'GY';
+  const volumeUnits = dvhItem.string('x30040004') || 'CM3';
+  const doseScaling = dvhItem.floatString('x30040005') || 1.0;
 
   // 🔥 LECTURE BINAIRE DES DVH DATA
-  const dvhDataElement = dvhItem.elements["x30040058"];
+  const dvhDataElement = dvhItem.elements['x30040058'];
   if (!dvhDataElement) return null;
 
   const offset = dvhDataElement.dataOffset;
   const length = dvhDataElement.length;
-  const rawData = dvhItem.byteArray.slice(offset, offset + length);
+  const rawData = new Uint8Array(dvhItem.byteArray.slice(offset, offset + length));
 
   // Les données DVH sont des flottants 32-bit
-  const alignedBuffer = rawData.buffer.slice(rawData.byteOffset, rawData.byteOffset + rawData.byteLength);
+  const alignedBuffer = new ArrayBuffer(rawData.length);
+  const alignedView = new Uint8Array(alignedBuffer);
+  alignedView.set(rawData);
+  
   const floatData = new Float32Array(alignedBuffer);
-
-  const numBins = dvhItem.uint32("x30040056") || floatData.length / 2;
-  const binWidth = dvhItem.floatString("x30040054") || 1.0;
+  const numBins = dvhItem.uint32('x30040056') || floatData.length / 2;
+  const binWidth = dvhItem.floatString('x30040054') || 1.0;
 
   const doses: number[] = [];
   const volumes: number[] = [];
 
-  // 🔥 PARSING SELON LE TYPE DVH
-  for (let i = 0; i < numBins; i++) {
+  // PARSING SELON LE TYPE DVH
+   for (let i = 0; i < numBins; i++) {
     if (i * 2 + 1 >= floatData.length) break;
-
-    if (dvhType === "DIFFERENTIAL") {
-      doses.push(i * binWidth * doseScaling);
+    
+    if (dvhType === 'DIFFERENTIAL') {
+      doses.push((i * binWidth) * doseScaling);
     } else {
       doses.push(floatData[i * 2] * doseScaling);
     }
     volumes.push(floatData[i * 2 + 1]);
   }
+
+  let referencedROINumber: number | undefined;
+  const refROISeq = getSequence(dvhItem, 'x30040060');
+  if (refROISeq?.length) {
+    referencedROINumber = refROISeq[0].uint16('x30060084');
+  }
+
+  return {
+    dvhType,
+    doseUnits,
+    volumeUnits,
+    doseScaling,
+    minimumDose: dvhItem.floatString('x30040070') || Math.min(...doses),
+    maximumDose: dvhItem.floatString('x30040072') || Math.max(...doses),
+    meanDose: dvhItem.floatString('x30040074') || 0,
+    referencedROINumber,
+    data: { doses, volumes },
+  };
+}
 
   // ROI référencé
   let referencedROINumber: number | undefined;
