@@ -119,7 +119,7 @@ export function generateUltraCompactHTMLReport(
       organIndex++;
 
       // Ligne d'en-tête d'organe
-      html.push(`<tr class="organ-header"><td colspan="7">${organName}</td></tr>`);
+      // html.push(`<tr class="organ-header"><td colspan="7">${organName}</td></tr>`); enlever l'entête de l'organe pour gagner de l'espace
 
       // Lignes de contraintes
       constraints.forEach((c, idx) => {
