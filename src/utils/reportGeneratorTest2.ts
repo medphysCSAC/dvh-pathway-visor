@@ -119,7 +119,7 @@ export function generateUltraCompactHTMLReport(
       organIndex++;
 
       // Ligne d'en-tête d'organe
-      // html.push(`<tr class="organ-header"><td colspan="7">${organName}</td></tr>`); enlever l'entête de l'organe pour gagner de l'espace
+      // html.push(`<tr class="organ-header"><td colspan="7">${organName}</td></tr>`); // enlever l'entête de l'organe pour gagner de l'espace
 
       // Lignes de contraintes
       constraints.forEach((c, idx) => {
@@ -133,11 +133,11 @@ export function generateUltraCompactHTMLReport(
              return `D${c.constraint.target}${c.constraint.targetUnit === "cc" ? "cc" : "%"}`;
            return c.constraint.constraintType;
          })()}</td>
-<td class="numeric">&lt; ${c.constraint.value} ${
-          c.constraint.constraintType === "Vx"
-            ? c.constraint.targetUnit || "%" // Pour Vx : % ou cc
-            : "Gy" // Pour Dmax, Dmean, Dx : toujours Gy
-        }</td>
+         <td class="numeric">&lt; ${c.constraint.value} ${
+           c.constraint.constraintType === "Vx"
+             ? c.constraint.targetUnit || "%" // Pour Vx : % ou cc
+             : "Gy" // Pour Dmax, Dmean, Dx : toujours Gy
+         }</td>
           <td class="numeric">&lt; ${c.constraint.value} ${c.constraint.constraintType.startsWith("D") ? "Gy" : c.constraint.targetUnit || "%"}</td>
           <td class="numeric"><strong>${c.measuredValue.toFixed(2)}</strong></td>
           <td class="numeric">${deviation}</td>
