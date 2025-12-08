@@ -127,17 +127,12 @@ export function generateUltraCompactHTMLReport(
         const status = c.status;
         html.push(`<tr class="constraint-row ${status === "FAIL" ? "fail-row" : status === "WARNING" ? "warning-row" : ""}">
           <td>${idx === 0 ? `<strong>${organName}</strong>` : ""}</td>
-         td>${(() => {
-           if (c.constraint.constraintType === "Vx") return `V${c.constraint.target}Gy`;
-           if (c.constraint.constraintType === "Dx")
-             return `D${c.constraint.target}${c.constraint.targetUnit === "cc" ? "cc" : "%"}`;
-           return c.constraint.constraintType;
-         })()}</td>
-         <td class="numeric">&lt; ${c.constraint.value} ${
-           c.constraint.constraintType === "Vx"
-             ? c.constraint.targetUnit || "%" // Pour Vx : % ou cc
-             : "Gy" // Pour Dmax, Dmean, Dx : toujours Gy
-         }</td>
+          <td>${(() => {
+            if (c.constraint.constraintType === "Vx") return `V${c.constraint.target}Gy`;
+            if (c.constraint.constraintType === "Dx")
+              return `D${c.constraint.target}${c.constraint.targetUnit === "%" ? "%" : "cc"}`;
+            return c.constraint.constraintType;
+          })()}</td>
           <td class="numeric">&lt; ${c.constraint.value} ${c.constraint.constraintType.startsWith("D") ? "Gy" : c.constraint.targetUnit || "%"}</td>
           <td class="numeric"><strong>${c.measuredValue.toFixed(2)}</strong></td>
           <td class="numeric">${deviation}</td>
