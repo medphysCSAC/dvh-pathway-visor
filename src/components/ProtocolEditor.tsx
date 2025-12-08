@@ -418,18 +418,35 @@ export default function ProtocolEditor({ protocol, open, onOpenChange, onSave }:
                         </>
                       )}
 
-                      {/* Pour Dx : besoin du volume en % */}
+                      {/* Pour Dx : besoin du volume et choix de l'unité (% ou cc) */}
                       {constraint.constraintType === 'Dx' && (
-                        <div>
-                          <Label>Volume (%)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={constraint.target || ''}
-                            onChange={(e) => updateConstraint(idx, 'target', parseFloat(e.target.value))}
-                            placeholder="Ex: 50"
-                          />
-                        </div>
+                        <>
+                          <div>
+                            <Label>Volume ({constraint.targetUnit || '%'})</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={constraint.target || ''}
+                              onChange={(e) => updateConstraint(idx, 'target', parseFloat(e.target.value))}
+                              placeholder={constraint.targetUnit === 'cc' ? 'Ex: 2' : 'Ex: 50'}
+                            />
+                          </div>
+                          <div>
+                            <Label>Unité du volume</Label>
+                            <Select
+                              value={constraint.targetUnit || '%'}
+                              onValueChange={(v) => updateConstraint(idx, 'targetUnit', v as '%' | 'cc')}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="z-50">
+                                <SelectItem value="%">% (pourcentage du volume)</SelectItem>
+                                <SelectItem value="cc">cc (volume absolu)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </>
                       )}
 
                       <div>
