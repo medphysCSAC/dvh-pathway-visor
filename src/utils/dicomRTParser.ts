@@ -170,16 +170,8 @@ function parseRTDose(dataSet: dicomParser.DataSet, byteArray: Uint8Array): Dicom
   console.log("[DICOM RT] Dose grid:", dose.rows, "x", dose.columns);
   console.log("[DICOM RT] Dose scaling:", dose.doseGridScaling);
 
-  // Données 3D dose
-  const pixelDataElement = dataSet.elements["x7fe00010"];
-  if (pixelDataElement) {
-    console.log("[DICOM RT] Pixel data found, length:", pixelDataElement.length);
-    const bitsAllocated = dataSet.uint16("x00280100") || 16;
-    dose.doseData = extractDoseData(dataSet, byteArray, bitsAllocated);
-    console.log("[DICOM RT] Dose data extracted:", dose.doseData?.length, "voxels");
-  }
-
-  // 🔥 PARSING DVH - Tag (3004,0050) DVH Sequence
+  // 🔥 IMPORTANT: Extraire d'abord les DVH AVANT la dose 3D (moins gourmand en mémoire)
+  // PARSING DVH - Tag (3004,0050) DVH Sequence
   const dvhSequence = getSequence(dataSet, "x30040050");
   console.log("[DICOM RT] DVH Sequence (x30040050):", dvhSequence ? `${dvhSequence.length} items` : "NOT FOUND");
   
@@ -206,6 +198,35 @@ function parseRTDose(dataSet: dicomParser.DataSet, byteArray: Uint8Array): Dicom
   }
 
   console.log(`[DICOM RT] === PARSING COMPLETE: ${dose.dvhs.length} DVH(s) extracted ===`);
+  
+  // Données 3D dose - OPTIONNEL et avec gestion d'erreur mémoire
+  // On ne charge la grille 3D que si nécessaire (pas requis pour DVH pré-calculés)
+  const pixelDataElement = dataSet.elements["x7fe00010"];
+  if (pixelDataElement) {
+    const rows = dataSet.uint16("x00280010") || 0;
+    const columns = dataSet.uint16("x00280011") || 0;
+    const frames = parseInt(dataSet.string("x00280008") || "1", 10);
+    const totalPixels = rows * columns * frames;
+    const estimatedMemoryMB = (totalPixels * 4) / (1024 * 1024);
+    
+    console.log(`[DICOM RT] Dose grid: ${rows}x${columns}x${frames} = ${totalPixels} voxels (~${estimatedMemoryMB.toFixed(1)} MB)`);
+    
+    // Limiter à 500MB pour éviter crash navigateur
+    if (estimatedMemoryMB < 500) {
+      try {
+        const bitsAllocated = dataSet.uint16("x00280100") || 16;
+        dose.doseData = extractDoseData(dataSet, byteArray, bitsAllocated);
+        console.log("[DICOM RT] ✅ Dose data extracted:", dose.doseData?.length, "voxels");
+      } catch (memError) {
+        console.warn("[DICOM RT] ⚠️ Could not load 3D dose grid (memory limit):", memError);
+        console.log("[DICOM RT] DVH data is still available if present in file");
+      }
+    } else {
+      console.log(`[DICOM RT] ⚠️ Skipping 3D dose grid (${estimatedMemoryMB.toFixed(0)} MB exceeds browser limit)`);
+      console.log("[DICOM RT] DVH data will be used directly from DICOM if available");
+    }
+  }
+  
   return dose;
 }
 
@@ -216,8 +237,6 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   const doseUnits = dvhItem.string("x30040002") || "GY";
   // Type de dose pour le DVH (PHYSICAL, EFFECTIVE, ERROR)
   const doseType = dvhItem.string("x30040004") || "PHYSICAL";
-  // Scaling de dose (optionnel)
-  const doseScaling = dvhItem.floatString("x30040052") || 1.0;
 
   // DVH Dose Scaling (3004,0052) - factor to multiply dose values
   const dvhDoseScaling = dvhItem.floatString("x30040052") || 1.0;
