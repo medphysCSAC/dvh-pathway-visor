@@ -247,7 +247,10 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   // Number of Bins (3004,0056) - nombre de points DVH
   const numberOfBins = dvhItem.uint32("x30040056") || 0;
   
-  // DVH Data element (3004,0058) - contient les paires dose/volume
+  // 🔥 DVH Minimum Dose Bin Width (3004,0070) - largeur de bin en Gy
+  const dvhMinBinWidth = dvhItem.floatString("x30040070");
+  
+  // DVH Data element (3004,0058) - contient les données DVH
   const dvhDataElement = dvhItem.elements["x30040058"];
   
   if (!dvhDataElement) {
@@ -255,8 +258,10 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
     return null;
   }
 
+  console.log(`[DICOM RT] DVH Parsing: type=${dvhType}, doseUnits=${doseUnits}, volumeUnits=${volumeUnits}`);
+  console.log(`[DICOM RT] DVH Scaling: ${dvhDoseScaling}, numberOfBins=${numberOfBins}, binWidth=${dvhMinBinWidth}`);
+
   // 🔥 LECTURE CORRECTE DES DONNÉES DVH
-  // Les données sont des DS (Decimal String) OU des binaires selon l'implémentation
   let doses: number[] = [];
   let volumes: number[] = [];
 
@@ -265,40 +270,117 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   
   if (dvhDataString && dvhDataString.length > 0) {
     // Format DS: valeurs séparées par des backslashes
-    const values = dvhDataString.split("\\").map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+    const rawValues = dvhDataString.split("\\").map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
     
-    // Les données sont en paires: dose1, volume1, dose2, volume2, ...
-    for (let i = 0; i < values.length - 1; i += 2) {
-      doses.push(values[i] * dvhDoseScaling);
-      volumes.push(values[i + 1]);
+    console.log(`[DICOM RT] Raw DVH values: ${rawValues.length} values, first 10: [${rawValues.slice(0, 10).join(", ")}]`);
+    
+    // 🔥 DÉTECTION DU FORMAT DVH
+    // Format 1: Paires dose/volume alternées (moins courant)
+    // Format 2: Volumes seuls avec doses calculées par bin width (PLUS COURANT pour CUMULATIVE)
+    
+    if (dvhType === "CUMULATIVE" && numberOfBins > 0 && rawValues.length === numberOfBins) {
+      // 🔥 FORMAT CUMULATIVE: Volumes seuls, doses calculées
+      console.log(`[DICOM RT] Detected CUMULATIVE format with ${numberOfBins} bins`);
+      
+      // Calculer la largeur de bin
+      const binWidth = dvhMinBinWidth || 0.01; // Défaut 1 cGy = 0.01 Gy
+      
+      for (let i = 0; i < rawValues.length; i++) {
+        let doseValue = i * binWidth * dvhDoseScaling;
+        
+        // 🔥 CONVERSION cGy → Gy si nécessaire
+        if (doseUnits === "CGY") {
+          doseValue = doseValue / 100.0;
+        }
+        
+        doses.push(doseValue);
+        volumes.push(rawValues[i]); // Volume déjà en % ou cm³
+      }
+      
+      console.log(`[DICOM RT] Generated ${doses.length} dose points from bin width ${binWidth}`);
+    } else if (rawValues.length >= 2 && rawValues.length % 2 === 0) {
+      // 🔥 FORMAT PAIRES: dose1, volume1, dose2, volume2, ...
+      console.log(`[DICOM RT] Detected PAIRED format: ${rawValues.length / 2} points`);
+      
+      for (let i = 0; i < rawValues.length - 1; i += 2) {
+        let doseValue = rawValues[i] * dvhDoseScaling;
+        
+        // 🔥 CONVERSION cGy → Gy si nécessaire
+        if (doseUnits === "CGY") {
+          doseValue = doseValue / 100.0;
+        }
+        
+        doses.push(doseValue);
+        volumes.push(rawValues[i + 1]);
+      }
+    } else {
+      // Fallback: traiter comme des volumes seuls avec bin width supposé
+      console.log(`[DICOM RT] Fallback: treating ${rawValues.length} values as volume bins`);
+      
+      const binWidth = dvhMinBinWidth || 0.01;
+      
+      for (let i = 0; i < rawValues.length; i++) {
+        let doseValue = i * binWidth * dvhDoseScaling;
+        
+        if (doseUnits === "CGY") {
+          doseValue = doseValue / 100.0;
+        }
+        
+        doses.push(doseValue);
+        volumes.push(rawValues[i]);
+      }
     }
     
-    console.log(`[DICOM RT] Parsed DVH from DS string: ${doses.length} points`);
+    console.log(`[DICOM RT] Parsed DVH: ${doses.length} points`);
+    console.log(`[DICOM RT] Dose range: ${Math.min(...doses).toFixed(2)} - ${Math.max(...doses).toFixed(2)} Gy`);
+    console.log(`[DICOM RT] Volume range: ${Math.min(...volumes).toFixed(2)} - ${Math.max(...volumes).toFixed(2)} ${volumeUnits}`);
   } else {
     // Format binaire (moins commun mais possible)
-    // Utiliser le byteArray original avec l'offset de l'élément
     const offset = dvhDataElement.dataOffset;
     const length = dvhDataElement.length;
     
     if (offset !== undefined && length > 0) {
       try {
-        // Les données peuvent être en float32 ou float64
-        const numValues = length / 4; // Supposer float32 d'abord
-        
-        // Créer un DataView pour gérer l'endianness
+        const numValues = length / 4; // Float32
         const dataView = new DataView(originalByteArray.buffer, offset, length);
         
-        for (let i = 0; i < numValues - 1; i += 2) {
-          const doseValue = dataView.getFloat32(i * 4, true); // little-endian
-          const volumeValue = dataView.getFloat32((i + 1) * 4, true);
+        console.log(`[DICOM RT] Parsing binary DVH: ${numValues} float32 values`);
+        
+        // Même logique de détection de format
+        if (dvhType === "CUMULATIVE" && numberOfBins > 0 && numValues === numberOfBins) {
+          const binWidth = dvhMinBinWidth || 0.01;
           
-          if (!isNaN(doseValue) && !isNaN(volumeValue)) {
-            doses.push(doseValue * dvhDoseScaling);
-            volumes.push(volumeValue);
+          for (let i = 0; i < numValues; i++) {
+            const volumeValue = dataView.getFloat32(i * 4, true);
+            let doseValue = i * binWidth * dvhDoseScaling;
+            
+            if (doseUnits === "CGY") {
+              doseValue = doseValue / 100.0;
+            }
+            
+            if (!isNaN(volumeValue)) {
+              doses.push(doseValue);
+              volumes.push(volumeValue);
+            }
+          }
+        } else {
+          // Format paires
+          for (let i = 0; i < numValues - 1; i += 2) {
+            let doseValue = dataView.getFloat32(i * 4, true) * dvhDoseScaling;
+            const volumeValue = dataView.getFloat32((i + 1) * 4, true);
+            
+            if (doseUnits === "CGY") {
+              doseValue = doseValue / 100.0;
+            }
+            
+            if (!isNaN(doseValue) && !isNaN(volumeValue)) {
+              doses.push(doseValue);
+              volumes.push(volumeValue);
+            }
           }
         }
         
-        console.log(`[DICOM RT] Parsed DVH from binary: ${doses.length} points`);
+        console.log(`[DICOM RT] Parsed binary DVH: ${doses.length} points`);
       } catch (err) {
         console.warn("[DICOM RT] Failed to parse binary DVH data:", err);
       }
@@ -310,26 +392,61 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
     return null;
   }
 
-  // Statistiques de dose
-  const minimumDose = dvhItem.floatString("x30040070") || Math.min(...doses);
-  const maximumDose = dvhItem.floatString("x30040072") || Math.max(...doses);
-  const meanDose = dvhItem.floatString("x30040074") || 0;
+  // 🔥 Statistiques de dose DICOM (pour validation)
+  // Ces tags sont différents de dvhMinBinWidth!
+  const minimumDose = dvhItem.floatString("x30040072") || Math.min(...doses); // DVH Minimum Dose
+  const maximumDose = dvhItem.floatString("x30040074") || Math.max(...doses); // DVH Maximum Dose  
+  const meanDose = dvhItem.floatString("x30040076") || 0; // DVH Mean Dose
 
-  // ROI référencé - via DVH Referenced ROI Sequence (3004,0060)
+  // Appliquer conversion cGy → Gy sur les statistiques aussi
+  const doseConversionFactor = doseUnits === "CGY" ? 0.01 : 1.0;
+  const finalMinDose = (typeof dvhItem.floatString("x30040072") === 'number') 
+    ? minimumDose * doseConversionFactor 
+    : Math.min(...doses);
+  const finalMaxDose = (typeof dvhItem.floatString("x30040074") === 'number') 
+    ? maximumDose * doseConversionFactor 
+    : Math.max(...doses);
+  const finalMeanDose = meanDose * doseConversionFactor;
+
+  console.log(`[DICOM RT] DICOM stats: min=${finalMinDose.toFixed(2)}Gy, max=${finalMaxDose.toFixed(2)}Gy, mean=${finalMeanDose.toFixed(2)}Gy`);
+
+  // 🔥 ROI référencé - via DVH Referenced ROI Sequence (3004,0060)
   let referencedROINumber: number | undefined;
   const refROISeq = getSequence(dvhItem, "x30040060");
+  
   if (refROISeq?.length) {
-    referencedROINumber = refROISeq[0].uint16("x30060084");
+    // Le tag Referenced ROI Number est (3006,0084) dans la séquence
+    const roiItem = refROISeq[0];
+    
+    // Essayer plusieurs méthodes de lecture
+    referencedROINumber = roiItem.uint16("x30060084");
+    
+    if (referencedROINumber === undefined) {
+      // Essayer comme int16
+      referencedROINumber = roiItem.int16("x30060084");
+    }
+    
+    if (referencedROINumber === undefined) {
+      // Essayer comme string puis convertir
+      const roiString = roiItem.string("x30060084");
+      if (roiString) {
+        referencedROINumber = parseInt(roiString, 10);
+      }
+    }
+    
+    console.log(`[DICOM RT] Referenced ROI Number: ${referencedROINumber}`);
+  } else {
+    console.warn("[DICOM RT] No DVH Referenced ROI Sequence found");
   }
 
   return {
     dvhType,
-    doseUnits,
+    doseUnits: "GY", // Toujours retourner en Gy après conversion
     volumeUnits,
     doseScaling: dvhDoseScaling,
-    minimumDose,
-    maximumDose,
-    meanDose,
+    minimumDose: finalMinDose,
+    maximumDose: finalMaxDose,
+    meanDose: finalMeanDose,
     referencedROINumber,
     data: { doses, volumes },
   };
