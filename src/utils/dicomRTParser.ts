@@ -134,6 +134,26 @@ function parseContour(contourItem: dicomParser.DataSet): DicomContour | null {
 }
 
 function parseRTDose(dataSet: dicomParser.DataSet, byteArray: Uint8Array): DicomRTDose {
+  console.log("[DICOM RT] === PARSING RT DOSE FILE ===");
+  
+  // 🔍 DEBUG: Lister TOUS les éléments du dataset pour trouver les DVH
+  console.log("[DICOM RT] All elements in RT Dose file:");
+  const allTags = Object.keys(dataSet.elements);
+  console.log("[DICOM RT] Tags found:", allTags.join(", "));
+  
+  // Chercher spécifiquement les tags 3004,xxxx (RT Dose module)
+  const rtDoseTags = allTags.filter(tag => tag.startsWith("x3004"));
+  console.log("[DICOM RT] RT Dose specific tags (3004,xxxx):", rtDoseTags);
+  
+  // Afficher les détails de chaque tag 3004
+  for (const tag of rtDoseTags) {
+    const element = dataSet.elements[tag];
+    console.log(`[DICOM RT] Tag ${tag}: VR=${element.vr || 'unknown'}, length=${element.length}, hasItems=${!!element.items}`);
+    if (element.items) {
+      console.log(`[DICOM RT]   -> Sequence with ${element.items.length} items`);
+    }
+  }
+
   const dose: DicomRTDose = {
     doseUnits: dataSet.string("x30040002") || "GY",
     doseType: dataSet.string("x30040004") || "PHYSICAL",
@@ -147,28 +167,45 @@ function parseRTDose(dataSet: dicomParser.DataSet, byteArray: Uint8Array): Dicom
     dvhs: [],
   };
 
+  console.log("[DICOM RT] Dose grid:", dose.rows, "x", dose.columns);
+  console.log("[DICOM RT] Dose scaling:", dose.doseGridScaling);
+
   // Données 3D dose
   const pixelDataElement = dataSet.elements["x7fe00010"];
   if (pixelDataElement) {
+    console.log("[DICOM RT] Pixel data found, length:", pixelDataElement.length);
     const bitsAllocated = dataSet.uint16("x00280100") || 16;
     dose.doseData = extractDoseData(dataSet, byteArray, bitsAllocated);
+    console.log("[DICOM RT] Dose data extracted:", dose.doseData?.length, "voxels");
   }
 
-  // 🔥 PARSING CORRIGÉ DES DVH - Tag correct: (3004,0050) DVH Sequence
+  // 🔥 PARSING DVH - Tag (3004,0050) DVH Sequence
   const dvhSequence = getSequence(dataSet, "x30040050");
-  if (dvhSequence) {
-    console.log(`[DICOM RT] Found DVH Sequence with ${dvhSequence.length} items`);
-    for (const dvhItem of dvhSequence) {
+  console.log("[DICOM RT] DVH Sequence (x30040050):", dvhSequence ? `${dvhSequence.length} items` : "NOT FOUND");
+  
+  if (dvhSequence && dvhSequence.length > 0) {
+    for (let idx = 0; idx < dvhSequence.length; idx++) {
+      const dvhItem = dvhSequence[idx];
+      console.log(`[DICOM RT] Processing DVH item ${idx + 1}/${dvhSequence.length}`);
+      
+      // Debug: afficher tous les tags de cet item DVH
+      const dvhTags = Object.keys(dvhItem.elements);
+      console.log(`[DICOM RT] DVH item tags:`, dvhTags);
+      
       const dvh = parseDVH(dvhItem, byteArray);
       if (dvh) {
         dose.dvhs.push(dvh);
-        console.log(`[DICOM RT] Parsed DVH for ROI #${dvh.referencedROINumber}: ${dvh.data.doses.length} points`);
+        console.log(`[DICOM RT] ✅ Parsed DVH for ROI #${dvh.referencedROINumber}: ${dvh.data.doses.length} points`);
+      } else {
+        console.log(`[DICOM RT] ❌ Failed to parse DVH item ${idx + 1}`);
       }
     }
   } else {
-    console.log("[DICOM RT] No DVH Sequence found in RT Dose file");
+    console.log("[DICOM RT] ⚠️ No DVH Sequence found - DVH may not be included in this RT Dose file");
+    console.log("[DICOM RT] Note: Some TPS export DVH separately or don't include it in RT Dose");
   }
 
+  console.log(`[DICOM RT] === PARSING COMPLETE: ${dose.dvhs.length} DVH(s) extracted ===`);
   return dose;
 }
 
