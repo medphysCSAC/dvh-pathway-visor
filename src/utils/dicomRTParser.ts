@@ -154,55 +154,112 @@ function parseRTDose(dataSet: dicomParser.DataSet, byteArray: Uint8Array): Dicom
     dose.doseData = extractDoseData(dataSet, byteArray, bitsAllocated);
   }
 
-  // 🔥 PARSING CORRIGÉ DES DVH
+  // 🔥 PARSING CORRIGÉ DES DVH - Tag correct: (3004,0050) DVH Sequence
   const dvhSequence = getSequence(dataSet, "x30040050");
   if (dvhSequence) {
+    console.log(`[DICOM RT] Found DVH Sequence with ${dvhSequence.length} items`);
     for (const dvhItem of dvhSequence) {
-      const dvh = parseDVH(dvhItem);
-      if (dvh) dose.dvhs.push(dvh);
+      const dvh = parseDVH(dvhItem, byteArray);
+      if (dvh) {
+        dose.dvhs.push(dvh);
+        console.log(`[DICOM RT] Parsed DVH for ROI #${dvh.referencedROINumber}: ${dvh.data.doses.length} points`);
+      }
     }
+  } else {
+    console.log("[DICOM RT] No DVH Sequence found in RT Dose file");
   }
 
   return dose;
 }
 
-function parseDVH(dvhItem: dicomParser.DataSet): DicomDVH | null {
+function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): DicomDVH | null {
+  // Type de DVH: DIFFERENTIAL ou CUMULATIVE
   const dvhType = dvhItem.string("x30040001") || "CUMULATIVE";
+  // Unités de dose: GY ou CGY
   const doseUnits = dvhItem.string("x30040002") || "GY";
-  const volumeUnits = dvhItem.string("x30040004") || "CM3";
-  const doseScaling = dvhItem.floatString("x30040005") || 1.0;
+  // Type de dose pour le DVH (PHYSICAL, EFFECTIVE, ERROR)
+  const doseType = dvhItem.string("x30040004") || "PHYSICAL";
+  // Scaling de dose (optionnel)
+  const doseScaling = dvhItem.floatString("x30040052") || 1.0;
 
-  // 🔥 LECTURE BINAIRE DES DVH DATA
+  // DVH Dose Scaling (3004,0052) - factor to multiply dose values
+  const dvhDoseScaling = dvhItem.floatString("x30040052") || 1.0;
+  
+  // DVH Volume Units (3004,0054) - CM3 or PERCENT
+  const volumeUnits = dvhItem.string("x30040054") || "CM3";
+  
+  // Number of Bins (3004,0056) - nombre de points DVH
+  const numberOfBins = dvhItem.uint32("x30040056") || 0;
+  
+  // DVH Data element (3004,0058) - contient les paires dose/volume
   const dvhDataElement = dvhItem.elements["x30040058"];
-  if (!dvhDataElement) return null;
-
-  const offset = dvhDataElement.dataOffset;
-  const length = dvhDataElement.length;
-
-  // Les données DVH sont des flottants 32-bit
-  const floatData = new Float32Array(dvhItem.byteArray.buffer, offset, length / 4);
-
-  const numBins = dvhItem.uint32("x30040056") || floatData.length / 2;
-  const binWidth = dvhItem.floatString("x30040054") || 1.0;
-
-  const doses: number[] = [];
-  const volumes: number[] = [];
-
-  // 🔥 PARSING SELON LE TYPE DVH
-  for (let i = 0; i < numBins; i++) {
-    if (i * 2 + 1 >= floatData.length) break;
-
-    if (dvhType === "DIFFERENTIAL") {
-      // Dose = bin * width, puis appliquer scaling
-      doses.push(i * binWidth * doseScaling);
-    } else {
-      // CUMULATIVE: dose directe
-      doses.push(floatData[i * 2] * doseScaling);
-    }
-    volumes.push(floatData[i * 2 + 1]);
+  
+  if (!dvhDataElement) {
+    console.warn("[DICOM RT] DVH Data element (3004,0058) not found");
+    return null;
   }
 
-  // ROI référencé
+  // 🔥 LECTURE CORRECTE DES DONNÉES DVH
+  // Les données sont des DS (Decimal String) OU des binaires selon l'implémentation
+  let doses: number[] = [];
+  let volumes: number[] = [];
+
+  // Essayer d'abord comme chaîne de caractères (DS VR - le plus commun)
+  const dvhDataString = dvhItem.string("x30040058");
+  
+  if (dvhDataString && dvhDataString.length > 0) {
+    // Format DS: valeurs séparées par des backslashes
+    const values = dvhDataString.split("\\").map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+    
+    // Les données sont en paires: dose1, volume1, dose2, volume2, ...
+    for (let i = 0; i < values.length - 1; i += 2) {
+      doses.push(values[i] * dvhDoseScaling);
+      volumes.push(values[i + 1]);
+    }
+    
+    console.log(`[DICOM RT] Parsed DVH from DS string: ${doses.length} points`);
+  } else {
+    // Format binaire (moins commun mais possible)
+    // Utiliser le byteArray original avec l'offset de l'élément
+    const offset = dvhDataElement.dataOffset;
+    const length = dvhDataElement.length;
+    
+    if (offset !== undefined && length > 0) {
+      try {
+        // Les données peuvent être en float32 ou float64
+        const numValues = length / 4; // Supposer float32 d'abord
+        
+        // Créer un DataView pour gérer l'endianness
+        const dataView = new DataView(originalByteArray.buffer, offset, length);
+        
+        for (let i = 0; i < numValues - 1; i += 2) {
+          const doseValue = dataView.getFloat32(i * 4, true); // little-endian
+          const volumeValue = dataView.getFloat32((i + 1) * 4, true);
+          
+          if (!isNaN(doseValue) && !isNaN(volumeValue)) {
+            doses.push(doseValue * dvhDoseScaling);
+            volumes.push(volumeValue);
+          }
+        }
+        
+        console.log(`[DICOM RT] Parsed DVH from binary: ${doses.length} points`);
+      } catch (err) {
+        console.warn("[DICOM RT] Failed to parse binary DVH data:", err);
+      }
+    }
+  }
+
+  if (doses.length === 0) {
+    console.warn("[DICOM RT] No DVH data points extracted");
+    return null;
+  }
+
+  // Statistiques de dose
+  const minimumDose = dvhItem.floatString("x30040070") || Math.min(...doses);
+  const maximumDose = dvhItem.floatString("x30040072") || Math.max(...doses);
+  const meanDose = dvhItem.floatString("x30040074") || 0;
+
+  // ROI référencé - via DVH Referenced ROI Sequence (3004,0060)
   let referencedROINumber: number | undefined;
   const refROISeq = getSequence(dvhItem, "x30040060");
   if (refROISeq?.length) {
@@ -213,10 +270,10 @@ function parseDVH(dvhItem: dicomParser.DataSet): DicomDVH | null {
     dvhType,
     doseUnits,
     volumeUnits,
-    doseScaling,
-    minimumDose: dvhItem.floatString("x30040070") || Math.min(...doses),
-    maximumDose: dvhItem.floatString("x30040072") || Math.max(...doses),
-    meanDose: dvhItem.floatString("x30040074") || 0,
+    doseScaling: dvhDoseScaling,
+    minimumDose,
+    maximumDose,
+    meanDose,
     referencedROINumber,
     data: { doses, volumes },
   };
