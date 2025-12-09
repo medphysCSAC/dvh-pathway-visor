@@ -45,29 +45,92 @@ export async function parseDicomFile(file: File): Promise<DicomRTData> {
 }
 
 function parseRTStructure(dataSet: dicomParser.DataSet): DicomRTStructure[] {
+  console.log("[DEBUG RTStruct] === PARSING RT STRUCTURE FILE ===");
+  
   const structures: DicomRTStructure[] = [];
   const roiSequence = getSequence(dataSet, "x30060020");
-  if (!roiSequence) return structures;
+  
+  if (!roiSequence) {
+    console.warn("[DEBUG RTStruct] No ROI Sequence (3006,0020) found!");
+    return structures;
+  }
+  
+  console.log(`[DEBUG RTStruct] Found ${roiSequence.length} ROIs in Structure Set ROI Sequence`);
 
-  // Map ROI -> Nom
+  // 🔍 DEBUG 1: Afficher TOUS les numéros ROI avec leurs noms
+  console.log("[DEBUG RTStruct] === ALL ROI DEFINITIONS ===");
   const roiMap = new Map<number, { name: string; description: string; algorithm: string }>();
   for (const roiItem of roiSequence) {
-    const roiNumber = roiItem.uint16("x30060022") || 0;
-    roiMap.set(roiNumber, {
-      name: roiItem.string("x30060026") || `ROI_${roiNumber}`,
-      description: roiItem.string("x30060028") || "",
-      algorithm: roiItem.string("x30060036") || "",
-    });
+    // Essayer plusieurs méthodes pour lire le ROI Number
+    let roiNumber = roiItem.uint16("x30060022");
+    if (roiNumber === undefined) {
+      roiNumber = roiItem.int16("x30060022");
+    }
+    if (roiNumber === undefined) {
+      const roiStr = roiItem.string("x30060022");
+      roiNumber = roiStr ? parseInt(roiStr, 10) : 0;
+    }
+    roiNumber = roiNumber || 0;
+    
+    const name = roiItem.string("x30060026") || `ROI_${roiNumber}`;
+    const description = roiItem.string("x30060028") || "";
+    const algorithm = roiItem.string("x30060036") || "";
+    
+    roiMap.set(roiNumber, { name, description, algorithm });
+    
+    console.log(`[DEBUG RTStruct] ROI #${roiNumber}: "${name}" (${description || 'no desc'}) [${algorithm}]`);
+  }
+
+  // 🔍 DEBUG 2: RT ROI Observations Sequence (3006,0080)
+  const observationsSeq = getSequence(dataSet, "x30060080");
+  if (observationsSeq) {
+    console.log("[DEBUG RTStruct] === RT ROI OBSERVATIONS ===");
+    for (const obs of observationsSeq) {
+      let obsROINumber = obs.uint16("x30060084");
+      if (obsROINumber === undefined) {
+        obsROINumber = obs.int16("x30060084");
+      }
+      if (obsROINumber === undefined) {
+        const obsStr = obs.string("x30060084");
+        obsROINumber = obsStr ? parseInt(obsStr, 10) : 0;
+      }
+      const obsLabel = obs.string("x30060085") || obs.string("x30060026") || "unknown";
+      const obsType = obs.string("x30060088") || "unknown";
+      console.log(`[DEBUG RTStruct] Observation ROI #${obsROINumber}: "${obsLabel}" type=${obsType}`);
+    }
   }
 
   // Contours
-  const contourSequence = getSequence(dataSet, "x30060080");
-  if (!contourSequence) return structures;
+  const contourSequence = getSequence(dataSet, "x30060039");
+  if (!contourSequence) {
+    console.log("[DEBUG RTStruct] No ROI Contour Sequence (3006,0039) found, trying 3006,0080...");
+  }
+  
+  // Le vrai tag pour ROI Contour Sequence est 3006,0039, pas 3006,0080
+  const actualContourSeq = contourSequence || getSequence(dataSet, "x30060080");
+  if (!actualContourSeq) {
+    console.warn("[DEBUG RTStruct] No contour sequence found!");
+    return structures;
+  }
 
-  for (const contourItem of contourSequence) {
-    const roiNumber = contourItem.uint16("x30060084") || 0;
+  console.log(`[DEBUG RTStruct] Processing ${actualContourSeq.length} contour items`);
+
+  for (const contourItem of actualContourSeq) {
+    let roiNumber = contourItem.uint16("x30060084");
+    if (roiNumber === undefined) {
+      roiNumber = contourItem.int16("x30060084");
+    }
+    if (roiNumber === undefined) {
+      const roiStr = contourItem.string("x30060084");
+      roiNumber = roiStr ? parseInt(roiStr, 10) : 0;
+    }
+    roiNumber = roiNumber || 0;
+    
     const roiInfo = roiMap.get(roiNumber);
-    if (!roiInfo) continue;
+    if (!roiInfo) {
+      console.warn(`[DEBUG RTStruct] No ROI info found for ROI #${roiNumber}`);
+      continue;
+    }
 
     // Couleur
     const colorString = contourItem.string("x3006002a");
@@ -96,6 +159,11 @@ function parseRTStructure(dataSet: dicomParser.DataSet): DicomRTStructure[] {
       contours,
     });
   }
+
+  console.log(`[DEBUG RTStruct] === PARSED ${structures.length} STRUCTURES ===`);
+  structures.forEach(s => {
+    console.log(`[DEBUG RTStruct] Structure: "${s.name}" ROI#${s.roiNumber}, ${s.contours.length} contours`);
+  });
 
   return structures;
 }
@@ -134,32 +202,54 @@ function parseContour(contourItem: dicomParser.DataSet): DicomContour | null {
 }
 
 function parseRTDose(dataSet: dicomParser.DataSet, byteArray: Uint8Array): DicomRTDose {
-  console.log("[DICOM RT] === PARSING RT DOSE FILE ===");
+  console.log("[DEBUG RTDose] === PARSING RT DOSE FILE ===");
   
-  // 🔍 DEBUG: Lister TOUS les éléments du dataset pour trouver les DVH
-  console.log("[DICOM RT] All elements in RT Dose file:");
+  // 🔍 DEBUG: Lister TOUS les éléments du dataset
   const allTags = Object.keys(dataSet.elements);
-  console.log("[DICOM RT] Tags found:", allTags.join(", "));
+  console.log("[DEBUG RTDose] Total tags found:", allTags.length);
   
   // Chercher spécifiquement les tags 3004,xxxx (RT Dose module)
   const rtDoseTags = allTags.filter(tag => tag.startsWith("x3004"));
-  console.log("[DICOM RT] RT Dose specific tags (3004,xxxx):", rtDoseTags);
+  console.log("[DEBUG RTDose] RT Dose specific tags (3004,xxxx):", rtDoseTags);
   
   // Afficher les détails de chaque tag 3004
   for (const tag of rtDoseTags) {
     const element = dataSet.elements[tag];
-    console.log(`[DICOM RT] Tag ${tag}: VR=${element.vr || 'unknown'}, length=${element.length}, hasItems=${!!element.items}`);
+    console.log(`[DEBUG RTDose] Tag ${tag}: VR=${element.vr || 'unknown'}, length=${element.length}, hasItems=${!!element.items}`);
     if (element.items) {
-      console.log(`[DICOM RT]   -> Sequence with ${element.items.length} items`);
+      console.log(`[DEBUG RTDose]   -> Sequence with ${element.items.length} items`);
     }
   }
 
+  // 🔍 DEBUG 2: Vérifier les RT Plans référencés
+  const refPlanSeq = getSequence(dataSet, "x300c0002");
+  if (refPlanSeq) {
+    console.log("[DEBUG RTDose] === REFERENCED RT PLAN SEQUENCE ===");
+    for (const plan of refPlanSeq) {
+      const sopUID = plan.string("x00081155") || "unknown";
+      const sopClass = plan.string("x00081150") || "unknown";
+      console.log(`[DEBUG RTDose] Referenced Plan SOP UID: ${sopUID}`);
+      console.log(`[DEBUG RTDose] Referenced Plan SOP Class: ${sopClass}`);
+    }
+  } else {
+    console.log("[DEBUG RTDose] No Referenced RT Plan Sequence found");
+  }
+
+  const doseUnitsRaw = dataSet.string("x30040002") || "GY";
+  const doseGridScalingRaw = dataSet.floatString("x3004000e") || 1.0;
+  
+  console.log(`[DEBUG RTDose] 🔥 CRITICAL VALUES:`);
+  console.log(`[DEBUG RTDose]   DoseUnits (3004,0002): "${doseUnitsRaw}"`);
+  console.log(`[DEBUG RTDose]   DoseGridScaling (3004,000E): ${doseGridScalingRaw}`);
+  console.log(`[DEBUG RTDose]   DoseType (3004,0004): "${dataSet.string("x30040004") || 'PHYSICAL'}"`);
+  console.log(`[DEBUG RTDose]   DoseSummationType (3004,000A): "${dataSet.string("x3004000a") || 'PLAN'}"`);
+
   const dose: DicomRTDose = {
-    doseUnits: dataSet.string("x30040002") || "GY",
+    doseUnits: doseUnitsRaw,
     doseType: dataSet.string("x30040004") || "PHYSICAL",
     doseSummationType: dataSet.string("x3004000a") || "PLAN",
     gridFrameOffsetVector: parseFloatArray(dataSet.string("x3004000c")),
-    doseGridScaling: dataSet.floatString("x3004000e") || 1.0,
+    doseGridScaling: doseGridScalingRaw,
     rows: dataSet.uint16("x00280010") || 0,
     columns: dataSet.uint16("x00280011") || 0,
     pixelSpacing: parsePixelSpacing(dataSet.string("x00280030")),
@@ -167,37 +257,34 @@ function parseRTDose(dataSet: dicomParser.DataSet, byteArray: Uint8Array): Dicom
     dvhs: [],
   };
 
-  console.log("[DICOM RT] Dose grid:", dose.rows, "x", dose.columns);
-  console.log("[DICOM RT] Dose scaling:", dose.doseGridScaling);
+  console.log(`[DEBUG RTDose] Dose grid: ${dose.rows} x ${dose.columns}`);
 
-  // 🔥 IMPORTANT: Extraire d'abord les DVH AVANT la dose 3D (moins gourmand en mémoire)
-  // PARSING DVH - Tag (3004,0050) DVH Sequence
+  // 🔥 PARSING DVH - Tag (3004,0050) DVH Sequence
   const dvhSequence = getSequence(dataSet, "x30040050");
-  console.log("[DICOM RT] DVH Sequence (x30040050):", dvhSequence ? `${dvhSequence.length} items` : "NOT FOUND");
+  console.log("[DEBUG RTDose] DVH Sequence (x30040050):", dvhSequence ? `${dvhSequence.length} items` : "NOT FOUND");
   
   if (dvhSequence && dvhSequence.length > 0) {
     for (let idx = 0; idx < dvhSequence.length; idx++) {
       const dvhItem = dvhSequence[idx];
-      console.log(`[DICOM RT] Processing DVH item ${idx + 1}/${dvhSequence.length}`);
+      console.log(`\n[DEBUG RTDose] ======= DVH ITEM ${idx + 1}/${dvhSequence.length} =======`);
       
       // Debug: afficher tous les tags de cet item DVH
       const dvhTags = Object.keys(dvhItem.elements);
-      console.log(`[DICOM RT] DVH item tags:`, dvhTags);
+      console.log(`[DEBUG RTDose] DVH item tags:`, dvhTags.join(", "));
       
       const dvh = parseDVH(dvhItem, byteArray);
       if (dvh) {
         dose.dvhs.push(dvh);
-        console.log(`[DICOM RT] ✅ Parsed DVH for ROI #${dvh.referencedROINumber}: ${dvh.data.doses.length} points`);
+        console.log(`[DEBUG RTDose] ✅ DVH parsed for ROI #${dvh.referencedROINumber}: ${dvh.data.doses.length} points, Dmax=${dvh.maximumDose.toFixed(2)}Gy`);
       } else {
-        console.log(`[DICOM RT] ❌ Failed to parse DVH item ${idx + 1}`);
+        console.log(`[DEBUG RTDose] ❌ Failed to parse DVH item ${idx + 1}`);
       }
     }
   } else {
-    console.log("[DICOM RT] ⚠️ No DVH Sequence found - DVH may not be included in this RT Dose file");
-    console.log("[DICOM RT] Note: Some TPS export DVH separately or don't include it in RT Dose");
+    console.log("[DEBUG RTDose] ⚠️ No DVH Sequence found in this RT Dose file");
   }
 
-  console.log(`[DICOM RT] === PARSING COMPLETE: ${dose.dvhs.length} DVH(s) extracted ===`);
+  console.log(`\n[DEBUG RTDose] === PARSING COMPLETE: ${dose.dvhs.length} DVH(s) extracted ===`);
   
   // Données 3D dose - OPTIONNEL et avec gestion d'erreur mémoire
   // On ne charge la grille 3D que si nécessaire (pas requis pour DVH pré-calculés)
@@ -231,6 +318,8 @@ function parseRTDose(dataSet: dicomParser.DataSet, byteArray: Uint8Array): Dicom
 }
 
 function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): DicomDVH | null {
+  console.log("[DEBUG DVH] --- Parsing single DVH item ---");
+  
   // Type de DVH: DIFFERENTIAL ou CUMULATIVE
   const dvhType = dvhItem.string("x30040001") || "CUMULATIVE";
   // Unités de dose: GY ou CGY
@@ -245,21 +334,44 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   const volumeUnits = dvhItem.string("x30040054") || "CM3";
   
   // Number of Bins (3004,0056) - nombre de points DVH
-  const numberOfBins = dvhItem.uint32("x30040056") || 0;
+  const numberOfBins = dvhItem.uint32("x30040056") || dvhItem.uint16("x30040056") || 0;
   
-  // 🔥 DVH Minimum Dose Bin Width (3004,0070) - largeur de bin en Gy
+  // 🔥 DVH Minimum Dose Bin Width (3004,0070) - CRITICAL for dose calculation!
   const dvhMinBinWidth = dvhItem.floatString("x30040070");
   
   // DVH Data element (3004,0058) - contient les données DVH
   const dvhDataElement = dvhItem.elements["x30040058"];
   
+  console.log(`[DEBUG DVH] 🔥 CRITICAL DVH PARAMETERS:`);
+  console.log(`[DEBUG DVH]   DVH Type (3004,0001): "${dvhType}"`);
+  console.log(`[DEBUG DVH]   Dose Units (3004,0002): "${doseUnits}"`);
+  console.log(`[DEBUG DVH]   Dose Type (3004,0004): "${doseType}"`);
+  console.log(`[DEBUG DVH]   DVH Dose Scaling (3004,0052): ${dvhDoseScaling}`);
+  console.log(`[DEBUG DVH]   Volume Units (3004,0054): "${volumeUnits}"`);
+  console.log(`[DEBUG DVH]   Number of Bins (3004,0056): ${numberOfBins}`);
+  console.log(`[DEBUG DVH]   DVH Minimum Dose Bin Width (3004,0070): ${dvhMinBinWidth}`);
+  
+  // 🔍 DEBUG: Statistiques de dose DICOM (très important pour validation!)
+  const dicomMinDose = dvhItem.floatString("x30040072");
+  const dicomMaxDose = dvhItem.floatString("x30040074");
+  const dicomMeanDose = dvhItem.floatString("x30040076");
+  
+  console.log(`[DEBUG DVH] 📊 DICOM STATISTICS (from file):`);
+  console.log(`[DEBUG DVH]   DVH Minimum Dose (3004,0072): ${dicomMinDose}`);
+  console.log(`[DEBUG DVH]   DVH Maximum Dose (3004,0074): ${dicomMaxDose}`);
+  console.log(`[DEBUG DVH]   DVH Mean Dose (3004,0076): ${dicomMeanDose}`);
+  
   if (!dvhDataElement) {
-    console.warn("[DICOM RT] DVH Data element (3004,0058) not found");
+    console.warn("[DEBUG DVH] ❌ DVH Data element (3004,0058) not found!");
     return null;
   }
+  
+  console.log(`[DEBUG DVH] DVH Data element: offset=${dvhDataElement.dataOffset}, length=${dvhDataElement.length}, VR=${dvhDataElement.vr || 'unknown'}`);
 
-  console.log(`[DICOM RT] DVH Parsing: type=${dvhType}, doseUnits=${doseUnits}, volumeUnits=${volumeUnits}`);
-  console.log(`[DICOM RT] DVH Scaling: ${dvhDoseScaling}, numberOfBins=${numberOfBins}, binWidth=${dvhMinBinWidth}`);
+  // 🔥 DEBUG 3: Valeurs DVH brutes
+  console.log(`[DEBUG DVH] 🔍 RAW DVH BUFFER INFO:`);
+  console.log(`[DEBUG DVH]   dataOffset: ${dvhDataElement.dataOffset}`);
+  console.log(`[DEBUG DVH]   length: ${dvhDataElement.length} bytes`);
 
   // 🔥 LECTURE CORRECTE DES DONNÉES DVH
   let doses: number[] = [];
@@ -272,7 +384,12 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
     // Format DS: valeurs séparées par des backslashes
     const rawValues = dvhDataString.split("\\").map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
     
-    console.log(`[DICOM RT] Raw DVH values: ${rawValues.length} values, first 10: [${rawValues.slice(0, 10).join(", ")}]`);
+    console.log(`[DEBUG DVH] 🔍 RAW DVH VALUES (string format):`);
+    console.log(`[DEBUG DVH]   Total values: ${rawValues.length}`);
+    console.log(`[DEBUG DVH]   First 20 values: [${rawValues.slice(0, 20).join(", ")}]`);
+    console.log(`[DEBUG DVH]   Last 10 values: [${rawValues.slice(-10).join(", ")}]`);
+    console.log(`[DEBUG DVH]   Min raw value: ${Math.min(...rawValues)}`);
+    console.log(`[DEBUG DVH]   Max raw value: ${Math.max(...rawValues)}`);
     
     // 🔥 DÉTECTION DU FORMAT DVH
     // Format 1: Paires dose/volume alternées (moins courant)
