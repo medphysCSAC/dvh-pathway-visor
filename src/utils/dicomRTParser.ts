@@ -360,7 +360,7 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   console.log(`[DEBUG DVH]   Number of Bins (3004,0056): ${numberOfBins}`);
   console.log(`[DEBUG DVH]   DVH Minimum Dose Bin Width (3004,0070): ${dvhMinBinWidth}`);
   
-  // 🔍 DEBUG: Statistiques de dose DICOM brutes (avant conversion)
+  // 🔍 DEBUG: Statistiques de dose DICOM brutes (avant conversion d'unités)
   const debugMinDose = dvhItem.floatString("x30040072");
   const debugMaxDose = dvhItem.floatString("x30040074");
   const debugMeanDose = dvhItem.floatString("x30040076");
