@@ -40,6 +40,7 @@ export interface DicomDVH {
   minimumDose: number;
   maximumDose: number;
   meanDose: number;
+  totalVolume: number; // Volume total de la structure (volume à dose 0 pour DVH cumulatif)
   referencedROINumber?: number;
   data: {
     doses: number[];

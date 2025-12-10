@@ -360,15 +360,15 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   console.log(`[DEBUG DVH]   Number of Bins (3004,0056): ${numberOfBins}`);
   console.log(`[DEBUG DVH]   DVH Minimum Dose Bin Width (3004,0070): ${dvhMinBinWidth}`);
   
-  // 🔍 DEBUG: Statistiques de dose DICOM (très important pour validation!)
-  const dicomMinDose = dvhItem.floatString("x30040072");
-  const dicomMaxDose = dvhItem.floatString("x30040074");
-  const dicomMeanDose = dvhItem.floatString("x30040076");
+  // 🔍 DEBUG: Statistiques de dose DICOM brutes (avant conversion)
+  const debugMinDose = dvhItem.floatString("x30040072");
+  const debugMaxDose = dvhItem.floatString("x30040074");
+  const debugMeanDose = dvhItem.floatString("x30040076");
   
-  console.log(`[DEBUG DVH] 📊 DICOM STATISTICS (from file):`);
-  console.log(`[DEBUG DVH]   DVH Minimum Dose (3004,0072): ${dicomMinDose}`);
-  console.log(`[DEBUG DVH]   DVH Maximum Dose (3004,0074): ${dicomMaxDose}`);
-  console.log(`[DEBUG DVH]   DVH Mean Dose (3004,0076): ${dicomMeanDose}`);
+  console.log(`[DEBUG DVH] 📊 DICOM STATISTICS (raw from file, before unit conversion):`);
+  console.log(`[DEBUG DVH]   DVH Minimum Dose (3004,0072): ${debugMinDose} ${doseUnits}`);
+  console.log(`[DEBUG DVH]   DVH Maximum Dose (3004,0074): ${debugMaxDose} ${doseUnits}`);
+  console.log(`[DEBUG DVH]   DVH Mean Dose (3004,0076): ${debugMeanDose} ${doseUnits}`);
   
   if (!dvhDataElement) {
     console.warn("[DEBUG DVH] ❌ DVH Data element (3004,0058) not found!");
@@ -585,61 +585,92 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
     return null;
   }
 
-  // 🔥 Statistiques de dose DICOM (pour validation)
-  // Ces tags sont différents de dvhMinBinWidth!
-  const minimumDose = dvhItem.floatString("x30040072") || Math.min(...doses); // DVH Minimum Dose
-  const maximumDose = dvhItem.floatString("x30040074") || Math.max(...doses); // DVH Maximum Dose  
-  const meanDose = dvhItem.floatString("x30040076") || 0; // DVH Mean Dose
+  // 🔥 CORRECTION 1: Volume total = volume à dose 0 (premier point du DVH cumulatif)
+  // Pour un DVH cumulatif: le volume à dose 0 représente 100% du volume de la structure
+  const totalVolume = volumes[0] || 0;
+  
+  console.log(`[DEBUG DVH] 🔥 VOLUME CALCULATION:`);
+  console.log(`[DEBUG DVH]   volumes[0] (at dose 0): ${volumes[0]?.toFixed(4)}`);
+  console.log(`[DEBUG DVH]   volumes[last] (at max dose): ${volumes[volumes.length - 1]?.toFixed(4)}`);
+  console.log(`[DEBUG DVH]   → Total Volume = ${totalVolume.toFixed(4)} ${volumeUnits}`);
 
-  // Appliquer conversion cGy → Gy sur les statistiques aussi
+  // 🔥 CORRECTION 2: Dmax = dernière dose où volume > 0
+  // Dans un DVH cumulatif, Dmax est la dose la plus haute avec du volume
+  let calculatedDmax = 0;
+  for (let i = doses.length - 1; i >= 0; i--) {
+    if (volumes[i] > 0.001) { // Seuil de 0.001 pour éviter les erreurs de précision float
+      calculatedDmax = doses[i];
+      break;
+    }
+  }
+  
+  // Si aucun volume > 0 trouvé, prendre la dernière dose non-nulle
+  if (calculatedDmax === 0 && doses.length > 0) {
+    calculatedDmax = doses[doses.length - 1];
+  }
+  
+  console.log(`[DEBUG DVH] 🔥 DMAX CALCULATION:`);
+  console.log(`[DEBUG DVH]   First dose: ${doses[0]?.toFixed(2)} Gy`);
+  console.log(`[DEBUG DVH]   Last dose: ${doses[doses.length - 1]?.toFixed(2)} Gy`);
+  console.log(`[DEBUG DVH]   Last dose with volume > 0: ${calculatedDmax.toFixed(2)} Gy`);
+
+  // 🔥 Statistiques de dose DICOM (pour validation/comparaison)
   const doseConversionFactor = doseUnits === "CGY" ? 0.01 : 1.0;
-  const finalMinDose = (typeof dvhItem.floatString("x30040072") === 'number') 
-    ? minimumDose * doseConversionFactor 
-    : Math.min(...doses);
-  const finalMaxDose = (typeof dvhItem.floatString("x30040074") === 'number') 
-    ? maximumDose * doseConversionFactor 
-    : Math.max(...doses);
-  const finalMeanDose = meanDose * doseConversionFactor;
+  
+  const dicomMinDoseRaw = dvhItem.floatString("x30040072");
+  const dicomMaxDoseRaw = dvhItem.floatString("x30040074");
+  const dicomMeanDoseRaw = dvhItem.floatString("x30040076");
+  
+  const dicomMinDose = dicomMinDoseRaw !== undefined ? dicomMinDoseRaw * doseConversionFactor : null;
+  const dicomMaxDose = dicomMaxDoseRaw !== undefined ? dicomMaxDoseRaw * doseConversionFactor : null;
+  const dicomMeanDose = dicomMeanDoseRaw !== undefined ? dicomMeanDoseRaw * doseConversionFactor : 0;
 
-  console.log(`[DICOM RT] DICOM stats: min=${finalMinDose.toFixed(2)}Gy, max=${finalMaxDose.toFixed(2)}Gy, mean=${finalMeanDose.toFixed(2)}Gy`);
+  // Utiliser les valeurs DICOM si disponibles, sinon nos calculs
+  const finalMinDose = dicomMinDose !== null ? dicomMinDose : Math.min(...doses);
+  const finalMaxDose = dicomMaxDose !== null ? dicomMaxDose : calculatedDmax; // Utiliser notre calcul si pas de tag DICOM
+  const finalMeanDose = dicomMeanDose;
+
+  console.log(`[DEBUG DVH] 📊 FINAL VALUES:`);
+  console.log(`[DEBUG DVH]   Min Dose: ${finalMinDose.toFixed(2)} Gy (DICOM: ${dicomMinDose?.toFixed(2) || 'N/A'})`);
+  console.log(`[DEBUG DVH]   Max Dose: ${finalMaxDose.toFixed(2)} Gy (DICOM: ${dicomMaxDose?.toFixed(2) || 'N/A'}, Calculated: ${calculatedDmax.toFixed(2)})`);
+  console.log(`[DEBUG DVH]   Mean Dose: ${finalMeanDose.toFixed(2)} Gy`);
+  console.log(`[DEBUG DVH]   Total Volume: ${totalVolume.toFixed(4)} ${volumeUnits}`);
 
   // 🔥 ROI référencé - via DVH Referenced ROI Sequence (3004,0060)
   let referencedROINumber: number | undefined;
   const refROISeq = getSequence(dvhItem, "x30040060");
   
   if (refROISeq?.length) {
-    // Le tag Referenced ROI Number est (3006,0084) dans la séquence
     const roiItem = refROISeq[0];
     
     // Essayer plusieurs méthodes de lecture
     referencedROINumber = roiItem.uint16("x30060084");
     
     if (referencedROINumber === undefined) {
-      // Essayer comme int16
       referencedROINumber = roiItem.int16("x30060084");
     }
     
     if (referencedROINumber === undefined) {
-      // Essayer comme string puis convertir
       const roiString = roiItem.string("x30060084");
       if (roiString) {
         referencedROINumber = parseInt(roiString, 10);
       }
     }
     
-    console.log(`[DICOM RT] Referenced ROI Number: ${referencedROINumber}`);
+    console.log(`[DEBUG DVH] Referenced ROI Number: ${referencedROINumber}`);
   } else {
-    console.warn("[DICOM RT] No DVH Referenced ROI Sequence found");
+    console.warn("[DEBUG DVH] No DVH Referenced ROI Sequence found");
   }
 
   return {
     dvhType,
-    doseUnits: "GY", // Toujours retourner en Gy après conversion
+    doseUnits: "GY",
     volumeUnits,
     doseScaling: dvhDoseScaling,
     minimumDose: finalMinDose,
     maximumDose: finalMaxDose,
     meanDose: finalMeanDose,
+    totalVolume,
     referencedROINumber,
     data: { doses, volumes },
   };
