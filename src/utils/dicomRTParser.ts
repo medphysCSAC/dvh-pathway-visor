@@ -333,8 +333,17 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   // DVH Volume Units (3004,0054) - CM3 or PERCENT
   const volumeUnits = dvhItem.string("x30040054") || "CM3";
   
-  // Number of Bins (3004,0056) - nombre de points DVH
-  const numberOfBins = dvhItem.uint32("x30040056") || dvhItem.uint16("x30040056") || 0;
+  // Number of Bins (3004,0056) - VR=IS (Integer String) selon DICOM
+  // ⚠️ NE PAS utiliser uint32/uint16 qui interprète mal les octets ASCII!
+  let numberOfBins = 0;
+  const numberOfBinsStr = dvhItem.string("x30040056");
+  if (numberOfBinsStr) {
+    numberOfBins = parseInt(numberOfBinsStr.trim(), 10) || 0;
+  }
+  // Fallback: essayer intString si string échoue
+  if (numberOfBins === 0) {
+    numberOfBins = dvhItem.intString("x30040056") || 0;
+  }
   
   // 🔥 DVH Minimum Dose Bin Width (3004,0070) - CRITICAL for dose calculation!
   const dvhMinBinWidth = dvhItem.floatString("x30040070");
@@ -392,46 +401,106 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
     console.log(`[DEBUG DVH]   Max raw value: ${Math.max(...rawValues)}`);
     
     // 🔥 DÉTECTION DU FORMAT DVH
-    // Format 1: Paires dose/volume alternées (moins courant)
-    // Format 2: Volumes seuls avec doses calculées par bin width (PLUS COURANT pour CUMULATIVE)
+    // Le format standard DICOM pour DVH Data (3004,0058) est:
+    // - Paires [dose1, volume1, dose2, volume2, ...] pour les deux types DIFFERENTIAL et CUMULATIVE
+    // Référence: DICOM PS3.3 C.8.8.3.3
     
-    if (dvhType === "CUMULATIVE" && numberOfBins > 0 && rawValues.length === numberOfBins) {
-      // 🔥 FORMAT CUMULATIVE: Volumes seuls, doses calculées
-      console.log(`[DICOM RT] Detected CUMULATIVE format with ${numberOfBins} bins`);
+    console.log(`[DEBUG DVH] Format detection: ${rawValues.length} values, type=${dvhType}, bins=${numberOfBins}`);
+    
+    // Format PAIRES: dose1, volume1, dose2, volume2, ... (standard DICOM)
+    if (rawValues.length >= 2 && rawValues.length % 2 === 0) {
+      console.log(`[DICOM RT] Detected PAIRED format: ${rawValues.length / 2} points, type=${dvhType}`);
       
-      // Calculer la largeur de bin
-      const binWidth = dvhMinBinWidth || 0.01; // Défaut 1 cGy = 0.01 Gy
+      const tempDoses: number[] = [];
+      const tempVolumes: number[] = [];
+      
+      for (let i = 0; i < rawValues.length - 1; i += 2) {
+        let doseValue = rawValues[i] * dvhDoseScaling;
+        const volumeValue = rawValues[i + 1];
+        
+        // 🔥 CONVERSION cGy → Gy si nécessaire
+        if (doseUnits === "CGY") {
+          doseValue = doseValue / 100.0;
+        }
+        
+        tempDoses.push(doseValue);
+        tempVolumes.push(volumeValue);
+      }
+      
+      // 🔥 CONVERSION DIFFERENTIAL → CUMULATIVE
+      if (dvhType === "DIFFERENTIAL") {
+        console.log(`[DICOM RT] 🔄 Converting DIFFERENTIAL to CUMULATIVE DVH...`);
+        
+        // Pour DVH différentiel: volume[i] = quantité de volume dans ce bin de dose
+        // Cumulative = somme depuis dose max vers dose min
+        // cumulative_volume[i] = sum(differential_volume[j] for j >= i)
+        
+        // S'assurer que les données sont triées par dose croissante
+        const sortedIndices = tempDoses.map((d, i) => i).sort((a, b) => tempDoses[a] - tempDoses[b]);
+        const sortedDoses = sortedIndices.map(i => tempDoses[i]);
+        const sortedDiffVolumes = sortedIndices.map(i => tempVolumes[i]);
+        
+        // Somme cumulée depuis la fin (dose max) vers le début (dose min)
+        const cumulativeVolumes: number[] = new Array(sortedDiffVolumes.length);
+        let runningSum = 0;
+        
+        for (let i = sortedDiffVolumes.length - 1; i >= 0; i--) {
+          runningSum += sortedDiffVolumes[i];
+          cumulativeVolumes[i] = runningSum;
+        }
+        
+        doses = sortedDoses;
+        volumes = cumulativeVolumes;
+        
+        console.log(`[DICOM RT] ✅ Converted to CUMULATIVE: ${doses.length} points`);
+        console.log(`[DICOM RT]   Dose range after conversion: ${Math.min(...doses).toFixed(2)} - ${Math.max(...doses).toFixed(2)} Gy`);
+        console.log(`[DICOM RT]   Volume at dose 0: ${volumes[0].toFixed(2)} ${volumeUnits}`);
+        console.log(`[DICOM RT]   Volume at max dose: ${volumes[volumes.length - 1].toFixed(2)} ${volumeUnits}`);
+      } else {
+        // CUMULATIVE: utiliser directement
+        doses = tempDoses;
+        volumes = tempVolumes;
+      }
+    } else if (numberOfBins > 0 && rawValues.length === numberOfBins) {
+      // Format alternatif: Volumes seuls avec doses calculées par bin width
+      console.log(`[DICOM RT] Detected VOLUME-ONLY format with ${numberOfBins} bins`);
+      
+      const binWidth = dvhMinBinWidth || 0.01;
+      const tempDoses: number[] = [];
+      const tempVolumes: number[] = [];
       
       for (let i = 0; i < rawValues.length; i++) {
         let doseValue = i * binWidth * dvhDoseScaling;
         
-        // 🔥 CONVERSION cGy → Gy si nécessaire
         if (doseUnits === "CGY") {
           doseValue = doseValue / 100.0;
         }
         
-        doses.push(doseValue);
-        volumes.push(rawValues[i]); // Volume déjà en % ou cm³
+        tempDoses.push(doseValue);
+        tempVolumes.push(rawValues[i]);
+      }
+      
+      // Conversion DIFFERENTIAL si nécessaire
+      if (dvhType === "DIFFERENTIAL") {
+        console.log(`[DICOM RT] 🔄 Converting DIFFERENTIAL (volume-only) to CUMULATIVE...`);
+        const cumulativeVolumes: number[] = new Array(tempVolumes.length);
+        let runningSum = 0;
+        
+        for (let i = tempVolumes.length - 1; i >= 0; i--) {
+          runningSum += tempVolumes[i];
+          cumulativeVolumes[i] = runningSum;
+        }
+        
+        doses = tempDoses;
+        volumes = cumulativeVolumes;
+      } else {
+        doses = tempDoses;
+        volumes = tempVolumes;
       }
       
       console.log(`[DICOM RT] Generated ${doses.length} dose points from bin width ${binWidth}`);
-    } else if (rawValues.length >= 2 && rawValues.length % 2 === 0) {
-      // 🔥 FORMAT PAIRES: dose1, volume1, dose2, volume2, ...
-      console.log(`[DICOM RT] Detected PAIRED format: ${rawValues.length / 2} points`);
-      
-      for (let i = 0; i < rawValues.length - 1; i += 2) {
-        let doseValue = rawValues[i] * dvhDoseScaling;
-        
-        // 🔥 CONVERSION cGy → Gy si nécessaire
-        if (doseUnits === "CGY") {
-          doseValue = doseValue / 100.0;
-        }
-        
-        doses.push(doseValue);
-        volumes.push(rawValues[i + 1]);
-      }
     } else {
-      // Fallback: traiter comme des volumes seuls avec bin width supposé
+      // Fallback: traiter comme des volumes seuls
       console.log(`[DICOM RT] Fallback: treating ${rawValues.length} values as volume bins`);
       
       const binWidth = dvhMinBinWidth || 0.01;
@@ -463,38 +532,45 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
         
         console.log(`[DICOM RT] Parsing binary DVH: ${numValues} float32 values`);
         
-        // Même logique de détection de format
-        if (dvhType === "CUMULATIVE" && numberOfBins > 0 && numValues === numberOfBins) {
-          const binWidth = dvhMinBinWidth || 0.01;
+        // Format standard: paires [dose, volume]
+        const tempDoses: number[] = [];
+        const tempVolumes: number[] = [];
+        
+        for (let i = 0; i < numValues - 1; i += 2) {
+          let doseValue = dataView.getFloat32(i * 4, true) * dvhDoseScaling;
+          const volumeValue = dataView.getFloat32((i + 1) * 4, true);
           
-          for (let i = 0; i < numValues; i++) {
-            const volumeValue = dataView.getFloat32(i * 4, true);
-            let doseValue = i * binWidth * dvhDoseScaling;
-            
-            if (doseUnits === "CGY") {
-              doseValue = doseValue / 100.0;
-            }
-            
-            if (!isNaN(volumeValue)) {
-              doses.push(doseValue);
-              volumes.push(volumeValue);
-            }
+          if (doseUnits === "CGY") {
+            doseValue = doseValue / 100.0;
           }
+          
+          if (!isNaN(doseValue) && !isNaN(volumeValue)) {
+            tempDoses.push(doseValue);
+            tempVolumes.push(volumeValue);
+          }
+        }
+        
+        // 🔥 CONVERSION DIFFERENTIAL → CUMULATIVE pour format binaire
+        if (dvhType === "DIFFERENTIAL" && tempDoses.length > 0) {
+          console.log(`[DICOM RT] 🔄 Converting binary DIFFERENTIAL to CUMULATIVE...`);
+          
+          const sortedIndices = tempDoses.map((d, i) => i).sort((a, b) => tempDoses[a] - tempDoses[b]);
+          const sortedDoses = sortedIndices.map(i => tempDoses[i]);
+          const sortedDiffVolumes = sortedIndices.map(i => tempVolumes[i]);
+          
+          const cumulativeVolumes: number[] = new Array(sortedDiffVolumes.length);
+          let runningSum = 0;
+          
+          for (let i = sortedDiffVolumes.length - 1; i >= 0; i--) {
+            runningSum += sortedDiffVolumes[i];
+            cumulativeVolumes[i] = runningSum;
+          }
+          
+          doses = sortedDoses;
+          volumes = cumulativeVolumes;
         } else {
-          // Format paires
-          for (let i = 0; i < numValues - 1; i += 2) {
-            let doseValue = dataView.getFloat32(i * 4, true) * dvhDoseScaling;
-            const volumeValue = dataView.getFloat32((i + 1) * 4, true);
-            
-            if (doseUnits === "CGY") {
-              doseValue = doseValue / 100.0;
-            }
-            
-            if (!isNaN(doseValue) && !isNaN(volumeValue)) {
-              doses.push(doseValue);
-              volumes.push(volumeValue);
-            }
-          }
+          doses = tempDoses;
+          volumes = tempVolumes;
         }
         
         console.log(`[DICOM RT] Parsed binary DVH: ${doses.length} points`);
