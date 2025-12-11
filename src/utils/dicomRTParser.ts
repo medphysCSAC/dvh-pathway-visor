@@ -627,13 +627,26 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
 
   // Utiliser les valeurs DICOM si disponibles, sinon nos calculs
   const finalMinDose = dicomMinDose !== null ? dicomMinDose : Math.min(...doses);
-  const finalMaxDose = dicomMaxDose !== null ? dicomMaxDose : calculatedDmax; // Utiliser notre calcul si pas de tag DICOM
-  const finalMeanDose = dicomMeanDose;
+  const finalMaxDose = dicomMaxDose !== null ? dicomMaxDose : calculatedDmax;
+  
+  // 🔥 CALCUL DMEAN si tag DICOM absent - moyenne pondérée par volume
+  let finalMeanDose = dicomMeanDose;
+  if (finalMeanDose === 0 && doses.length > 1 && totalVolume > 0) {
+    let weightedSum = 0;
+    // Pour DVH cumulatif: Dmean = Σ(dose_i * ΔVolume_i) / VolumeTotal
+    for (let i = 0; i < doses.length - 1; i++) {
+      const deltaVolume = volumes[i] - volumes[i + 1];
+      const avgDoseInBin = (doses[i] + doses[i + 1]) / 2;
+      weightedSum += avgDoseInBin * deltaVolume;
+    }
+    finalMeanDose = weightedSum / totalVolume;
+    console.log(`[DEBUG DVH]   🧮 Mean Dose CALCULATED from DVH: ${finalMeanDose.toFixed(2)} Gy`);
+  }
 
   console.log(`[DEBUG DVH] 📊 FINAL VALUES:`);
   console.log(`[DEBUG DVH]   Min Dose: ${finalMinDose.toFixed(2)} Gy (DICOM: ${dicomMinDose?.toFixed(2) || 'N/A'})`);
   console.log(`[DEBUG DVH]   Max Dose: ${finalMaxDose.toFixed(2)} Gy (DICOM: ${dicomMaxDose?.toFixed(2) || 'N/A'}, Calculated: ${calculatedDmax.toFixed(2)})`);
-  console.log(`[DEBUG DVH]   Mean Dose: ${finalMeanDose.toFixed(2)} Gy`);
+  console.log(`[DEBUG DVH]   Mean Dose: ${finalMeanDose.toFixed(2)} Gy ${dicomMeanDose === 0 ? '(calculated)' : '(DICOM)'}`);
   console.log(`[DEBUG DVH]   Total Volume: ${totalVolume.toFixed(4)} ${volumeUnits}`);
 
   // 🔥 ROI référencé - via DVH Referenced ROI Sequence (3004,0060)
@@ -802,19 +815,29 @@ export function convertDicomDVHToAppFormat(
 
   return dvhs.map((dvh) => {
     const structure = structures.find((s) => s.roiNumber === dvh.referencedROINumber);
-    const maxVolume = Math.max(...dvh.data.volumes);
-
-    // ✅ Les volumes DICOM sont DÉJÀ en % pour les DVH cumulatifs
+    
+    // 🔥 CORRECTION #1: Utiliser totalVolume directement (volume à dose 0)
+    const totalVolume = dvh.totalVolume || dvh.data.volumes[0] || 0;
+    
+    // 🔥 CORRECTION #3: Conversion conditionnelle cm³ → %
+    // Si volumeUnits = "CM3", les volumes sont absolus → convertir en %
+    // Si volumeUnits = "PERCENT", les volumes sont déjà en %
+    const isAbsoluteVolume = dvh.volumeUnits === "CM3";
+    
     const relativeVolume = dvh.data.doses.map((dose, i) => ({
       dose,
-      volume: dvh.data.volumes[i], // Direct DICOM value
+      volume: isAbsoluteVolume && totalVolume > 0
+        ? (dvh.data.volumes[i] / totalVolume) * 100  // Conversion cm³ → %
+        : dvh.data.volumes[i],  // Déjà en %
     }));
+
+    console.log(`[DVH Convert] ${structure?.name || `ROI_${dvh.referencedROINumber}`}: totalVolume=${totalVolume.toFixed(2)} cm³, volumeUnits=${dvh.volumeUnits}, converted=${isAbsoluteVolume}`);
 
     return {
       name: structure?.name || `ROI_${dvh.referencedROINumber}`,
       roiNumber: dvh.referencedROINumber || -1,
       relativeVolume,
-      absoluteVolume: maxVolume, // Volume total en cm³
+      absoluteVolume: totalVolume,  // 🔥 CORRECTION: utiliser totalVolume, pas maxVolume
     };
   });
 }
