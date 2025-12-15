@@ -465,40 +465,67 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
     else if (rawValues.length >= 2 && rawValues.length % 2 === 0) {
       console.log(`[DICOM RT] Detected PAIRED format: ${rawValues.length / 2} points, type=${dvhType}`);
 
-      const tempDoses: number[] = [];
+      // 🔥 CRITICAL FIX - dicompyler-core/dvh.py:220
+      // En format PAIRED, les doses sont stockées comme INCRÉMENTS (bin widths), PAS comme valeurs absolues!
+      // dicompyler-core fait TOUJOURS: bins = cumsum(raw_doses) * DVHDoseScaling
+      
+      const rawDoseBins: number[] = [];
       const tempVolumes: number[] = [];
       const unitFactor = doseUnits === "CGY" ? 0.01 : 1.0;
 
+      // Étape 1: Extraire les valeurs brutes SANS scaling pour analyse
       for (let i = 0; i < rawValues.length - 1; i += 2) {
-        const doseValue = rawValues[i] * dvhDoseScaling * unitFactor;
-        const volumeValue = rawValues[i + 1];
-        tempDoses.push(doseValue);
-        tempVolumes.push(volumeValue);
+        rawDoseBins.push(rawValues[i]);
+        tempVolumes.push(rawValues[i + 1]);
       }
 
-      // 🔥 FIX dicompyler-core: Certains fichiers DICOM stockent les doses comme INCREMENTS
-      // Référence: dicompyler-core/dvh.py ligne 80 - cumsum() sur les bins
-      // Détecter si les doses sont des incréments (valeurs identiques ou très proches)
-      const uniqueDoses = new Set(tempDoses.map(d => d.toFixed(4)));
-      const allDosesSame = uniqueDoses.size === 1 || 
-        (tempDoses.length > 2 && 
-         Math.abs(tempDoses[1] - tempDoses[0] - (tempDoses[2] - tempDoses[1])) < 0.0001 &&
-         tempDoses[1] - tempDoses[0] === tempDoses[0]); // Toutes les doses sont des incréments identiques
+      console.log(`[DEBUG DVH] 📊 Raw dose bins (before processing):`);
+      console.log(`[DEBUG DVH]   First 10: [${rawDoseBins.slice(0, 10).map(d => d.toFixed(4)).join(", ")}]`);
+      console.log(`[DEBUG DVH]   Unique values count: ${new Set(rawDoseBins.map(d => d.toFixed(6))).size}`);
+
+      // 🔥 ÉTAPE 2: Détecter si les doses sont des incréments réguliers
+      // Critère dicompyler-core: toutes les valeurs de dose brutes sont identiques (= bin width constant)
+      const uniqueRawDoses = new Set(rawDoseBins.map(d => d.toFixed(6)));
+      const allDosesSameOrSimilar = uniqueRawDoses.size <= 5; // Tolère petites variations numériques
       
-      // Si les doses semblent être des incréments (bin width répété), appliquer cumsum
-      const firstDoseIncrement = tempDoses.length > 1 ? tempDoses[1] - tempDoses[0] : 0;
-      const looksLikeIncrements = tempDoses.length > 2 && 
-        Math.abs(tempDoses[0]) < 0.001 && // Commence près de 0
-        tempDoses.slice(1).every((d, i) => Math.abs(d - tempDoses[i] - firstDoseIncrement) < firstDoseIncrement * 0.01);
-      
-      if (looksLikeIncrements && firstDoseIncrement > 0) {
-        console.log(`[DICOM RT] 🔄 Detected INCREMENTAL dose format (dicompyler-core pattern)`);
-        console.log(`[DICOM RT]   Dose increment: ${firstDoseIncrement.toFixed(4)} Gy`);
-        // Les doses sont déjà des incréments réguliers, pas besoin de cumsum ici
-        // car elles représentent correctement les points de dose
+      // Vérifier aussi: toutes les valeurs sont proches de la première
+      const firstRawDose = rawDoseBins[0];
+      const incrementsAreConstant = rawDoseBins.length > 2 && firstRawDose > 0 &&
+        rawDoseBins.slice(0, Math.min(50, rawDoseBins.length)).every(d => 
+          Math.abs(d - firstRawDose) / firstRawDose < 0.01 // 1% tolérance
+        );
+
+      let tempDoses: number[] = [];
+
+      if (allDosesSameOrSimilar || incrementsAreConstant) {
+        // 🔥 FORMAT INCRÉMENTS: appliquer CUMSUM comme dicompyler-core
+        console.log(`[DICOM RT] 🔄 INCREMENTAL dose format detected - applying CUMSUM`);
+        console.log(`[DICOM RT]   Raw bin width: ${firstRawDose.toFixed(6)}`);
+        console.log(`[DICOM RT]   DVHDoseScaling: ${dvhDoseScaling}`);
+        console.log(`[DICOM RT]   Unit factor (CGY->GY): ${unitFactor}`);
+        console.log(`[DICOM RT]   Scaled bin width: ${(firstRawDose * dvhDoseScaling * unitFactor).toFixed(6)} Gy`);
+        
+        // cumsum: [a, a, a, a] -> [a, 2a, 3a, 4a] puis scaling
+        let cumulativeDose = 0;
+        for (let i = 0; i < rawDoseBins.length; i++) {
+          cumulativeDose += rawDoseBins[i];
+          tempDoses.push(cumulativeDose * dvhDoseScaling * unitFactor);
+        }
+        
+        console.log(`[DICOM RT]   After cumsum+scaling: first=${tempDoses[0].toFixed(4)}, last=${tempDoses[tempDoses.length-1].toFixed(4)} Gy`);
+      } else {
+        // FORMAT ABSOLU: les doses sont déjà des valeurs absolues
+        console.log(`[DICOM RT] 📊 ABSOLUTE dose format detected - no cumsum needed`);
+        console.log(`[DICOM RT]   DVHDoseScaling: ${dvhDoseScaling}, unitFactor: ${unitFactor}`);
+        
+        for (let i = 0; i < rawDoseBins.length; i++) {
+          tempDoses.push(rawDoseBins[i] * dvhDoseScaling * unitFactor);
+        }
+        
+        console.log(`[DICOM RT]   Dose range: ${tempDoses[0].toFixed(4)} - ${tempDoses[tempDoses.length-1].toFixed(4)} Gy`);
       }
 
-      // 🔥 BUG #5 FIX: Conversion DIFFERENTIAL avec détection d'ordre
+      // 🔥 ÉTAPE 3: Conversion DIFFERENTIAL -> CUMULATIVE si nécessaire
       if (dvhType === "DIFFERENTIAL") {
         console.log(`[DICOM RT] 🔄 Converting DIFFERENTIAL to CUMULATIVE DVH...`);
 
@@ -510,22 +537,18 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
         let sortedDiffVolumes: number[];
 
         if (isAscending) {
-          console.log(`[DICOM RT]   Data already sorted ASCENDING`);
           sortedDoses = tempDoses;
           sortedDiffVolumes = tempVolumes;
         } else if (isDescending) {
-          console.log(`[DICOM RT]   Data sorted DESCENDING, reversing...`);
           sortedDoses = [...tempDoses].reverse();
           sortedDiffVolumes = [...tempVolumes].reverse();
         } else {
-          console.log(`[DICOM RT]   Data unsorted, sorting manually...`);
           const sortedIndices = tempDoses.map((d, i) => i).sort((a, b) => tempDoses[a] - tempDoses[b]);
           sortedDoses = sortedIndices.map((i) => tempDoses[i]);
           sortedDiffVolumes = sortedIndices.map((i) => tempVolumes[i]);
         }
 
-        // 🔥 dicompyler-core method: cumsum from high dose to low dose
-        // Référence: dvh.py:167 - counts[::-1].cumsum()[::-1]
+        // dicompyler-core: cumsum from high dose to low dose
         const cumulativeVolumes: number[] = new Array(sortedDiffVolumes.length);
         let runningSum = 0;
 
@@ -539,8 +562,6 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
 
         console.log(`[DICOM RT] ✅ Converted to CUMULATIVE: ${doses.length} points`);
         console.log(`[DICOM RT]   Dose range: ${doses[0].toFixed(2)} - ${doses[doses.length - 1].toFixed(2)} Gy`);
-        console.log(`[DICOM RT]   Volume at min dose: ${volumes[0].toFixed(2)} ${volumeUnits}`);
-        console.log(`[DICOM RT]   Volume at max dose: ${volumes[volumes.length - 1].toFixed(2)} ${volumeUnits}`);
       } else {
         // CUMULATIVE: s'assurer que c'est trié par dose croissante
         const isAscending = tempDoses.every((d, i) => i === 0 || d >= tempDoses[i - 1]);
