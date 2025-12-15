@@ -193,11 +193,6 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
         } catch (err) {
           console.warn(`Failed to parse ${file.name}:`, err);
         }
-      }
-
-      if (differentPatients) {
-          toast.warning('Attention: Fichiers de patients différents détectés');
-      }
 
         parsed++;
         setProgress(Math.round((parsed / total) * 100));
@@ -206,6 +201,10 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
         if (parsed % 5 === 0) {
           await new Promise((resolve) => setTimeout(resolve, 0));
         }
+      }
+
+      if (differentPatients) {
+        toast.warning('Attention: Fichiers de patients différents détectés');
       }
 
       setParsedData(combinedData);
