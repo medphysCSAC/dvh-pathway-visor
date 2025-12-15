@@ -1,22 +1,22 @@
 {
   "id": "prostate-chhip-44-60-20fx_copy_1762851826546",
   "name": "Prostate CHHiP (44-57.6-60Gy/20fx)",
-  "location": "Prostate",
+  "location": "Prostate HF",
   "prescriptions": [
     {
-      "ptvName": "PTV1",
+      "ptvName": "PTV60",
       "totalDose": 60,
       "numberOfFractions": 20,
       "dosePerFraction": 3
     },
     {
-      "ptvName": "PTV2",
+      "ptvName": "PTV57.6",
       "totalDose": 57.6,
       "numberOfFractions": 20,
       "dosePerFraction": 2.88
     },
     {
-      "ptvName": "PTV3",
+      "ptvName": "PTV44",
       "totalDose": 44,
       "numberOfFractions": 20,
       "dosePerFraction": 2.2
@@ -29,7 +29,8 @@
       "target": 44,
       "value": 90,
       "unit": "%",
-      "priority": "desirable"
+      "priority": "desirable",
+      "description": "Bulbe pénien: V44<90%"
     },
     {
       "organName": "Bulbe pénien",
@@ -37,7 +38,36 @@
       "target": 60,
       "value": 70,
       "unit": "%",
-      "priority": "desirable"
+      "priority": "desirable",
+      "description": "Bulbe pénien: V60<70%"
+    },
+    {
+      "organName": "Canal anal",
+      "constraintType": "Vx",
+      "value": 85,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 20,
+      "description": "Canal anal: V20<85%"
+    },
+    {
+      "organName": "Canal anal",
+      "constraintType": "Vx",
+      "value": 22,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 50,
+      "description": "Canal anal: V50<22%"
+    },
+    {
+      "organName": "Intestin",
+      "constraintType": "Vx",
+      "value": 17,
+      "unit": "Gy",
+      "priority": "optimal",
+      "target": 40.8,
+      "targetUnit": "cc",
+      "description": "intestin: V40.8<17cc"
     },
     {
       "organName": "Rectum",
@@ -72,6 +102,77 @@
       "priority": "mandatory"
     },
     {
+      "organName": "Rectum",
+      "constraintType": "Vx",
+      "value": 85,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 20,
+      "description": "Wilkins et al,2020"
+    },
+    {
+      "organName": "Rectum",
+      "constraintType": "Vx",
+      "value": 57,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 30,
+      "description": "Wilkins et al,2020"
+    },
+    {
+      "organName": "Rectum",
+      "constraintType": "Vx",
+      "value": 38,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 40,
+      "description": "Wilkins et al,2020"
+    },
+    {
+      "organName": "Rectum",
+      "constraintType": "Vx",
+      "value": 22,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 50,
+      "description": "Wilkins et al,2020"
+    },
+    {
+      "organName": "Rectum",
+      "constraintType": "Vx",
+      "value": 0.01,
+      "unit": "%",
+      "priority": "optimal",
+      "target": 60,
+      "description": "Wilkins et al,2020"
+    },
+    {
+      "organName": "Sigmoide",
+      "constraintType": "Vx",
+      "value": 20,
+      "unit": "cc",
+      "priority": "optimal",
+      "target": 45,
+      "targetUnit": "cc",
+      "description": "Sigmoide: V45<20cc"
+    },
+    {
+      "organName": "Tete femorale DT",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "mandatory",
+      "target": 40.8
+    },
+    {
+      "organName": "Tete femorale Gche",
+      "constraintType": "Vx",
+      "value": 50,
+      "unit": "%",
+      "priority": "mandatory",
+      "target": 40.8
+    },
+    {
       "organName": "Vessie",
       "constraintType": "Vx",
       "target": 40.8,
@@ -91,91 +192,9 @@
       "organName": "Vessie",
       "constraintType": "Vx",
       "value": 5,
-      "unit": "Gy",
+      "unit": "%",
       "priority": "mandatory",
       "target": 60
-    },
-    {
-      "organName": "Rectum",
-      "constraintType": "Vx",
-      "value": 85,
-      "unit": "Gy",
-      "priority": "optimal",
-      "target": 20,
-      "description": "10.1016/j.ijrobp.2020.01.003"
-    },
-    {
-      "organName": "Rectum",
-      "constraintType": "Vx",
-      "value": 57,
-      "unit": "Gy",
-      "priority": "optimal",
-      "target": 30,
-      "description": ""
-    },
-    {
-      "organName": "Rectum",
-      "constraintType": "Vx",
-      "value": 38,
-      "unit": "Gy",
-      "priority": "optimal",
-      "target": 40
-    },
-    {
-      "organName": "Rectum",
-      "constraintType": "Vx",
-      "value": 22,
-      "unit": "Gy",
-      "priority": "optimal",
-      "target": 50
-    },
-    {
-      "organName": "Rectum",
-      "constraintType": "Vx",
-      "value": 0.01,
-      "unit": "Gy",
-      "priority": "optimal",
-      "target": 60
-    },
-    {
-      "organName": "Intestins",
-      "constraintType": "Vx",
-      "value": 17,
-      "unit": "Gy",
-      "priority": "optimal",
-      "target": 40.8
-    },
-    {
-      "organName": "Canal anal",
-      "constraintType": "Vx",
-      "value": 85,
-      "unit": "Gy",
-      "priority": "optimal",
-      "target": 20
-    },
-    {
-      "organName": "Canal anal",
-      "constraintType": "Vx",
-      "value": 22,
-      "unit": "Gy",
-      "priority": "optimal",
-      "target": 50
-    },
-    {
-      "organName": "Tete femorale DT",
-      "constraintType": "Vx",
-      "value": 50,
-      "unit": "Gy",
-      "priority": "mandatory",
-      "target": 40.8
-    },
-    {
-      "organName": "Tete femorale GH",
-      "constraintType": "Vx",
-      "value": 50,
-      "unit": "Gy",
-      "priority": "mandatory",
-      "target": 40.8
     }
   ],
   "createdAt": "2025-11-11T09:03:46.546Z",
