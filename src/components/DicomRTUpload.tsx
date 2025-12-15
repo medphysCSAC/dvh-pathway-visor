@@ -191,13 +191,13 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
             combinedData.plan = { ...combinedData.plan, ...data.plan };
           }
         } catch (err) {
-    console.warn(`Failed to parse ${file.name}:`, err);
-  }
-}
+          console.warn(`Failed to parse ${file.name}:`, err);
+        }
+      }
 
-if (differentPatients) {
-  toast.warning('Attention: Fichiers de patients différents détectés');
-}
+      if (differentPatients) {
+          toast.warning('Attention: Fichiers de patients différents détectés');
+      }
 
         parsed++;
         setProgress(Math.round((parsed / total) * 100));
