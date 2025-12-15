@@ -94,33 +94,30 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
       setIsDragActive(false);
 
       const dataTransfer = e.dataTransfer;
-      const items = Array.from(dataTransfer.items || []); // <--- Déjà converti en Array
+      const items = Array.from(dataTransfer.items || []);
       let allFiles: File[] = [];
       let detectedFolderName: string = "";
-      let isFolderDrop = false; // <-- Nouvelle variable
-      // 1. Tenter l'approche webkitGetAsEntry (pour les dossiers et fichiers complexes)
+      let isFolderDrop = false; // 1. TENTER DE DÉTECTER UN DOSSIR GLISSÉ (Utilise webkitGetAsEntry)
+      //    Si un dossier est glissé, c'est l'API la plus fiable pour la récursivité.
 
       for (const item of items) {
         const entry = item.webkitGetAsEntry();
-        if (entry) {
-          if (entry.isDirectory) {
-            isFolderDrop = true; // <-- Mise à jour ici
-            const dirFiles = await readDirectory(entry as FileSystemDirectoryEntry);
-            allFiles.push(...dirFiles);
-            detectedFolderName = entry.name;
-          } else if (entry.isFile && entry.name.toLowerCase().endsWith(".dcm")) {
-            const file = await new Promise<File>((resolve, reject) => {
-              (entry as FileSystemFileEntry).file(resolve, reject);
-            });
-            allFiles.push(file);
-          }
+        if (entry && entry.isDirectory) {
+          isFolderDrop = true;
+          detectedFolderName = entry.name; // Lecture récursive du dossier
+          const dirFiles = await readDirectory(entry as FileSystemDirectoryEntry);
+          allFiles.push(...dirFiles); // Si on trouve un dossier, on arrête la boucle car on suppose que l'utilisateur veut charger ce dossier
+          break;
         }
-      } // 2. Si rien n'a été trouvé via webkitGetAsEntry (ou pour Firefox/Safari), utiliser dataTransfer.files
+      } // 2. SI CE N'EST PAS UN DOSSIR (OU SI L'API webkit n'est pas dispo), UTILISER dataTransfer.files
 
-      if (allFiles.length === 0 && dataTransfer.files.length > 0 && !isFolderDrop) {
+      if (!isFolderDrop && dataTransfer.files.length > 0) {
+        // dataTransfer.files contient la liste native de TOUS les fichiers glissés
         const fileArray = Array.from(dataTransfer.files);
         allFiles = filterDicomFiles(fileArray);
-      }
+        setFolderName(""); // S'assurer que le nom du dossier est effacé pour une sélection de fichiers
+      } // 3. VÉRIFICATION FINALE ET MISE À JOUR DE L'ÉTAT
+      // Note : Si allFiles.length > 0 ici, c'est que l'étape 1 a trouvé un dossier valide.
 
       if (allFiles.length === 0) {
         setError("Aucun fichier DICOM (.dcm) trouvé dans la sélection.");
@@ -130,7 +127,6 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
       }
 
       setSelectedFiles(allFiles);
-      // Utilisation simplifiée grâce à isFolderDrop et detectedFolderName
       setFolderName(detectedFolderName);
       setError(null);
     },
