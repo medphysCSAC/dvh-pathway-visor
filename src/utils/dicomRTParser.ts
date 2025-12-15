@@ -59,7 +59,7 @@ function parseRTStructure(dataSet: dicomParser.DataSet): DicomRTStructure[] {
 
   // 🔍 DEBUG 1: Afficher TOUS les numéros ROI avec leurs noms
   console.log("[DEBUG RTStruct] === ALL ROI DEFINITIONS ===");
-  const roiMap = new Map<number, { name: string; description: string; algorithm: string }>();
+  const roiMap = new Map<number, { name: string; description: string; algorithm: string; roiType: string }>();
   for (const roiItem of roiSequence) {
     // Essayer plusieurs méthodes pour lire le ROI Number
     let roiNumber = roiItem.uint16("x30060022");
@@ -76,12 +76,12 @@ function parseRTStructure(dataSet: dicomParser.DataSet): DicomRTStructure[] {
     const description = roiItem.string("x30060028") || "";
     const algorithm = roiItem.string("x30060036") || "";
 
-    roiMap.set(roiNumber, { name, description, algorithm });
+    roiMap.set(roiNumber, { name, description, algorithm, roiType: "" });
 
     console.log(`[DEBUG RTStruct] ROI #${roiNumber}: "${name}" (${description || "no desc"}) [${algorithm}]`);
   }
 
-  // 🔍 DEBUG 2: RT ROI Observations Sequence (3006,0080)
+  // 🔍 DEBUG 2: RT ROI Observations Sequence (3006,0080) - contient RTROIInterpretedType
   const observationsSeq = getSequence(dataSet, "x30060080");
   if (observationsSeq) {
     console.log("[DEBUG RTStruct] === RT ROI OBSERVATIONS ===");
@@ -95,8 +95,15 @@ function parseRTStructure(dataSet: dicomParser.DataSet): DicomRTStructure[] {
         obsROINumber = obsStr ? parseInt(obsStr, 10) : 0;
       }
       const obsLabel = obs.string("x30060085") || obs.string("x30060026") || "unknown";
-      const obsType = obs.string("x30060088") || "unknown";
-      console.log(`[DEBUG RTStruct] Observation ROI #${obsROINumber}: "${obsLabel}" type=${obsType}`);
+      // RTROIInterpretedType (3006,00A4) - ex: PTV, CTV, GTV, OAR, EXTERNAL, AVOIDANCE, etc.
+      const obsType = obs.string("x300600a4") || obs.string("x30060088") || "";
+      console.log(`[DEBUG RTStruct] Observation ROI #${obsROINumber}: "${obsLabel}" type="${obsType}"`);
+      
+      // Mettre à jour roiMap avec le type interprété
+      const existingRoi = roiMap.get(obsROINumber);
+      if (existingRoi) {
+        existingRoi.roiType = obsType;
+      }
     }
   }
 
@@ -155,6 +162,7 @@ function parseRTStructure(dataSet: dicomParser.DataSet): DicomRTStructure[] {
       name: roiInfo.name,
       description: roiInfo.description,
       generationAlgorithm: roiInfo.algorithm,
+      roiInterpretedType: roiInfo.roiType || undefined,
       color,
       contours,
     });

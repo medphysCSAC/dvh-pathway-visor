@@ -5,9 +5,31 @@ export interface DicomRTStructure {
   name: string;
   description: string;
   generationAlgorithm: string;
+  roiInterpretedType?: string; // PTV, CTV, GTV, OAR, EXTERNAL, etc.
   color: [number, number, number] | null;
   contours: DicomContour[];
   volume?: number;
+}
+
+// Types de fichiers avec métadonnées pour l'affichage
+export interface ParsedFileInfo {
+  name: string;
+  type: DicomRTFileType;
+  size: number;
+}
+
+// Résumé des composants RT trouvés
+export interface RTComponentsSummary {
+  hasRTSTRUCT: boolean;
+  hasRTDOSE: boolean;
+  hasRTPLAN: boolean;
+  structureCount: number;
+  dvhCount: number;
+  isEmpty: {
+    structures: boolean;
+    dose: boolean;
+    plan: boolean;
+  };
 }
 
 export interface DicomContour {
