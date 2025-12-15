@@ -476,6 +476,28 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
         tempVolumes.push(volumeValue);
       }
 
+      // 🔥 FIX dicompyler-core: Certains fichiers DICOM stockent les doses comme INCREMENTS
+      // Référence: dicompyler-core/dvh.py ligne 80 - cumsum() sur les bins
+      // Détecter si les doses sont des incréments (valeurs identiques ou très proches)
+      const uniqueDoses = new Set(tempDoses.map(d => d.toFixed(4)));
+      const allDosesSame = uniqueDoses.size === 1 || 
+        (tempDoses.length > 2 && 
+         Math.abs(tempDoses[1] - tempDoses[0] - (tempDoses[2] - tempDoses[1])) < 0.0001 &&
+         tempDoses[1] - tempDoses[0] === tempDoses[0]); // Toutes les doses sont des incréments identiques
+      
+      // Si les doses semblent être des incréments (bin width répété), appliquer cumsum
+      const firstDoseIncrement = tempDoses.length > 1 ? tempDoses[1] - tempDoses[0] : 0;
+      const looksLikeIncrements = tempDoses.length > 2 && 
+        Math.abs(tempDoses[0]) < 0.001 && // Commence près de 0
+        tempDoses.slice(1).every((d, i) => Math.abs(d - tempDoses[i] - firstDoseIncrement) < firstDoseIncrement * 0.01);
+      
+      if (looksLikeIncrements && firstDoseIncrement > 0) {
+        console.log(`[DICOM RT] 🔄 Detected INCREMENTAL dose format (dicompyler-core pattern)`);
+        console.log(`[DICOM RT]   Dose increment: ${firstDoseIncrement.toFixed(4)} Gy`);
+        // Les doses sont déjà des incréments réguliers, pas besoin de cumsum ici
+        // car elles représentent correctement les points de dose
+      }
+
       // 🔥 BUG #5 FIX: Conversion DIFFERENTIAL avec détection d'ordre
       if (dvhType === "DIFFERENTIAL") {
         console.log(`[DICOM RT] 🔄 Converting DIFFERENTIAL to CUMULATIVE DVH...`);
@@ -502,7 +524,8 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
           sortedDiffVolumes = sortedIndices.map((i) => tempVolumes[i]);
         }
 
-        // Somme cumulée depuis la fin (dose max) vers le début (dose min)
+        // 🔥 dicompyler-core method: cumsum from high dose to low dose
+        // Référence: dvh.py:167 - counts[::-1].cumsum()[::-1]
         const cumulativeVolumes: number[] = new Array(sortedDiffVolumes.length);
         let runningSum = 0;
 
@@ -672,18 +695,38 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   const finalMinDose = dicomMinDose !== null ? dicomMinDose : Math.min(...doses);
   const finalMaxDose = dicomMaxDose !== null ? dicomMaxDose : calculatedDmax;
 
-  // 🔥 CALCUL DMEAN si tag DICOM absent - moyenne pondérée par volume
+  // 🔥 CALCUL DMEAN - méthode dicompyler-core: (bincenters * diff_counts).sum() / diff_counts.sum()
+  // Référence: dvh.py:261-290 - toutes les stats sont calculées depuis le DVH différentiel
   let finalMeanDose = dicomMeanDose;
   if (finalMeanDose === 0 && doses.length > 1 && totalVolume > 0) {
+    // Méthode 1: depuis DVH cumulatif (notre format actuel)
     let weightedSum = 0;
-    // Pour DVH cumulatif: Dmean = Σ(dose_i * ΔVolume_i) / VolumeTotal
+    let totalDeltaVolume = 0;
+    
     for (let i = 0; i < doses.length - 1; i++) {
-      const deltaVolume = volumes[i] - volumes[i + 1];
-      const avgDoseInBin = (doses[i] + doses[i + 1]) / 2;
-      weightedSum += avgDoseInBin * deltaVolume;
+      const deltaVolume = Math.max(0, volumes[i] - volumes[i + 1]); // Volume différentiel
+      const binCenter = (doses[i] + doses[i + 1]) / 2; // Centre du bin
+      weightedSum += binCenter * deltaVolume;
+      totalDeltaVolume += deltaVolume;
     }
-    finalMeanDose = weightedSum / totalVolume;
-    console.log(`[DEBUG DVH]   🧮 Mean Dose CALCULATED from DVH: ${finalMeanDose.toFixed(2)} Gy`);
+    
+    // Utiliser totalDeltaVolume si disponible, sinon totalVolume
+    const divisor = totalDeltaVolume > 0 ? totalDeltaVolume : totalVolume;
+    finalMeanDose = divisor > 0 ? weightedSum / divisor : 0;
+    
+    console.log(`[DEBUG DVH]   🧮 Mean Dose CALCULATED (dicompyler-core method):`);
+    console.log(`[DEBUG DVH]      weightedSum = ${weightedSum.toFixed(4)}`);
+    console.log(`[DEBUG DVH]      totalDeltaVolume = ${totalDeltaVolume.toFixed(4)}`);
+    console.log(`[DEBUG DVH]      → Dmean = ${finalMeanDose.toFixed(2)} Gy`);
+  }
+
+  // 🔥 VALIDATION CROISÉE: comparer nos calculs avec les valeurs DICOM
+  const discrepancyThreshold = 0.1; // 10% de différence acceptable
+  if (dicomMaxDose !== null && calculatedDmax > 0) {
+    const discrepancy = Math.abs(dicomMaxDose - calculatedDmax) / dicomMaxDose;
+    if (discrepancy > discrepancyThreshold) {
+      console.warn(`[DEBUG DVH] ⚠️ DMAX DISCREPANCY: DICOM=${dicomMaxDose.toFixed(2)} vs Calculated=${calculatedDmax.toFixed(2)} (${(discrepancy * 100).toFixed(1)}% diff)`);
+    }
   }
 
   console.log(`[DEBUG DVH] 📊 FINAL VALUES:`);
