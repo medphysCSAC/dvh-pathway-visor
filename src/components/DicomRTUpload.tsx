@@ -94,48 +94,44 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
       setIsDragActive(false);
 
       const dataTransfer = e.dataTransfer;
-      const items = Array.from(dataTransfer.items || []);
+      const items = Array.from(dataTransfer.items || []); // <--- Déjà converti en Array
       let allFiles: File[] = [];
-      let detectedFolderName: string = ""; // 1. Tenter l'approche webkitGetAsEntry (pour les dossiers et fichiers complexes)
+      let detectedFolderName: string = "";
+      let isFolderDrop = false; // <-- Nouvelle variable
+      // 1. Tenter l'approche webkitGetAsEntry (pour les dossiers et fichiers complexes)
 
       for (const item of items) {
         const entry = item.webkitGetAsEntry();
         if (entry) {
           if (entry.isDirectory) {
-            // C'est un dossier glissé
+            isFolderDrop = true; // <-- Mise à jour ici
             const dirFiles = await readDirectory(entry as FileSystemDirectoryEntry);
             allFiles.push(...dirFiles);
             detectedFolderName = entry.name;
           } else if (entry.isFile && entry.name.toLowerCase().endsWith(".dcm")) {
-            // C'est un fichier DICOM glissé via l'API d'entrée
             const file = await new Promise<File>((resolve, reject) => {
               (entry as FileSystemFileEntry).file(resolve, reject);
             });
             allFiles.push(file);
           }
         }
-      } // 2. Si aucun fichier n'a été trouvé via webkitGetAsEntry (ex: glisser-déposer de plusieurs fichiers simples dans Firefox/Safari)
+      } // 2. Si rien n'a été trouvé via webkitGetAsEntry (ou pour Firefox/Safari), utiliser dataTransfer.files
 
-      if (allFiles.length === 0 && dataTransfer.files.length > 0) {
+      if (allFiles.length === 0 && dataTransfer.files.length > 0 && !isFolderDrop) {
         const fileArray = Array.from(dataTransfer.files);
-        allFiles = filterDicomFiles(fileArray); // Utilisez votre filtre existant
-        // Assurez-vous d'effacer le nom du dossier si ce n'était pas un dossier
-        setFolderName("");
+        allFiles = filterDicomFiles(fileArray);
       }
 
       if (allFiles.length === 0) {
         setError("Aucun fichier DICOM (.dcm) trouvé dans la sélection.");
         setSelectedFiles([]);
+        setFolderName("");
         return;
-      } // Mettre à jour l'état
+      }
 
       setSelectedFiles(allFiles);
-      if (detectedFolderName) {
-        setFolderName(detectedFolderName);
-      } else if (!dataTransfer.items.some((item) => (item.webkitGetAsEntry() as any)?.isDirectory)) {
-        // S'assurer que le nom du dossier est réinitialisé si ce n'est qu'un drop de fichiers
-        setFolderName("");
-      }
+      // Utilisation simplifiée grâce à isFolderDrop et detectedFolderName
+      setFolderName(detectedFolderName);
       setError(null);
     },
     [readDirectory, filterDicomFiles],
