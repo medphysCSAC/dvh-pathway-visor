@@ -155,9 +155,19 @@ export const DicomRTUpload: React.FC<DicomRTUploadProps> = ({ onDataLoaded }) =>
       let parsed = 0;
 
       // Process files one by one with progress updates
+      let firstPatientId = "";
+      let differentPatients = false;
+
       for (const file of selectedFiles) {
         try {
           const data = await parseDicomFile(file);
+
+          if (!firstPatientId) {
+            firstPatientId = data.patientId;
+          } else if (data.patientId && data.patientId !== firstPatientId) {
+            differentPatients = true;
+            console.warn(`Fichier de patient différent détecté: ${file.name}`);
+          }
 
           // Merge data
           if (data.patientId) combinedData.patientId = data.patientId;
