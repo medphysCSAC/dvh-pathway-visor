@@ -396,7 +396,8 @@ export const calculateMetrics = (structure: Structure) => {
     const avgDose = (doses[i - 1] + doses[i]) / 2;
     dmean += avgDose * dv;
   }
-  // ❌ SUPPRIMÉ: dmean = dmean / 100; (normalisation incorrecte)
+  // ✅ Normalisation par 100 car volumes sont en % (0-100)
+  dmean = dmean / 100;
 
   return {
     structureName: structure.name,
