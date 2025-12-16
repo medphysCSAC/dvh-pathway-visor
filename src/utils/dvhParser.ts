@@ -389,14 +389,17 @@ export const calculateMetrics = (structure: Structure) => {
   const doses = relativeVolume.map((p) => p.dose);
   const volumes = relativeVolume.map((p) => p.volume);
 
-  // ✅ Calcul Dmean correct (intégration trapézoïdale)
+  // ✅ Calcul Dmean harmonisé avec protocolValidator (intégration trapézoïdale)
   let dmean = 0;
-  for (let i = 1; i < relativeVolume.length; i++) {
-    const dv = volumes[i - 1] - volumes[i];
-    const avgDose = (doses[i - 1] + doses[i]) / 2;
-    dmean += avgDose * dv;
+  for (let i = 0; i < relativeVolume.length - 1; i++) {
+    const dose1 = doses[i];
+    const dose2 = doses[i + 1];
+    const vol1 = volumes[i];
+    const vol2 = volumes[i + 1];
+    // Math.abs() pour robustesse si DVH non-monotone
+    dmean += ((dose1 + dose2) / 2) * Math.abs(vol2 - vol1);
   }
-  // ✅ Normalisation par 100 car volumes sont en % (0-100)
+  // Normalisation par 100 car volumes sont en % (0-100)
   dmean = dmean / 100;
 
   return {
