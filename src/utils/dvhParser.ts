@@ -317,9 +317,25 @@ export const parseTomoTherapyDVH = (relContent: string, absContent?: string): DV
       relativeVolume.sort((a, b) => a.dose - b.dose);
       absoluteVolume.sort((a, b) => a.dose - b.dose);
 
-      const totalVolume = absoluteVolume.length > 0 
-        ? Math.max(...absoluteVolume.map((p) => p.volume)) 
-        : undefined;
+      // ✅ Volume total harmonisé avec dicomRTParser: volume à la dose minimale
+      let totalVolume: number | undefined = undefined;
+      if (absoluteVolume.length > 0) {
+        // Trouver le point avec la dose minimale (≈ 0)
+        let minDoseIdx = 0;
+        let minDose = absoluteVolume[0].dose;
+        for (let i = 1; i < absoluteVolume.length; i++) {
+          if (absoluteVolume[i].dose < minDose) {
+            minDose = absoluteVolume[i].dose;
+            minDoseIdx = i;
+          }
+        }
+        totalVolume = absoluteVolume[minDoseIdx].volume;
+        
+        // Fallback: si volume à dose min est ≤ 0, prendre le max
+        if (totalVolume <= 0) {
+          totalVolume = Math.max(...absoluteVolume.map((p) => p.volume));
+        }
+      }
 
       structures.push({
         name: structureName,
