@@ -22,6 +22,32 @@ export type DVHErrorCode =
   | "COLUMN_MISMATCH"
   | "PARSE_ERROR";
 
+/**
+ * Détecte si les doses sont en cGy et retourne le facteur de conversion
+ * Heuristique: si Dmax > 150, probablement en cGy (150 cGy = 1.5 Gy)
+ * Doses typiques en RT: 20-80 Gy, donc en cGy: 2000-8000 cGy
+ */
+export const detectDoseUnit = (doses: number[]): { unit: 'Gy' | 'cGy'; factor: number } => {
+  if (doses.length === 0) return { unit: 'Gy', factor: 1 };
+  
+  const maxDose = Math.max(...doses);
+  
+  // Si Dmax > 150, très probablement en cGy (car 150 Gy serait extrême en clinique)
+  if (maxDose > 150) {
+    console.log(`[DVH Parser] Détection automatique: doses en cGy (max=${maxDose.toFixed(1)} cGy) → conversion vers Gy`);
+    return { unit: 'cGy', factor: 0.01 };
+  }
+  
+  return { unit: 'Gy', factor: 1 };
+};
+
+/**
+ * Convertit une valeur de dose en Gy si nécessaire
+ */
+export const convertToGy = (dose: number, unit: 'Gy' | 'cGy'): number => {
+  return unit === 'cGy' ? dose * 0.01 : dose;
+};
+
 export const classifyStructure = (name: string): StructureCategory => {
   const nameUpper = name.toUpperCase().trim();
 
@@ -320,6 +346,34 @@ export const parseTomoTherapyDVH = (relContent: string, absContent?: string): DV
       "NO_STRUCTURES",
       `Vérifiez le format du fichier. ${parsingWarnings.length} avertissements générés.`
     );
+  }
+
+  // Step 7: Détection automatique et conversion cGy → Gy si nécessaire
+  // Collecter toutes les doses pour détecter l'unité
+  const allDoses: number[] = [];
+  for (const s of structures) {
+    for (const p of s.relativeVolume) {
+      allDoses.push(p.dose);
+    }
+  }
+  
+  const { unit, factor } = detectDoseUnit(allDoses);
+  
+  // Appliquer la conversion si nécessaire
+  if (unit === 'cGy') {
+    for (const s of structures) {
+      s.relativeVolume = s.relativeVolume.map(p => ({
+        dose: p.dose * factor,
+        volume: p.volume
+      }));
+      if (s.absoluteVolume) {
+        s.absoluteVolume = s.absoluteVolume.map(p => ({
+          dose: p.dose * factor,
+          volume: p.volume
+        }));
+      }
+    }
+    console.log(`[DVH Parser] ✅ Conversion cGy→Gy appliquée à ${structures.length} structures`);
   }
 
   return {
