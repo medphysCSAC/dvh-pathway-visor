@@ -211,12 +211,9 @@ function calculateDmax(structure: Structure): number {
   const data = structure.relativeVolume;
   if (!data || data.length === 0) return 0;
   
-  for (let i = data.length - 1; i >= 0; i--) {
-    if (data[i].volume > 0.1) {
-      return data[i].dose;
-    }
-  }
-  return data[data.length - 1]?.dose || 0;
+  // Méthode harmonisée: Math.max(...doses) sans filtrage du bruit
+  const doses = data.map(p => p.dose);
+  return Math.max(...doses);
 }
 
 function calculateDmean(structure: Structure): number {
