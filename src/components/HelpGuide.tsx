@@ -1,15 +1,8 @@
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileUp, BarChart3, CheckCircle, FileText, History, BookOpen } from "lucide-react";
-
 const HelpGuide = () => {
-  return (
-    <div className="max-w-5xl mx-auto space-y-6">
+  return <div className="max-w-5xl mx-auto space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -223,7 +216,7 @@ const HelpGuide = () => {
                       <li>Chargez les fichiers DVH du plan sein (REL + ABS)</li>
                       <li>Allez dans "Validation Protocole"</li>
                       <li>Sélectionnez le protocole "Sein droit boost 45-50-66"</li>
-                      <li>Mappez : CTV48.3 → PTV_50Gy, Heart → Coeur, Lung_L → Poumon gauche</li>
+                      <li>Mappez : PTV1 → PTV_50Gy, Heart → Coeur, Lung_L → Poumon gauche</li>
                       <li>Vérifiez que toutes les contraintes sont respectées (V20Gy poumons, Dmean coeur...)</li>
                       <li>Exportez le rapport de validation pour le dossier patient</li>
                     </ol>
@@ -288,8 +281,6 @@ const HelpGuide = () => {
           </p>
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>;
 };
-
 export default HelpGuide;
