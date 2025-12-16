@@ -409,12 +409,29 @@ export const calculateMetrics = (structure: Structure) => {
 };
 
 const interpolateVolume = (points: DVHPoint[], targetDose: number): number => {
-  for (let i = 0; i < points.length - 1; i++) {
-    if (points[i].dose <= targetDose && points[i + 1].dose >= targetDose) {
-      const t = (targetDose - points[i].dose) / (points[i + 1].dose - points[i].dose);
-      return points[i].volume + t * (points[i + 1].volume - points[i].volume);
+  if (!points || points.length === 0) return 0;
+  
+  // Trier par dose croissante pour assurer une interpolation correcte
+  const sortedPoints = [...points].sort((a, b) => a.dose - b.dose);
+  
+  // ✅ FIX: Si targetDose < Dmin, retourner le volume max (souvent ~100%)
+  // Car si toute la structure reçoit au moins Dmin, alors elle reçoit aussi targetDose
+  if (targetDose <= sortedPoints[0].dose) {
+    return sortedPoints[0].volume;
+  }
+  
+  // Si targetDose >= Dmax, retourner le volume min (souvent ~0%)
+  if (targetDose >= sortedPoints[sortedPoints.length - 1].dose) {
+    return sortedPoints[sortedPoints.length - 1].volume;
+  }
+  
+  // Interpolation linéaire entre les deux points encadrant targetDose
+  for (let i = 0; i < sortedPoints.length - 1; i++) {
+    if (sortedPoints[i].dose <= targetDose && sortedPoints[i + 1].dose >= targetDose) {
+      const t = (targetDose - sortedPoints[i].dose) / (sortedPoints[i + 1].dose - sortedPoints[i].dose);
+      return sortedPoints[i].volume + t * (sortedPoints[i + 1].volume - sortedPoints[i].volume);
     }
   }
 
-  return targetDose >= points[points.length - 1].dose ? points[points.length - 1].volume : 0;
+  return sortedPoints[sortedPoints.length - 1].volume;
 };

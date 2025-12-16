@@ -149,12 +149,13 @@ const Index = () => {
       // Create DVHData structure compatible with the app
       const dvhData: DVHData = {
         patientId: data.patientId || 'DICOM Patient',
-        structures: convertedDVH.map((dvh, index) => ({
+        structures: convertedDVH.map((dvh) => ({
           name: dvh.name,
           type: 'STANDARD',
           category: dvh.name.toUpperCase().startsWith('PTV') ? 'PTV' : 'OAR',
           relativeVolume: dvh.relativeVolume,
-          absoluteVolume: [],
+          absoluteVolume: [], // DVH absolu en points (non utilisé ici)
+          totalVolume: dvh.absoluteVolume, // ✅ FIX: utiliser le volume total retourné
         })),
       };
 
