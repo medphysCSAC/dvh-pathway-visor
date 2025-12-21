@@ -31,9 +31,11 @@ import {
   Star,
   EyeOff,
   Search,
-  Camera
+  Camera,
+  FileUp
 } from 'lucide-react';
 import ProtocolImageExtractor from './ProtocolImageExtractor';
+import { ProtocolFileExtractor } from './ProtocolFileExtractor';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -78,7 +80,7 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
   const [searchQuery, setSearchQuery] = useState('');
   const [showHidden, setShowHidden] = useState(false);
   const [imageExtractorOpen, setImageExtractorOpen] = useState(false);
-
+  const [fileExtractorOpen, setFileExtractorOpen] = useState(false);
   useEffect(() => {
     loadProtocols();
   }, []);
@@ -563,6 +565,15 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
                 side="top"
               />
               
+              <Button onClick={() => setFileExtractorOpen(true)} variant="outline">
+                <FileUp className="h-4 w-4 mr-2" />
+                Créer depuis fichier
+              </Button>
+              <ContextualHelp 
+                content="Créez un protocole à partir d'un fichier PDF, Word, Excel, CSV ou texte. L'IA analysera le contenu et extraira automatiquement les contraintes."
+                side="top"
+              />
+              
               <Button onClick={handleImportJSON} variant="outline">
                 <Upload className="h-4 w-4 mr-2" />
                 Importer JSON
@@ -763,6 +774,15 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
       <ProtocolImageExtractor
         open={imageExtractorOpen}
         onOpenChange={setImageExtractorOpen}
+        onProtocolExtracted={(protocol) => {
+          saveCustomProtocol(protocol);
+          loadProtocols();
+        }}
+      />
+
+      <ProtocolFileExtractor
+        open={fileExtractorOpen}
+        onOpenChange={setFileExtractorOpen}
         onProtocolExtracted={(protocol) => {
           saveCustomProtocol(protocol);
           loadProtocols();
