@@ -30,8 +30,10 @@ import {
   ArrowUpDown,
   Star,
   EyeOff,
-  Search
+  Search,
+  Camera
 } from 'lucide-react';
+import ProtocolImageExtractor from './ProtocolImageExtractor';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -75,6 +77,7 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [showHidden, setShowHidden] = useState(false);
+  const [imageExtractorOpen, setImageExtractorOpen] = useState(false);
 
   useEffect(() => {
     loadProtocols();
@@ -550,7 +553,16 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
               </div>
             </div>
 
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-wrap">
+              <Button onClick={() => setImageExtractorOpen(true)} variant="default">
+                <Camera className="h-4 w-4 mr-2" />
+                Créer depuis image
+              </Button>
+              <ContextualHelp 
+                content="Créez un protocole à partir d'une capture d'écran du TPS. L'IA analysera l'image et extraira automatiquement les contraintes."
+                side="top"
+              />
+              
               <Button onClick={handleImportJSON} variant="outline">
                 <Upload className="h-4 w-4 mr-2" />
                 Importer JSON
@@ -747,6 +759,15 @@ export default function ProtocolManager({ onProtocolSelect }: ProtocolManagerPro
           onSave={handleSaveEdit}
         />
       )}
+
+      <ProtocolImageExtractor
+        open={imageExtractorOpen}
+        onOpenChange={setImageExtractorOpen}
+        onProtocolExtracted={(protocol) => {
+          saveCustomProtocol(protocol);
+          loadProtocols();
+        }}
+      />
     </div>
   );
 }

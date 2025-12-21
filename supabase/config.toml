@@ -1,0 +1,4 @@
+project_id = "bkltpqzcqrsehqjjfnvx"
+
+[functions.extract-protocol-from-image]
+verify_jwt = false
