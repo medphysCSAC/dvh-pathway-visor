@@ -727,10 +727,19 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
       // Math.abs() pour robustesse si DVH non-monotone
       dmean += ((dose1 + dose2) / 2) * Math.abs(vol2 - vol1);
     }
-    // Normalisation par 100 car volumes sont en % (0-100)
-    finalMeanDose = dmean / 100;
+    
+    // 🔥 FIX: Normalisation dépend de l'unité de volume
+    // - Si PERCENT (0-100): diviser par 100
+    // - Si CM3 (absolu): diviser par totalVolume
+    if (volumeUnits === "PERCENT") {
+      finalMeanDose = dmean / 100;
+    } else {
+      // CM3 ou autre unité absolue: normaliser par le volume total
+      finalMeanDose = totalVolume > 0 ? dmean / totalVolume : 0;
+    }
     
     console.log(`[DEBUG DVH]   ✅ Mean Dose CALCULATED (harmonisé dvhParser):`);
+    console.log(`[DEBUG DVH]      volumeUnits=${volumeUnits}, totalVolume=${totalVolume.toFixed(4)}`);
     console.log(`[DEBUG DVH]      → Dmean = ${finalMeanDose.toFixed(2)} Gy`);
   }
 
