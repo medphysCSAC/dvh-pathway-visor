@@ -594,6 +594,15 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
           volumes = tempVolumes;
         }
       }
+      
+      // 🔥 FIX: Supprimer le point artificiel (0Gy, ~100%) ajouté pour l'alignement
+      // Ce point n'existe pas dans les vraies données DVH Parser
+      if (doses.length > 1 && doses[0] === 0) {
+        console.log(`[DICOM RT] 🧹 Removing artificial (0Gy, ${volumes[0].toFixed(2)}) point`);
+        doses = doses.slice(1);
+        volumes = volumes.slice(1);
+        console.log(`[DICOM RT]   New first point: (${doses[0].toFixed(4)}Gy, ${volumes[0].toFixed(2)})`);
+      }
     } else {
       // Fallback: traiter comme des volumes seuls
       console.log(`[DICOM RT] Fallback: treating ${rawValues.length} values as volume bins`);
@@ -735,16 +744,12 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   const dicomMaxDose = dicomMaxDoseRaw !== undefined ? dicomMaxDoseRaw * doseConversionFactor : null;
   const dicomMeanDose = dicomMeanDoseRaw !== undefined ? dicomMeanDoseRaw * doseConversionFactor : 0;
 
-  // 🔥 HARMONISÉ avec dvhParser: Dmin = première dose du tableau trié
-  // Dans dvhParser, les points sont triés par dose croissante et Dmin = doses[0]
-  // Comme on a ajouté un point (0Gy, 100%) artificiel, on doit l'ignorer
-  const sortedDoses = [...doses].sort((a, b) => a - b);
-  // Trouver le premier point non-artificiel (dose > 0 ou très petit epsilon)
-  const calculatedMinDose = sortedDoses.find(d => d > 0.001) ?? sortedDoses[0];
+  // 🔥 HARMONISÉ avec dvhParser: Dmin = Math.min(...doses)
+  // Le point artificiel (0Gy) a été supprimé, donc on peut utiliser Math.min directement
+  const calculatedMinDose = Math.min(...doses);
   
   console.log(`[DEBUG DVH] 🔥 DMIN CALCULATION (harmonisé dvhParser):`);
-  console.log(`[DEBUG DVH]   Array min: ${Math.min(...doses).toFixed(4)} Gy`);
-  console.log(`[DEBUG DVH]   First non-zero dose: ${calculatedMinDose.toFixed(4)} Gy`);
+  console.log(`[DEBUG DVH]   Dmin = ${calculatedMinDose.toFixed(4)} Gy`);
   
   const finalMinDose = dicomMinDose !== null ? dicomMinDose : calculatedMinDose;
   const finalMaxDose = dicomMaxDose !== null ? dicomMaxDose : calculatedDmax;
