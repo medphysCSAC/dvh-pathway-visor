@@ -19,6 +19,7 @@ import { ContextualHelp } from '@/components/ContextualHelp';
 import { CriticalDoseAlerts } from '@/components/CriticalDoseAlerts';
 import { DicomRTUpload } from '@/components/DicomRTUpload';
 import DVHComparisonDebug from '@/components/DVHComparisonDebug';
+import DVHSourceComparison from '@/components/DVHSourceComparison';
 import { DVHData, StructureCategory, PlanData, Structure } from '@/types/dvh';
 import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
@@ -26,7 +27,7 @@ import { checkCriticalDoses, DoseAlert } from '@/utils/criticalDoseAlerts';
 import { convertDicomDVHToAppFormat } from '@/utils/dicomRTParser';
 import { DicomRTData } from '@/types/dicomRT';
 import { toast } from 'sonner';
-import { Activity } from 'lucide-react';
+import { Activity, Bug } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index = () => {
@@ -214,13 +215,17 @@ const Index = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="space-y-8">
           {/* File Upload Section */}
-          {!dvhData && <div className="max-w-4xl mx-auto space-y-6">
+          {!dvhData && <div className="max-w-5xl mx-auto space-y-6">
               <Tabs defaultValue="upload" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="upload">Charger un plan</TabsTrigger>
                   <TabsTrigger value="dicom">DICOM RT</TabsTrigger>
+                  <TabsTrigger value="debug-compare" className="text-amber-600">
+                    <Bug className="w-4 h-4 mr-1" />
+                    Debug Comparaison
+                  </TabsTrigger>
                   <TabsTrigger value="multi">Comparer/Sommer plans</TabsTrigger>
-                  <TabsTrigger value="converter">Convertisseur Protocole</TabsTrigger>
+                  <TabsTrigger value="converter">Convertisseur</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="upload" className="mt-6">
@@ -231,6 +236,23 @@ const Index = () => {
 
                 <TabsContent value="dicom" className="mt-6">
                   <DicomRTUpload onDataLoaded={handleDicomRTLoaded} />
+                </TabsContent>
+
+                <TabsContent value="debug-compare" className="mt-6 space-y-6">
+                  <DVHSourceComparison
+                    onDvhParserLoaded={(structures) => setDvhParserStructures(structures.length > 0 ? structures : null)}
+                    onDicomRTLoaded={(structures) => setDicomRTStructures(structures.length > 0 ? structures : null)}
+                    dvhParserStructures={dvhParserStructures}
+                    dicomRTStructures={dicomRTStructures}
+                  />
+                  
+                  {/* Panneau de comparaison affiché directement ici */}
+                  {(dvhParserStructures || dicomRTStructures) && (
+                    <DVHComparisonDebug 
+                      dvhParserStructures={dvhParserStructures} 
+                      dicomRTStructures={dicomRTStructures} 
+                    />
+                  )}
                 </TabsContent>
                 
                 <TabsContent value="multi" className="mt-6">
