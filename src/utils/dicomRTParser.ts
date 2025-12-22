@@ -666,11 +666,15 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
     return null;
   }
 
-  // 🔥 BUG #2 FIX: Volume total = volume à la dose la plus proche de 0
-  // Trouver l'index de la dose minimale (la plus proche de 0)
+  // 🔥 FIX ALIGNÉ DVH PARSER: Volume total = MAX des volumes (DVH cumulatif)
+  // Raison: Les DVH DICOM peuvent démarrer à dose > 0 (ex: 0.1 Gy), 
+  // ce qui sous-estime le volume total et crée une erreur systématique de 1-3%
   let totalVolume = 0;
   if (doses.length > 0 && volumes.length > 0) {
-    // Trouver l'index de la dose la plus basse
+    // Méthode principale: max des volumes (définition DVH cumulatif)
+    const maxVolume = Math.max(...volumes);
+    
+    // Méthode de validation: volume à dose minimale
     let minDoseIdx = 0;
     let minDose = doses[0];
     for (let i = 1; i < doses.length; i++) {
@@ -679,18 +683,27 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
         minDoseIdx = i;
       }
     }
-    totalVolume = volumes[minDoseIdx];
-
-    // Fallback: si le volume à dose min est 0, prendre le max des volumes
-    if (totalVolume <= 0) {
-      totalVolume = Math.max(...volumes);
+    const volumeAtMinDose = volumes[minDoseIdx];
+    
+    // 🔥 Validation anti-aberration: si max >> volumeAtMinDose (>20%), c'est suspect
+    const ratio = maxVolume / volumeAtMinDose;
+    if (volumeAtMinDose > 0 && ratio > 1.2) {
+      console.warn(`[DEBUG DVH] ⚠️ Anomalie détectée: max/minDose ratio = ${ratio.toFixed(2)} (>1.2)`);
+      console.warn(`[DEBUG DVH]   Possible DVH différentiel mal converti ou données corrompues`);
+      // Utiliser volumeAtMinDose comme fallback sécurisé
+      totalVolume = volumeAtMinDose;
+    } else {
+      // Cas normal: utiliser max (plus précis si DVH ne démarre pas à 0)
+      totalVolume = maxVolume;
     }
+    
+    console.log(`[DEBUG DVH] 🔥 VOLUME TOTAL CALCULATION (aligné DVH Parser):`);
+    console.log(`[DEBUG DVH]   Min dose: ${minDose.toFixed(4)} Gy`);
+    console.log(`[DEBUG DVH]   Volume @ min dose: ${volumeAtMinDose.toFixed(4)} ${volumeUnits}`);
+    console.log(`[DEBUG DVH]   Max volume: ${maxVolume.toFixed(4)} ${volumeUnits}`);
+    console.log(`[DEBUG DVH]   Écart: ${((maxVolume - volumeAtMinDose) / volumeAtMinDose * 100).toFixed(2)}%`);
+    console.log(`[DEBUG DVH]   → Total Volume choisi = ${totalVolume.toFixed(4)} ${volumeUnits}`);
   }
-
-  console.log(`[DEBUG DVH] 🔥 VOLUME CALCULATION (BUG #2 FIXED):`);
-  console.log(`[DEBUG DVH]   Min dose: ${Math.min(...doses).toFixed(2)} Gy`);
-  console.log(`[DEBUG DVH]   Volume at min dose: ${totalVolume.toFixed(4)} ${volumeUnits}`);
-  console.log(`[DEBUG DVH]   → Total Volume = ${totalVolume.toFixed(4)} ${volumeUnits}`);
 
   // ✅ HARMONISÉ avec dvhParser: Dmax = Math.max(...doses)
   const calculatedDmax = doses.length > 0 ? Math.max(...doses) : 0;
