@@ -220,21 +220,18 @@ function calculateDmean(structure: Structure): number {
   const data = structure.relativeVolume;
   if (!data || data.length < 2) return 0;
   
-  let totalDose = 0;
-  let totalWeight = 0;
-  
+  // ✅ Méthode harmonisée avec dvhParser: intégration trapézoïdale
+  let dmean = 0;
   for (let i = 0; i < data.length - 1; i++) {
-    const doseStep = data[i + 1].dose - data[i].dose;
-    const avgVolume = (data[i].volume + data[i + 1].volume) / 2;
-    const volumeDiff = Math.abs(data[i].volume - data[i + 1].volume);
-    
-    if (volumeDiff > 0) {
-      totalDose += ((data[i].dose + data[i + 1].dose) / 2) * volumeDiff;
-      totalWeight += volumeDiff;
-    }
+    const dose1 = data[i].dose;
+    const dose2 = data[i + 1].dose;
+    const vol1 = data[i].volume;
+    const vol2 = data[i + 1].volume;
+    // Math.abs() pour robustesse si DVH non-monotone
+    dmean += ((dose1 + dose2) / 2) * Math.abs(vol2 - vol1);
   }
-  
-  return totalWeight > 0 ? totalDose / totalWeight : 0;
+  // Normalisation par 100 car volumes sont en % (0-100)
+  return dmean / 100;
 }
 
 function calculateVx(structure: Structure, doseThreshold: number): number {

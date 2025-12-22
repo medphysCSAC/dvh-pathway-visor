@@ -692,22 +692,12 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   console.log(`[DEBUG DVH]   Volume at min dose: ${totalVolume.toFixed(4)} ${volumeUnits}`);
   console.log(`[DEBUG DVH]   → Total Volume = ${totalVolume.toFixed(4)} ${volumeUnits}`);
 
-  // 🔥 BUG #3 FIX: Dmax = dose MAX où volume > 0 (ne pas dépendre du tri)
-  let calculatedDmax = 0;
-  for (let i = 0; i < doses.length; i++) {
-    if (volumes[i] > 0.001 && doses[i] > calculatedDmax) {
-      calculatedDmax = doses[i];
-    }
-  }
+  // ✅ HARMONISÉ avec dvhParser: Dmax = Math.max(...doses)
+  const calculatedDmax = doses.length > 0 ? Math.max(...doses) : 0;
 
-  // Fallback si aucun volume > 0
-  if (calculatedDmax === 0 && doses.length > 0) {
-    calculatedDmax = Math.max(...doses);
-  }
-
-  console.log(`[DEBUG DVH] 🔥 DMAX CALCULATION (BUG #3 FIXED):`);
+  console.log(`[DEBUG DVH] ✅ DMAX CALCULATION (harmonisé dvhParser):`);
   console.log(`[DEBUG DVH]   Dose range: ${Math.min(...doses).toFixed(2)} - ${Math.max(...doses).toFixed(2)} Gy`);
-  console.log(`[DEBUG DVH]   Max dose with volume > 0: ${calculatedDmax.toFixed(2)} Gy`);
+  console.log(`[DEBUG DVH]   → Dmax = ${calculatedDmax.toFixed(2)} Gy`);
 
   // 🔥 Statistiques de dose DICOM (pour validation/comparaison)
   const doseConversionFactor = doseUnits === "CGY" ? 0.01 : 1.0;
@@ -724,28 +714,23 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   const finalMinDose = dicomMinDose !== null ? dicomMinDose : Math.min(...doses);
   const finalMaxDose = dicomMaxDose !== null ? dicomMaxDose : calculatedDmax;
 
-  // 🔥 CALCUL DMEAN - méthode dicompyler-core: (bincenters * diff_counts).sum() / diff_counts.sum()
-  // Référence: dvh.py:261-290 - toutes les stats sont calculées depuis le DVH différentiel
+  // ✅ CALCUL DMEAN harmonisé avec dvhParser: intégration trapézoïdale
   let finalMeanDose = dicomMeanDose;
-  if (finalMeanDose === 0 && doses.length > 1 && totalVolume > 0) {
-    // Méthode 1: depuis DVH cumulatif (notre format actuel)
-    let weightedSum = 0;
-    let totalDeltaVolume = 0;
-    
+  if (finalMeanDose === 0 && doses.length > 1) {
+    // Méthode identique à dvhParser.ts: intégration trapézoïdale
+    let dmean = 0;
     for (let i = 0; i < doses.length - 1; i++) {
-      const deltaVolume = Math.max(0, volumes[i] - volumes[i + 1]); // Volume différentiel
-      const binCenter = (doses[i] + doses[i + 1]) / 2; // Centre du bin
-      weightedSum += binCenter * deltaVolume;
-      totalDeltaVolume += deltaVolume;
+      const dose1 = doses[i];
+      const dose2 = doses[i + 1];
+      const vol1 = volumes[i];
+      const vol2 = volumes[i + 1];
+      // Math.abs() pour robustesse si DVH non-monotone
+      dmean += ((dose1 + dose2) / 2) * Math.abs(vol2 - vol1);
     }
+    // Normalisation par 100 car volumes sont en % (0-100)
+    finalMeanDose = dmean / 100;
     
-    // Utiliser totalDeltaVolume si disponible, sinon totalVolume
-    const divisor = totalDeltaVolume > 0 ? totalDeltaVolume : totalVolume;
-    finalMeanDose = divisor > 0 ? weightedSum / divisor : 0;
-    
-    console.log(`[DEBUG DVH]   🧮 Mean Dose CALCULATED (dicompyler-core method):`);
-    console.log(`[DEBUG DVH]      weightedSum = ${weightedSum.toFixed(4)}`);
-    console.log(`[DEBUG DVH]      totalDeltaVolume = ${totalDeltaVolume.toFixed(4)}`);
+    console.log(`[DEBUG DVH]   ✅ Mean Dose CALCULATED (harmonisé dvhParser):`);
     console.log(`[DEBUG DVH]      → Dmean = ${finalMeanDose.toFixed(2)} Gy`);
   }
 
