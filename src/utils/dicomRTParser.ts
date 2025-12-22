@@ -736,7 +736,35 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   const dicomMeanDose = dicomMeanDoseRaw !== undefined ? dicomMeanDoseRaw * doseConversionFactor : 0;
 
   // Utiliser les valeurs DICOM si disponibles, sinon nos calculs
-  const finalMinDose = dicomMinDose !== null ? dicomMinDose : Math.min(...doses);
+  // 🔥 FIX: Calculer la vraie dose min (pas le 0 artificiel ajouté pour l'alignement)
+  // Pour un DVH cumulatif, la dose min est la plus haute dose où volume ≈ 100%
+  let calculatedMinDose = Math.min(...doses);
+  if (doses.length > 1 && volumes.length > 1) {
+    // Trouver la dernière dose où le volume est encore ~100% (tolérance 0.5%)
+    const maxVol = Math.max(...volumes);
+    const threshold = maxVol * 0.995; // 99.5% du volume max
+    
+    // Parcourir les doses croissantes pour trouver où le volume descend sous le seuil
+    const sortedIndices = doses.map((d, i) => i).sort((a, b) => doses[a] - doses[b]);
+    for (const idx of sortedIndices) {
+      if (volumes[idx] < threshold) {
+        // La dose précédente était la dernière à ~100%
+        const prevIdx = sortedIndices.indexOf(idx) - 1;
+        if (prevIdx >= 0) {
+          calculatedMinDose = doses[sortedIndices[prevIdx]];
+        }
+        break;
+      }
+      // Si on arrive ici, cette dose a encore ~100% volume
+      calculatedMinDose = doses[idx];
+    }
+    
+    console.log(`[DEBUG DVH] 🔥 CALCULATED MIN DOSE (real structure min):`);
+    console.log(`[DEBUG DVH]   Array min: ${Math.min(...doses).toFixed(4)} Gy`);
+    console.log(`[DEBUG DVH]   Structure min (last dose @ ~100%): ${calculatedMinDose.toFixed(4)} Gy`);
+  }
+  
+  const finalMinDose = dicomMinDose !== null ? dicomMinDose : calculatedMinDose;
   const finalMaxDose = dicomMaxDose !== null ? dicomMaxDose : calculatedDmax;
 
   // ✅ CALCUL DMEAN harmonisé avec dvhParser: intégration trapézoïdale
