@@ -18,7 +18,8 @@ import { InteractiveTour } from '@/components/InteractiveTour';
 import { ContextualHelp } from '@/components/ContextualHelp';
 import { CriticalDoseAlerts } from '@/components/CriticalDoseAlerts';
 import { DicomRTUpload } from '@/components/DicomRTUpload';
-import { DVHData, StructureCategory, PlanData } from '@/types/dvh';
+import DVHComparisonDebug from '@/components/DVHComparisonDebug';
+import { DVHData, StructureCategory, PlanData, Structure } from '@/types/dvh';
 import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
 import { checkCriticalDoses, DoseAlert } from '@/utils/criticalDoseAlerts';
@@ -27,6 +28,7 @@ import { DicomRTData } from '@/types/dicomRT';
 import { toast } from 'sonner';
 import { Activity } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 const Index = () => {
   const [dvhData, setDvhData] = useState<DVHData | null>(null);
   const [selectedStructures, setSelectedStructures] = useState<string[]>([]);
@@ -34,6 +36,10 @@ const Index = () => {
   const [comparisonPlans, setComparisonPlans] = useState<PlanData[]>([]);
   const [comparisonMode, setComparisonMode] = useState<'summation' | 'comparison' | 'multi-patient' | null>(null);
   const [criticalAlerts, setCriticalAlerts] = useState<DoseAlert[]>([]);
+  
+  // Debug: Stocker les structures des deux sources pour comparaison
+  const [dvhParserStructures, setDvhParserStructures] = useState<Structure[] | null>(null);
+  const [dicomRTStructures, setDicomRTStructures] = useState<Structure[] | null>(null);
 
   // Check for critical dose exceedances when DVH data changes
   useEffect(() => {
@@ -69,6 +75,10 @@ const Index = () => {
       }
       setDvhData(data);
       setSelectedStructures([]);
+      
+      // Debug: stocker les structures DVH Parser pour comparaison
+      setDvhParserStructures(data.structures);
+      
       toast.success('Fichiers DVH chargés avec succès', {
         description: `${data.structures.length} structures anatomiques détectées`
       });
@@ -147,7 +157,7 @@ const Index = () => {
       const convertedDVH = convertDicomDVHToAppFormat(data.structures, data.dose.dvhs);
       
       // Create DVHData structure compatible with the app
-      const dvhData: DVHData = {
+      const newDvhData: DVHData = {
         patientId: data.patientId || 'DICOM Patient',
         structures: convertedDVH.map((dvh) => ({
           name: dvh.name,
@@ -159,10 +169,14 @@ const Index = () => {
         })),
       };
 
-      setDvhData(dvhData);
+      setDvhData(newDvhData);
       setSelectedStructures([]);
+      
+      // Debug: stocker les structures DICOM RT pour comparaison
+      setDicomRTStructures(newDvhData.structures);
+      
       toast.success('DICOM RT importé', {
-        description: `${dvhData.structures.length} structures avec DVH chargées`,
+        description: `${newDvhData.structures.length} structures avec DVH chargées`,
       });
     } else if (data.structures) {
       toast.info('Structures détectées', {
@@ -270,6 +284,14 @@ const Index = () => {
           {dvhData && <>
               {/* Critical Dose Alerts */}
               <CriticalDoseAlerts alerts={criticalAlerts} />
+
+              {/* Debug: Comparaison DVH Parser vs DICOM RT */}
+              {(dvhParserStructures || dicomRTStructures) && (
+                <DVHComparisonDebug 
+                  dvhParserStructures={dvhParserStructures} 
+                  dicomRTStructures={dicomRTStructures} 
+                />
+              )}
 
               {/* Patient Info */}
               <div className="bg-card border rounded-lg p-4">
