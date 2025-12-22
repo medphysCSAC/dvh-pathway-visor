@@ -513,14 +513,26 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
         console.log(`[DICOM RT]   Unit factor (CGY->GY): ${unitFactor}`);
         console.log(`[DICOM RT]   Scaled bin width: ${(firstRawDose * dvhDoseScaling * unitFactor).toFixed(6)} Gy`);
         
-        // cumsum: [a, a, a, a] -> [a, 2a, 3a, 4a] puis scaling
+        // 🔥 FIX OFFSET BUG: Le volume à l'index i correspond à la dose AVANT cumsum
+        // Donc tempVolumes[0] = volume à dose=0 (ou très proche)
+        // Après cumsum, tempDoses[0] = firstBinWidth, ce qui décale tout d'un cran!
+        // Solution: insérer dose=0 au début pour aligner correctement
+        
+        // cumsum: [a, a, a, a] -> [0, a, 2a, 3a, 4a] (avec 0 ajouté au début)
+        tempDoses.push(0); // Point à dose=0 pour le premier volume
         let cumulativeDose = 0;
         for (let i = 0; i < rawDoseBins.length; i++) {
           cumulativeDose += rawDoseBins[i];
           tempDoses.push(cumulativeDose * dvhDoseScaling * unitFactor);
         }
         
+        // 🔥 FIX: Ajouter le volume final (généralement 0 ou très petit) pour aligner les tableaux
+        // Le dernier point de dose n'a pas de volume correspondant dans les données brutes
+        // On interpole: le volume à Dmax est généralement ~0%
+        tempVolumes.push(0);
+        
         console.log(`[DICOM RT]   After cumsum+scaling: first=${tempDoses[0].toFixed(4)}, last=${tempDoses[tempDoses.length-1].toFixed(4)} Gy`);
+        console.log(`[DICOM RT]   Doses count: ${tempDoses.length}, Volumes count: ${tempVolumes.length}`);
       } else {
         // FORMAT ABSOLU: les doses sont déjà des valeurs absolues
         console.log(`[DICOM RT] 📊 ABSOLUTE dose format detected - no cumsum needed`);
