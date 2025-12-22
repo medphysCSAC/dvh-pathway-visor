@@ -14,8 +14,11 @@ interface DVHChartProps {
 }
 
 const getColorForStructure = (structure: Structure, index: number): string => {
-  const ptvColors = ['#EF4444', '#F59E0B', '#DC2626', '#FB923C', '#EA580C'];
-  const oarColors = ['#3B82F6', '#10B981', '#14B8A6', '#06B6D4', '#8B5CF6'];
+  // Couleurs PTV: violet/magenta (cohérent avec --ptv)
+  const ptvColors = ['#A855F7', '#9333EA', '#C084FC', '#7C3AED', '#D946EF'];
+  // Couleurs OAR: bleu (cohérent avec --oar)
+  const oarColors = ['#3B82F6', '#2563EB', '#60A5FA', '#1D4ED8', '#0EA5E9'];
+  // Couleurs OTHER: gris/slate
   const otherColors = ['#64748B', '#94A3B8', '#475569', '#CBD5E1'];
 
   if (structure.category === 'PTV') {
@@ -308,12 +311,31 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
                 contentStyle={{ 
                   backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
                 }}
+                labelStyle={{
+                  fontWeight: 600,
+                  color: 'hsl(var(--foreground))'
+                }}
+                formatter={(value: number, name: string) => [
+                  `${value.toFixed(2)}${dvhType.includes('relative') ? '%' : ' cc'}`,
+                  name
+                ]}
+                labelFormatter={(label) => `Dose: ${label} Gy`}
               />
               <Legend 
                 wrapperStyle={{ paddingTop: '20px' }}
                 iconType="line"
+                formatter={(value, entry) => {
+                  const structure = selectedFilteredStructures.find(s => s.name === value);
+                  const categoryLabel = structure?.category === 'PTV' 
+                    ? '🎯' 
+                    : structure?.category === 'OAR' 
+                    ? '🛡️' 
+                    : '○';
+                  return <span className="text-foreground">{categoryLabel} {value}</span>;
+                }}
               />
               {selectedFilteredStructures.map((structure, index) => {
                 const categoryIndex = selectedFilteredStructures
