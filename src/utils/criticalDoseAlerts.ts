@@ -238,20 +238,30 @@ function calculateVx(structure: Structure, doseThreshold: number): number {
   const data = structure.relativeVolume;
   if (!data || data.length === 0) return 0;
   
-  for (let i = 0; i < data.length; i++) {
-    if (data[i].dose >= doseThreshold) {
-      if (i === 0) return data[0].volume;
-      
-      const d1 = data[i - 1].dose;
-      const d2 = data[i].dose;
-      const v1 = data[i - 1].volume;
-      const v2 = data[i].volume;
-      
-      return v1 + (v2 - v1) * (doseThreshold - d1) / (d2 - d1);
+  // ✅ Méthode harmonisée avec planQualityMetrics/dvhParser
+  // Assurer un tri croissant par dose pour une interpolation fiable
+  const points = [...data].sort((a, b) => a.dose - b.dose);
+  
+  // Gestion des bornes
+  if (doseThreshold <= points[0].dose) {
+    return points[0].volume; // tout le volume reçoit au moins cette dose
+  }
+  if (doseThreshold >= points[points.length - 1].dose) {
+    return points[points.length - 1].volume; // souvent ~0%
+  }
+  
+  // Interpolation linéaire entre les deux points encadrant la dose cible
+  for (let i = 0; i < points.length - 1; i++) {
+    const curr = points[i];
+    const next = points[i + 1];
+    
+    if (curr.dose <= doseThreshold && next.dose >= doseThreshold) {
+      const t = (doseThreshold - curr.dose) / (next.dose - curr.dose);
+      return curr.volume + t * (next.volume - curr.volume);
     }
   }
   
-  return 0;
+  return points[points.length - 1].volume;
 }
 
 export function checkCriticalDoses(structures: Structure[]): DoseAlert[] {
