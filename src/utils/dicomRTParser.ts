@@ -715,32 +715,39 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   const finalMaxDose = dicomMaxDose !== null ? dicomMaxDose : calculatedDmax;
 
   // ✅ CALCUL DMEAN harmonisé avec dvhParser: intégration trapézoïdale
+  // 🔥 CRITICAL FIX: Convertir d'abord les volumes en POURCENTAGE avant le calcul
+  // C'est ce que fait dvhParser qui utilise toujours des volumes relatifs (0-100%)
   let finalMeanDose = dicomMeanDose;
   if (finalMeanDose === 0 && doses.length > 1) {
-    // Méthode identique à dvhParser.ts: intégration trapézoïdale
+    // 🔥 ÉTAPE 1: Convertir les volumes en % si nécessaire (comme dvhParser)
+    let volumesPercent: number[];
+    if (volumeUnits === "PERCENT") {
+      volumesPercent = volumes;
+    } else {
+      // CM3 → % : diviser chaque volume par totalVolume et multiplier par 100
+      volumesPercent = totalVolume > 0 
+        ? volumes.map(v => (v / totalVolume) * 100)
+        : volumes;
+    }
+    
+    // 🔥 ÉTAPE 2: Intégration trapézoïdale sur volumes en % (identique à dvhParser)
     let dmean = 0;
     for (let i = 0; i < doses.length - 1; i++) {
       const dose1 = doses[i];
       const dose2 = doses[i + 1];
-      const vol1 = volumes[i];
-      const vol2 = volumes[i + 1];
+      const vol1 = volumesPercent[i];
+      const vol2 = volumesPercent[i + 1];
       // Math.abs() pour robustesse si DVH non-monotone
       dmean += ((dose1 + dose2) / 2) * Math.abs(vol2 - vol1);
     }
     
-    // 🔥 FIX: Normalisation dépend de l'unité de volume
-    // - Si PERCENT (0-100): diviser par 100
-    // - Si CM3 (absolu): diviser par totalVolume
-    if (volumeUnits === "PERCENT") {
-      finalMeanDose = dmean / 100;
-    } else {
-      // CM3 ou autre unité absolue: normaliser par le volume total
-      finalMeanDose = totalVolume > 0 ? dmean / totalVolume : 0;
-    }
+    // 🔥 ÉTAPE 3: Normalisation par 100 (car volumes sont maintenant en %)
+    finalMeanDose = dmean / 100;
     
     console.log(`[DEBUG DVH]   ✅ Mean Dose CALCULATED (harmonisé dvhParser):`);
     console.log(`[DEBUG DVH]      volumeUnits=${volumeUnits}, totalVolume=${totalVolume.toFixed(4)}`);
-    console.log(`[DEBUG DVH]      → Dmean = ${finalMeanDose.toFixed(2)} Gy`);
+    console.log(`[DEBUG DVH]      volumes converted to %: first=${volumesPercent[0]?.toFixed(2)}%, last=${volumesPercent[volumesPercent.length-1]?.toFixed(4)}%`);
+    console.log(`[DEBUG DVH]      → Dmean = ${finalMeanDose.toFixed(4)} Gy`);
   }
 
   // 🔥 VALIDATION CROISÉE: comparer nos calculs avec les valeurs DICOM
