@@ -38,24 +38,6 @@ All colors MUST be HSL.
 
     --radius: 0.75rem;
     
-    /* Semantic colors for status indicators */
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-    --error: 0 84% 60%;
-    --error-foreground: 0 0% 100%;
-    --info: 199 89% 48%;
-    --info-foreground: 0 0% 100%;
-    
-    /* Structure category colors */
-    --ptv: 280 67% 55%;
-    --ptv-foreground: 0 0% 100%;
-    --oar: 217 91% 55%;
-    --oar-foreground: 0 0% 100%;
-    --other-structure: 215 16% 47%;
-    --other-structure-foreground: 0 0% 100%;
-    
     --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(213 95% 68%) 100%);
     --gradient-subtle: linear-gradient(180deg, hsl(210 30% 98%) 0%, hsl(214 32% 96%) 100%);
     --shadow-soft: 0 4px 16px -2px hsl(217 91% 60% / 0.08);
@@ -63,12 +45,19 @@ All colors MUST be HSL.
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --sidebar-background: 0 0% 98%;
+
     --sidebar-foreground: 240 5.3% 26.1%;
+
     --sidebar-primary: 240 5.9% 10%;
+
     --sidebar-primary-foreground: 0 0% 98%;
+
     --sidebar-accent: 240 4.8% 95.9%;
+
     --sidebar-accent-foreground: 240 5.9% 10%;
+
     --sidebar-border: 220 13% 91%;
+
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -85,39 +74,21 @@ All colors MUST be HSL.
     --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 33% 25%;
+    --secondary: 217 33% 22%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217 33% 20%;
-    --muted-foreground: 215 20% 70%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
 
     --accent: 213 95% 68%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 63% 45%;
+    --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217 33% 28%;
-    --input: 217 33% 25%;
+    --border: 217 33% 22%;
+    --input: 217 33% 22%;
     --ring: 217 91% 60%;
-    
-    /* Semantic colors for status indicators - dark mode */
-    --success: 142 71% 40%;
-    --success-foreground: 142 71% 95%;
-    --warning: 38 92% 45%;
-    --warning-foreground: 38 92% 95%;
-    --error: 0 63% 50%;
-    --error-foreground: 0 63% 95%;
-    --info: 199 89% 55%;
-    --info-foreground: 199 89% 95%;
-    
-    /* Structure category colors - dark mode */
-    --ptv: 280 67% 60%;
-    --ptv-foreground: 280 67% 95%;
-    --oar: 217 91% 65%;
-    --oar-foreground: 217 91% 95%;
-    --other-structure: 215 20% 60%;
-    --other-structure-foreground: 215 20% 95%;
     
     --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(213 95% 68%) 100%);
     --gradient-subtle: linear-gradient(180deg, hsl(222 47% 11%) 0%, hsl(217 33% 15%) 100%);
@@ -141,63 +112,5 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-  }
-}
-
-/* Custom utility classes for consistent styling */
-@layer components {
-  /* Status badges with translucent backgrounds */
-  .badge-success {
-    @apply bg-success/10 text-success border-success/20;
-  }
-  .badge-warning {
-    @apply bg-warning/10 text-warning border-warning/20;
-  }
-  .badge-error {
-    @apply bg-error/10 text-error border-error/20;
-  }
-  .badge-info {
-    @apply bg-info/10 text-info border-info/20;
-  }
-  
-  /* Structure category badges */
-  .badge-ptv {
-    @apply bg-ptv/10 text-ptv border-ptv/20;
-  }
-  .badge-oar {
-    @apply bg-oar/10 text-oar border-oar/20;
-  }
-  .badge-other {
-    @apply bg-other-structure/10 text-other-structure border-other-structure/20;
-  }
-  
-  /* Table row variants */
-  .table-row-success {
-    @apply bg-success/5 hover:bg-success/10;
-  }
-  .table-row-warning {
-    @apply bg-warning/5 hover:bg-warning/10;
-  }
-  .table-row-error {
-    @apply bg-error/5 hover:bg-error/10;
-  }
-  
-  /* Cards with colored left border */
-  .card-accent-success {
-    @apply border-l-4 border-l-success;
-  }
-  .card-accent-warning {
-    @apply border-l-4 border-l-warning;
-  }
-  .card-accent-error {
-    @apply border-l-4 border-l-error;
-  }
-  .card-accent-info {
-    @apply border-l-4 border-l-info;
-  }
-  
-  /* Debug-style dashed border cards */
-  .card-debug {
-    @apply border-dashed border-2 border-warning/50 bg-warning/5;
   }
 }

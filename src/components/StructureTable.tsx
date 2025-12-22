@@ -87,21 +87,17 @@ export const StructureTable = ({
       });
   }, [structures, favorites, searchQuery, categoryFilter, isFavorite]);
 
-  const getRowClassName = useCallback((category: Structure['category'], isSelected: boolean, index: number) => {
+  const getRowClassName = useCallback((category: Structure['category'], isSelected: boolean) => {
     const baseClass = 'cursor-pointer transition-colors';
-    const alternatingClass = index % 2 === 0 ? 'bg-muted/20' : '';
-    
-    if (isSelected) {
-      return `${baseClass} bg-primary/15 border-l-4 border-l-primary`;
-    }
+    if (isSelected) return `${baseClass} bg-primary/10`;
     
     switch (category) {
       case 'PTV':
-        return `${baseClass} ${alternatingClass} hover:bg-ptv/10 border-l-4 border-l-ptv/50`;
+        return `${baseClass} hover:bg-red-50 dark:hover:bg-red-950/20`;
       case 'OAR':
-        return `${baseClass} ${alternatingClass} hover:bg-oar/10 border-l-4 border-l-oar/50`;
+        return `${baseClass} hover:bg-blue-50 dark:hover:bg-blue-950/20`;
       default:
-        return `${baseClass} ${alternatingClass} hover:bg-muted/30 border-l-4 border-l-other-structure/30`;
+        return `${baseClass} hover:bg-muted/30`;
     }
   }, []);
 
@@ -133,7 +129,7 @@ export const StructureTable = ({
     return (
       <div 
         style={style} 
-        className={`flex items-center border-b ${getRowClassName(structure.category, isSelected, index)}`}
+        className={`flex items-center border-b ${getRowClassName(structure.category, isSelected)}`}
         onClick={() => onStructureToggle(structure.name)}
       >
         <div className="w-12 flex justify-center" onClick={(e) => e.stopPropagation()}>
@@ -163,20 +159,20 @@ export const StructureTable = ({
             <SelectContent>
               <SelectItem value="PTV">
                 <div className="flex items-center gap-2">
-                  <Target className="w-3 h-3 text-ptv" />
-                  <span className="text-ptv font-medium">PTV</span>
+                  <Target className="w-3 h-3" />
+                  PTV
                 </div>
               </SelectItem>
               <SelectItem value="OAR">
                 <div className="flex items-center gap-2">
-                  <Shield className="w-3 h-3 text-oar" />
-                  <span className="text-oar font-medium">OAR</span>
+                  <Shield className="w-3 h-3" />
+                  OAR
                 </div>
               </SelectItem>
               <SelectItem value="OTHER">
                 <div className="flex items-center gap-2">
-                  <Circle className="w-3 h-3 text-other-structure" />
-                  <span className="text-other-structure font-medium">Autre</span>
+                  <Circle className="w-3 h-3" />
+                  Autre
                 </div>
               </SelectItem>
             </SelectContent>
@@ -332,7 +328,7 @@ export const StructureTable = ({
             // Standard table for smaller datasets
             <Table>
               <TableBody>
-                {filteredAndSortedStructures.map((structure, index) => {
+                {filteredAndSortedStructures.map((structure) => {
                   const metrics = calculateMetrics(structure);
                   if (!metrics) return null;
 
@@ -342,7 +338,7 @@ export const StructureTable = ({
                   return (
                     <TableRow 
                       key={structure.name}
-                      className={getRowClassName(structure.category, isSelected, index)}
+                      className={getRowClassName(structure.category, isSelected)}
                       onClick={() => onStructureToggle(structure.name)}
                     >
                       <TableCell onClick={(e) => e.stopPropagation()} className="w-12">
@@ -372,20 +368,20 @@ export const StructureTable = ({
                           <SelectContent>
                             <SelectItem value="PTV">
                               <div className="flex items-center gap-2">
-                                <Target className="w-3 h-3 text-ptv" />
-                                <span className="text-ptv font-medium">PTV</span>
+                                <Target className="w-3 h-3" />
+                                PTV
                               </div>
                             </SelectItem>
                             <SelectItem value="OAR">
                               <div className="flex items-center gap-2">
-                                <Shield className="w-3 h-3 text-oar" />
-                                <span className="text-oar font-medium">OAR</span>
+                                <Shield className="w-3 h-3" />
+                                OAR
                               </div>
                             </SelectItem>
                             <SelectItem value="OTHER">
                               <div className="flex items-center gap-2">
-                                <Circle className="w-3 h-3 text-other-structure" />
-                                <span className="text-other-structure font-medium">Autre</span>
+                                <Circle className="w-3 h-3" />
+                                Autre
                               </div>
                             </SelectItem>
                           </SelectContent>
