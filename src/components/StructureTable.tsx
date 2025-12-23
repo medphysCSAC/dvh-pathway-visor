@@ -88,16 +88,16 @@ export const StructureTable = ({
   }, [structures, favorites, searchQuery, categoryFilter, isFavorite]);
 
   const getRowClassName = useCallback((category: Structure['category'], isSelected: boolean) => {
-    const baseClass = 'cursor-pointer transition-colors';
-    if (isSelected) return `${baseClass} bg-primary/10`;
+    const baseClass = 'cursor-pointer transition-all duration-200';
+    if (isSelected) return `${baseClass} bg-primary/10 border-l-2 border-l-primary`;
     
     switch (category) {
       case 'PTV':
-        return `${baseClass} hover:bg-red-50 dark:hover:bg-red-950/20`;
+        return `${baseClass} row-ptv border-l-2 border-l-transparent hover:border-l-ptv`;
       case 'OAR':
-        return `${baseClass} hover:bg-blue-50 dark:hover:bg-blue-950/20`;
+        return `${baseClass} row-oar border-l-2 border-l-transparent hover:border-l-oar`;
       default:
-        return `${baseClass} hover:bg-muted/30`;
+        return `${baseClass} hover:bg-muted/30 border-l-2 border-l-transparent`;
     }
   }, []);
 
@@ -200,7 +200,7 @@ export const StructureTable = ({
   const useVirtualization = filteredAndSortedStructures.length > VIRTUALIZATION_THRESHOLD;
 
   return (
-    <Card>
+    <Card className="card-elevated">
       <CardHeader>
         <div className="flex items-center gap-2">
           <CardTitle>Structures anatomiques et métriques</CardTitle>
@@ -209,7 +209,7 @@ export const StructureTable = ({
             side="right"
           />
           {useVirtualization && (
-            <Badge variant="secondary" className="ml-2">
+            <Badge variant="secondary" className="ml-2 badge-info">
               Virtualisé ({filteredAndSortedStructures.length} structures)
             </Badge>
           )}
@@ -250,9 +250,9 @@ export const StructureTable = ({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="rounded-lg border overflow-hidden">
+        <div className="rounded-lg border overflow-hidden bg-card">
           {/* Table Header */}
-          <div className="flex items-center bg-muted/50 border-b font-medium text-sm">
+          <div className="flex items-center bg-muted/60 border-b font-medium text-sm backdrop-blur-sm">
             <div className="w-12 flex justify-center py-3">
               <Star className="h-4 w-4" />
             </div>

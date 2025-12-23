@@ -58,21 +58,21 @@ export const PlanEvaluation = ({ structures, patientId = 'UNKNOWN' }: PlanEvalua
     
     if (hiGood && ciGood) {
       return (
-        <Badge className="gap-1 bg-green-500 hover:bg-green-600">
+        <Badge className="gap-1 badge-success">
           <CheckCircle className="w-3 h-3" />
           Excellent
         </Badge>
       );
     } else if (hiGood || ciGood) {
       return (
-        <Badge className="gap-1 bg-yellow-500 hover:bg-yellow-600">
+        <Badge className="gap-1 badge-warning">
           <AlertCircle className="w-3 h-3" />
           Acceptable
         </Badge>
       );
     } else {
       return (
-        <Badge className="gap-1 bg-red-500 hover:bg-red-600">
+        <Badge className="gap-1 badge-error">
           <AlertCircle className="w-3 h-3" />
           À améliorer
         </Badge>
@@ -82,7 +82,7 @@ export const PlanEvaluation = ({ structures, patientId = 'UNKNOWN' }: PlanEvalua
 
   const getCellColor = (value: number, threshold: number, isLower: boolean = true) => {
     const acceptable = isLower ? value <= threshold : value >= threshold;
-    return acceptable ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-red-600 dark:text-red-400 font-semibold';
+    return acceptable ? 'text-metric-good' : 'text-metric-bad';
   };
 
   const handleExportCSV = () => {
@@ -110,7 +110,7 @@ export const PlanEvaluation = ({ structures, patientId = 'UNKNOWN' }: PlanEvalua
       </div>
 
       {/* Résumé du plan */}
-      <Card>
+      <Card className="card-elevated card-accent-left">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Award className="w-5 h-5 text-primary" />
@@ -118,19 +118,21 @@ export const PlanEvaluation = ({ structures, patientId = 'UNKNOWN' }: PlanEvalua
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="p-4 rounded-lg bg-muted/30">
               <p className="text-sm text-muted-foreground">PTV principal</p>
               <p className="text-lg font-semibold">{primaryPTV?.name || 'N/A'}</p>
             </div>
-            <div>
+            <div className="p-4 rounded-lg bg-primary/5 border border-primary/10">
               <p className="text-sm text-muted-foreground">Dose de prescription (D50)</p>
               <p className="text-lg font-semibold text-primary">{prescriptionDose.toFixed(2)} Gy</p>
             </div>
-            <div>
+            <div className="p-4 rounded-lg bg-muted/30">
               <p className="text-sm text-muted-foreground">Nombre de structures</p>
               <p className="text-lg font-semibold">
-                {ptvMetrics.length} PTV • {oarMetrics.length} OAR
+                <span className="text-ptv">{ptvMetrics.length} PTV</span>
+                <span className="text-muted-foreground mx-2">•</span>
+                <span className="text-oar">{oarMetrics.length} OAR</span>
               </p>
             </div>
           </div>
@@ -138,15 +140,16 @@ export const PlanEvaluation = ({ structures, patientId = 'UNKNOWN' }: PlanEvalua
       </Card>
 
       {/* Qualité des volumes cibles (PTV) */}
-      <Card>
+      <Card className="card-elevated card-ptv-left">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Target className="w-5 h-5 text-red-500" />
+            <Target className="w-5 h-5 text-ptv" />
             <CardTitle>Qualité des volumes cibles (PTV)</CardTitle>
+            <Badge className="badge-ptv ml-2">{ptvMetrics.length}</Badge>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-lg border overflow-hidden">
+          <div className="rounded-lg border overflow-hidden bg-card">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -206,7 +209,7 @@ export const PlanEvaluation = ({ structures, patientId = 'UNKNOWN' }: PlanEvalua
                 {ptvMetrics.map((metrics: PTVQualityMetrics) => (
                   <TableRow 
                     key={metrics.structureName}
-                    className="hover:bg-red-50 dark:hover:bg-red-950/20"
+                    className="row-ptv transition-all duration-200"
                   >
                     <TableCell className="font-medium">{metrics.structureName}</TableCell>
                     <TableCell className="text-right">{metrics.d95.toFixed(2)}</TableCell>
@@ -246,15 +249,16 @@ export const PlanEvaluation = ({ structures, patientId = 'UNKNOWN' }: PlanEvalua
       </Card>
 
       {/* Doses aux organes à risque (OAR) */}
-      <Card>
+      <Card className="card-elevated card-oar-left">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-blue-500" />
+            <Shield className="w-5 h-5 text-oar" />
             <CardTitle>Doses aux organes à risque (OAR)</CardTitle>
+            <Badge className="badge-oar ml-2">{oarMetrics.length}</Badge>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-lg border overflow-hidden">
+          <div className="rounded-lg border overflow-hidden bg-card">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -301,7 +305,7 @@ export const PlanEvaluation = ({ structures, patientId = 'UNKNOWN' }: PlanEvalua
                 {oarMetrics.map((metrics: OARMetrics) => (
                   <TableRow 
                     key={metrics.structureName}
-                    className="hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                    className="row-oar transition-all duration-200"
                   >
                     <TableCell className="font-medium">{metrics.structureName}</TableCell>
                     <TableCell className="text-right">{metrics.volume.toFixed(2)}</TableCell>

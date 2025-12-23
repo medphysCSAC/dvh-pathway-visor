@@ -57,6 +57,32 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Semantic status colors
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        error: {
+          DEFAULT: "hsl(var(--error))",
+          foreground: "hsl(var(--error-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
+        // Medical category colors
+        ptv: {
+          DEFAULT: "hsl(var(--ptv))",
+          foreground: "hsl(var(--ptv-foreground))",
+        },
+        oar: {
+          DEFAULT: "hsl(var(--oar))",
+          foreground: "hsl(var(--oar-foreground))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
