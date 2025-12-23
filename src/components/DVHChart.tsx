@@ -7,10 +7,14 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { findMaxDoseAcrossStructures } from '@/utils/dvhParser';
 import { Eye, Maximize2, Download, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { toast } from 'sonner';
+import { DVHStructureSelector } from './DVHStructureSelector';
 
 interface DVHChartProps {
   structures: Structure[];
   selectedStructures: string[];
+  onStructureToggle?: (structureName: string) => void;
+  onSelectAll?: () => void;
+  onDeselectAll?: () => void;
 }
 
 const getColorForStructure = (structure: Structure, index: number): string => {
@@ -54,7 +58,13 @@ const calculateDifferentialDVH = (cumulativePoints: { dose: number; volume: numb
   
   return differential;
 };
-export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
+export const DVHChart = ({ 
+  structures, 
+  selectedStructures, 
+  onStructureToggle,
+  onSelectAll,
+  onDeselectAll 
+}: DVHChartProps) => {
   const [viewMode, setViewMode] = useState<'optimal' | 'full'>('optimal');
   const [zoomLevel, setZoomLevel] = useState(1);
   const [dvhType, setDvhType] = useState<DVHType>('cumulative-relative');
@@ -160,7 +170,10 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
     return structures.filter(s => selectedStructures.includes(s.name));
   }, [structures, selectedStructures]);
 
-  if (selectedStructures.length === 0) {
+  // Show selector even when no structures selected
+  const showEmptyState = selectedStructures.length === 0 && !onStructureToggle;
+  
+  if (showEmptyState) {
     return (
       <Card>
         <CardContent className="p-12 text-center">
@@ -185,7 +198,17 @@ export const DVHChart = ({ structures, selectedStructures }: DVHChartProps) => {
             )}
           </div>
           
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
+            {/* Structure Selector - integrated directly in the chart */}
+            {onStructureToggle && onSelectAll && onDeselectAll && (
+              <DVHStructureSelector
+                structures={structures}
+                selectedStructures={selectedStructures}
+                onStructureToggle={onStructureToggle}
+                onSelectAll={onSelectAll}
+                onDeselectAll={onDeselectAll}
+              />
+            )}
             <Select value={dvhType} onValueChange={(val) => setDvhType(val as DVHType)}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue />
