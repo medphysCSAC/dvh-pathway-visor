@@ -38,69 +38,97 @@ All colors MUST be HSL.
 
     --radius: 0.75rem;
     
+    /* Semantic status colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --error: 0 84% 60%;
+    --error-foreground: 0 0% 100%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+    
+    /* Category colors for medical context */
+    --ptv: 0 72% 51%;
+    --ptv-foreground: 0 0% 100%;
+    --oar: 217 91% 60%;
+    --oar-foreground: 0 0% 100%;
+    
     --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(213 95% 68%) 100%);
     --gradient-subtle: linear-gradient(180deg, hsl(210 30% 98%) 0%, hsl(214 32% 96%) 100%);
     --shadow-soft: 0 4px 16px -2px hsl(217 91% 60% / 0.08);
     --shadow-medium: 0 8px 24px -4px hsl(217 91% 60% / 0.12);
+    --shadow-glow: 0 0 20px -5px hsl(217 91% 60% / 0.15);
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
-    --background: 222 47% 11%;
+    --background: 222 47% 8%;
     --foreground: 210 40% 98%;
 
-    --card: 217 33% 17%;
+    --card: 217 33% 12%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 217 33% 17%;
+    --popover: 217 33% 14%;
     --popover-foreground: 210 40% 98%;
 
     --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 33% 22%;
+    --secondary: 217 33% 18%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 217 33% 14%;
+    --muted-foreground: 215 20% 70%;
 
     --accent: 213 95% 68%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217 33% 22%;
-    --input: 217 33% 22%;
+    --border: 217 33% 20%;
+    --input: 217 33% 18%;
     --ring: 217 91% 60%;
     
+    /* Semantic status colors - dark mode */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+    --error: 0 72% 55%;
+    --error-foreground: 0 0% 100%;
+    --info: 199 89% 55%;
+    --info-foreground: 0 0% 100%;
+    
+    /* Category colors for medical context - dark mode */
+    --ptv: 0 72% 55%;
+    --ptv-foreground: 0 0% 100%;
+    --oar: 217 91% 65%;
+    --oar-foreground: 0 0% 100%;
+    
     --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(213 95% 68%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(222 47% 11%) 0%, hsl(217 33% 15%) 100%);
-    --shadow-soft: 0 4px 16px -2px hsl(0 0% 0% / 0.24);
-    --shadow-medium: 0 8px 24px -4px hsl(0 0% 0% / 0.32);
-    --sidebar-background: 240 5.9% 10%;
+    --gradient-subtle: linear-gradient(180deg, hsl(222 47% 8%) 0%, hsl(217 33% 12%) 100%);
+    --shadow-soft: 0 4px 16px -2px hsl(0 0% 0% / 0.4);
+    --shadow-medium: 0 8px 24px -4px hsl(0 0% 0% / 0.5);
+    --shadow-glow: 0 0 20px -5px hsl(217 91% 60% / 0.25);
+    
+    --sidebar-background: 240 5.9% 8%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent: 240 3.7% 12%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-border: 240 3.7% 18%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
@@ -111,6 +139,87 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+/* Utility classes for semantic colors and effects */
+@layer components {
+  /* Status badges - translucent style */
+  .badge-success {
+    @apply bg-success/10 text-success border border-success/20;
+  }
+  .badge-warning {
+    @apply bg-warning/10 text-warning border border-warning/20;
+  }
+  .badge-error {
+    @apply bg-error/10 text-error border border-error/20;
+  }
+  .badge-info {
+    @apply bg-info/10 text-info border border-info/20;
+  }
+  
+  /* Category badges */
+  .badge-ptv {
+    @apply bg-ptv/10 text-ptv border border-ptv/20;
+  }
+  .badge-oar {
+    @apply bg-oar/10 text-oar border border-oar/20;
+  }
+  
+  /* Cards with colored left border */
+  .card-accent-left {
+    @apply border-l-4 border-l-primary;
+  }
+  .card-success-left {
+    @apply border-l-4 border-l-success;
+  }
+  .card-warning-left {
+    @apply border-l-4 border-l-warning;
+  }
+  .card-error-left {
+    @apply border-l-4 border-l-error;
+  }
+  .card-ptv-left {
+    @apply border-l-4 border-l-ptv;
+  }
+  .card-oar-left {
+    @apply border-l-4 border-l-oar;
+  }
+  
+  /* Depth and shadow utilities */
+  .card-elevated {
+    box-shadow: var(--shadow-soft);
+  }
+  .card-elevated-md {
+    box-shadow: var(--shadow-medium);
+  }
+  .card-glow {
+    box-shadow: var(--shadow-glow);
+  }
+  
+  /* Table row hover with category colors */
+  .row-ptv {
+    @apply hover:bg-ptv/5 dark:hover:bg-ptv/10;
+  }
+  .row-oar {
+    @apply hover:bg-oar/5 dark:hover:bg-oar/10;
+  }
+  .row-success {
+    @apply hover:bg-success/5 dark:hover:bg-success/10;
+  }
+  .row-error {
+    @apply hover:bg-error/5 dark:hover:bg-error/10;
+  }
+  
+  /* Text colors for metrics */
+  .text-metric-good {
+    @apply text-success font-semibold;
+  }
+  .text-metric-warning {
+    @apply text-warning font-semibold;
+  }
+  .text-metric-bad {
+    @apply text-error font-semibold;
   }
 }
