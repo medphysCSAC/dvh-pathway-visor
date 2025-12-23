@@ -356,8 +356,14 @@ const Index = () => {
                   {/* Filter Bar */}
                   <FilterBar structures={dvhData.structures} selectedStructures={selectedStructures} onFilterChange={handleFilterChange} onSelectAll={handleSelectAll} onDeselectAll={handleDeselectAll} activeFilter={activeFilter} />
 
-                  {/* DVH Chart */}
-                  <DVHChart structures={dvhData.structures} selectedStructures={selectedStructures} />
+                  {/* DVH Chart with integrated structure selector */}
+                  <DVHChart 
+                    structures={dvhData.structures} 
+                    selectedStructures={selectedStructures}
+                    onStructureToggle={handleStructureToggle}
+                    onSelectAll={handleSelectAll}
+                    onDeselectAll={handleDeselectAll}
+                  />
 
                   {/* Calculateur unifié de métriques DVH */}
                   <UnifiedMetricsCalculator structures={dvhData.structures} selectedStructures={selectedStructures} />
