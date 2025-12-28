@@ -29,7 +29,17 @@ import {
   MousePointer,
   Eye,
   FileImage,
-  Wand2
+  Wand2,
+  Bug,
+  Scan,
+  FileCheck,
+  Search,
+  GitCompare,
+  Shield,
+  Box,
+  Upload,
+  FileSpreadsheet,
+  Camera
 } from "lucide-react";
 import { restartTour } from "./InteractiveTour";
 
@@ -68,29 +78,41 @@ const HelpGuide = () => {
       </Card>
 
       {/* Quick access cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
         <QuickAccessCard
           icon={FileUp}
           title="Import fichiers"
-          description="DVH REL & ABS, DICOM-RT"
+          description="DVH REL & ABS"
           color="info"
+        />
+        <QuickAccessCard
+          icon={Scan}
+          title="DICOM-RT"
+          description="RS, RD, RP natif"
+          color="ptv"
+        />
+        <QuickAccessCard
+          icon={Bug}
+          title="Debug Comparaison"
+          description="DVH Parser vs DICOM"
+          color="warning"
         />
         <QuickAccessCard
           icon={BarChart3}
           title="Analyse DVH"
-          description="Courbes, métriques, calculs"
-          color="ptv"
+          description="Courbes & métriques"
+          color="success"
         />
         <QuickAccessCard
-          icon={CheckCircle}
-          title="Validation"
-          description="Conformité protocole"
-          color="success"
+          icon={Wand2}
+          title="Conversion IA"
+          description="PDF, Word, Images"
+          color="info"
         />
         <QuickAccessCard
           icon={AlertTriangle}
           title="Alertes"
-          description="Surveillance doses critiques"
+          description="Surveillance OAR"
           color="warning"
         />
       </div>
@@ -136,28 +158,46 @@ const HelpGuide = () => {
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
                     <div className="space-y-4 text-muted-foreground ml-12">
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div className="space-y-3">
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div className="space-y-3 p-4 bg-card border rounded-lg">
                           <p className="font-medium text-foreground flex items-center gap-2">
                             <FileText className="w-4 h-4 text-info" />
-                            Fichiers DVH TomoTherapy
+                            DVH TomoTherapy
                           </p>
                           <ol className="list-decimal list-inside space-y-2 text-sm">
                             <li>Onglet <strong>"Charger un plan"</strong></li>
-                            <li>Sélectionnez le fichier <Badge variant="outline" className="mx-1">DVH REL</Badge> (obligatoire)</li>
-                            <li>Ajoutez le fichier <Badge variant="outline" className="mx-1">DVH ABS</Badge> (recommandé)</li>
+                            <li>Fichier <Badge variant="outline" className="mx-1">DVH REL</Badge> (obligatoire)</li>
+                            <li>Fichier <Badge variant="outline" className="mx-1">DVH ABS</Badge> (recommandé)</li>
                             <li>Cliquez sur <strong>"Analyser"</strong></li>
                           </ol>
                         </div>
-                        <div className="space-y-3">
+                        <div className="space-y-3 p-4 bg-card border rounded-lg">
                           <p className="font-medium text-foreground flex items-center gap-2">
-                            <Layers className="w-4 h-4 text-ptv" />
-                            Fichiers DICOM-RT
+                            <Scan className="w-4 h-4 text-ptv" />
+                            DICOM-RT natif
                           </p>
                           <ol className="list-decimal list-inside space-y-2 text-sm">
-                            <li>Onglet <strong>"Import DICOM-RT"</strong></li>
-                            <li>Glissez vos fichiers DICOM (RT-DOSE, RT-STRUCT, RT-PLAN)</li>
-                            <li>L'extraction DVH est automatique</li>
+                            <li>Onglet <strong>"DICOM RT"</strong></li>
+                            <li>Glisser-déposer fichiers DICOM</li>
+                            <li>Détection auto: <Badge variant="outline">RS</Badge> <Badge variant="outline">RD</Badge> <Badge variant="outline">RP</Badge></li>
+                            <li>Extraction DVH automatique</li>
+                          </ol>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            <Badge className="badge-ptv text-xs">RT-STRUCT</Badge>
+                            <Badge className="badge-oar text-xs">RT-DOSE</Badge>
+                            <Badge className="badge-info text-xs">RT-PLAN</Badge>
+                          </div>
+                        </div>
+                        <div className="space-y-3 p-4 bg-card border rounded-lg">
+                          <p className="font-medium text-foreground flex items-center gap-2">
+                            <Layers className="w-4 h-4 text-success" />
+                            Multi-plans
+                          </p>
+                          <ol className="list-decimal list-inside space-y-2 text-sm">
+                            <li>Onglet <strong>"Comparer/Sommer"</strong></li>
+                            <li>Mode Sommation ou Comparaison</li>
+                            <li>Chargement multi-fichiers</li>
+                            <li>Fusion automatique des DVH</li>
                           </ol>
                         </div>
                       </div>
@@ -168,9 +208,10 @@ const HelpGuide = () => {
                           Points importants
                         </p>
                         <ul className="list-disc list-inside space-y-1 text-sm">
-                          <li>Le fichier DVH REL est indispensable pour l'analyse</li>
+                          <li>Le fichier DVH REL est indispensable pour l'analyse TomoTherapy</li>
                           <li>Le fichier DVH ABS permet les métriques en cm³</li>
-                          <li>L'ID patient est extrait automatiquement du fichier</li>
+                          <li>DICOM-RT requiert RT-DOSE avec DVH intégré pour les courbes</li>
+                          <li>L'ID patient est extrait automatiquement</li>
                         </ul>
                       </div>
                     </div>
@@ -192,15 +233,16 @@ const HelpGuide = () => {
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
                     <div className="space-y-4 text-muted-foreground ml-12">
-                      <div className="grid md:grid-cols-3 gap-4">
+                      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <FeatureBlock
-                          icon={Filter}
-                          title="Sélection structures"
+                          icon={Search}
+                          title="Sélecteur intelligent"
                           items={[
-                            "Sélecteur intégré au graphique",
-                            "Filtrage par catégorie (PTV/OAR)",
-                            "Recherche par nom",
-                            "Sélection/désélection groupée"
+                            "Popover intégré au graphique",
+                            "Recherche temps réel",
+                            "Catégorisation PTV/OAR/Autre",
+                            "Sélection groupée par catégorie",
+                            "Compteurs visuels"
                           ]}
                         />
                         <FeatureBlock
@@ -210,17 +252,28 @@ const HelpGuide = () => {
                             "Axe X : Dose (Gy)",
                             "Axe Y : Volume (%)",
                             "Survol : valeurs exactes",
-                            "Couleurs uniques par structure"
+                            "Couleurs uniques par structure",
+                            "Légende interactive"
                           ]}
                         />
                         <FeatureBlock
                           icon={Calculator}
-                          title="Calculateur"
+                          title="Calculateur unifié"
                           items={[
-                            "D(volume) : D95%, D2%...",
+                            "D(volume) : D95%, D2%, D50%...",
                             "V(dose) : V20Gy, V45Gy...",
-                            "Résultats multi-structures",
-                            "Valeurs relatives et absolues"
+                            "Multi-structures simultanées",
+                            "Valeurs % et cm³"
+                          ]}
+                        />
+                        <FeatureBlock
+                          icon={Filter}
+                          title="Barre de filtres"
+                          items={[
+                            "Filtrage par catégorie",
+                            "Sélection/désélection rapide",
+                            "Affichage structures actives",
+                            "Synthèse visuelle"
                           ]}
                         />
                       </div>
@@ -307,7 +360,7 @@ const HelpGuide = () => {
                   </AccordionTrigger>
                   <AccordionContent className="pb-4">
                     <div className="space-y-4 text-muted-foreground ml-12">
-                      <div className="grid md:grid-cols-2 gap-4">
+                      <div className="grid md:grid-cols-3 gap-4">
                         <FeatureBlock
                           icon={Settings}
                           title="Gestion manuelle"
@@ -315,21 +368,43 @@ const HelpGuide = () => {
                             "Créer un nouveau protocole",
                             "Importer un fichier JSON",
                             "Modifier/dupliquer existant",
-                            "Marquer en favoris",
+                            "Marquer en favoris ★",
                             "Masquer protocoles inutilisés"
                           ]}
                         />
                         <FeatureBlock
-                          icon={Wand2}
-                          title="Conversion IA"
+                          icon={FileSpreadsheet}
+                          title="Extraction depuis document"
                           items={[
-                            "Coller texte Word/PDF",
-                            "Upload image de protocole",
-                            "Extraction automatique contraintes",
-                            "Vérification et ajustement",
-                            "Sauvegarde instantanée"
+                            "PDF, Word, Excel supportés",
+                            "Coller texte directement",
+                            "Analyse IA (Gemini 2.5)",
+                            "Détection auto contraintes",
+                            "Édition avant validation"
                           ]}
                         />
+                        <FeatureBlock
+                          icon={Camera}
+                          title="Extraction depuis image"
+                          items={[
+                            "Photo de tableau protocole",
+                            "OCR intelligent intégré",
+                            "Structures auto-détectées",
+                            "Contraintes extraites",
+                            "Vérification manuelle"
+                          ]}
+                        />
+                      </div>
+                      
+                      <div className="bg-info/10 border border-info/20 p-4 rounded-lg">
+                        <p className="font-medium text-foreground mb-2 flex items-center gap-2">
+                          <Wand2 className="w-4 h-4 text-info" />
+                          Convertisseur IA (onglet dédié)
+                        </p>
+                        <p className="text-sm">
+                          Utilisez l'onglet <strong>"Convertisseur"</strong> pour accéder aux outils d'extraction IA. 
+                          Supports : PDF, Word (.docx), Excel (.xlsx), images (JPG, PNG), texte copié.
+                        </p>
                       </div>
                     </div>
                   </AccordionContent>
@@ -376,7 +451,65 @@ const HelpGuide = () => {
                   </AccordionContent>
                 </AccordionItem>
 
-                {/* Section 6: Historique */}
+                {/* Section 6: Debug Comparaison */}
+                <AccordionItem value="debug" className="border rounded-lg px-4 bg-card/50">
+                  <AccordionTrigger className="text-left hover:no-underline py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-warning/10">
+                        <Bug className="w-5 h-5 text-warning" />
+                      </div>
+                      <div>
+                        <span className="font-semibold block">6. Debug Comparaison DVH</span>
+                        <span className="text-sm text-muted-foreground">Validation parseurs, diagnostic</span>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <div className="space-y-4 text-muted-foreground ml-12">
+                      <p>Outil avancé pour comparer les données extraites par différents parseurs :</p>
+                      
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="space-y-3 p-4 bg-card border rounded-lg">
+                          <p className="font-medium text-foreground flex items-center gap-2">
+                            <GitCompare className="w-4 h-4 text-warning" />
+                            Comparaison sources
+                          </p>
+                          <ul className="list-disc list-inside space-y-1 text-sm">
+                            <li>DVH Parser (TomoTherapy) vs DICOM-RT</li>
+                            <li>Charger les deux sources côte à côte</li>
+                            <li>Détection auto structures communes</li>
+                          </ul>
+                        </div>
+                        
+                        <div className="space-y-3 p-4 bg-card border rounded-lg">
+                          <p className="font-medium text-foreground flex items-center gap-2">
+                            <Search className="w-4 h-4 text-info" />
+                            Analyse métriques
+                          </p>
+                          <ul className="list-disc list-inside space-y-1 text-sm">
+                            <li>Comparaison Dmax, Dmean, Dmin</li>
+                            <li>Vérification Vx et Dx</li>
+                            <li>Différences en % affichées</li>
+                            <li>Export données brutes</li>
+                          </ul>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-warning/10 border border-warning/20 p-4 rounded-lg">
+                        <p className="font-medium text-foreground mb-2 flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-warning" />
+                          Usage recommandé
+                        </p>
+                        <p className="text-sm">
+                          Cet outil est destiné au développement et à la validation. 
+                          Utilisez-le pour vérifier la cohérence des données entre différentes sources DICOM.
+                        </p>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Section 7: Historique */}
                 <AccordionItem value="history" className="border rounded-lg px-4 bg-card/50">
                   <AccordionTrigger className="text-left hover:no-underline py-4">
                     <div className="flex items-center gap-3">
@@ -384,7 +517,7 @@ const HelpGuide = () => {
                         <History className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <span className="font-semibold block">6. Historique des analyses</span>
+                        <span className="font-semibold block">7. Historique des analyses</span>
                         <span className="text-sm text-muted-foreground">Suivi, recherche, export</span>
                       </div>
                     </div>
@@ -402,7 +535,7 @@ const HelpGuide = () => {
                       <div className="bg-muted/50 p-4 rounded-lg border mt-4">
                         <p className="font-medium text-foreground mb-2 flex items-center gap-2">
                           <Zap className="w-4 h-4 text-primary" />
-                          Stockage local
+                          Stockage local sécurisé
                         </p>
                         <p className="text-sm">Les données sont sauvegardées dans IndexedDB (navigateur). Elles restent privées et ne sont pas envoyées vers un serveur.</p>
                       </div>
@@ -458,66 +591,102 @@ const HelpGuide = () => {
                   badge="IA"
                 />
                 <FeatureCard
+                  icon={Scan}
+                  title="Import DICOM-RT"
+                  description="Support natif RT-STRUCT, RT-DOSE, RT-PLAN avec extraction DVH automatique"
+                  badge="Core"
+                />
+                <FeatureCard
+                  icon={Search}
+                  title="Sélecteur structures"
+                  description="Popover intelligent avec recherche, catégorisation et sélection groupée"
+                  badge="UX"
+                />
+                <FeatureCard
                   icon={Download}
                   title="Export PDF"
-                  description="Rapports professionnels avec aperçu intégré"
+                  description="Rapports professionnels avec aperçu intégré et personnalisation"
                   badge="Export"
                 />
                 <FeatureCard
                   icon={History}
                   title="Historique"
-                  description="Suivi complet avec recherche et filtres avancés"
+                  description="Suivi complet avec recherche et filtres avancés (IndexedDB)"
                   badge="Données"
                 />
                 <FeatureCard
                   icon={Layers}
                   title="Sommation plans"
-                  description="Combinaison de multiples plans de traitement"
+                  description="Combinaison et comparaison de multiples plans de traitement"
                   badge="Avancé"
                 />
                 <FeatureCard
-                  icon={Settings}
-                  title="Protocoles personnalisés"
-                  description="Création, import, favoris, masquage"
-                  badge="Config"
+                  icon={Bug}
+                  title="Debug Comparaison"
+                  description="Outil de validation DVH Parser vs DICOM-RT avec métriques détaillées"
+                  badge="Dev"
                 />
                 <FeatureCard
-                  icon={MousePointer}
-                  title="Tour interactif"
-                  description="Guide de découverte pour nouveaux utilisateurs"
-                  badge="Aide"
+                  icon={FileSpreadsheet}
+                  title="Extraction documents"
+                  description="IA pour extraire protocoles depuis PDF, Word, Excel"
+                  badge="IA"
+                />
+                <FeatureCard
+                  icon={Camera}
+                  title="Extraction images"
+                  description="OCR intelligent pour convertir photos de tableaux en protocoles"
+                  badge="IA"
                 />
               </div>
             </TabsContent>
 
             {/* Tab: Astuces */}
             <TabsContent value="tips" className="mt-0">
-              <div className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
                 <TipCard
                   icon={Keyboard}
                   title="Raccourcis pratiques"
                   tips={[
-                    "Glisser-déposer plusieurs fichiers à la fois",
-                    "Cliquer sur une structure dans le tableau pour la sélectionner/désélectionner",
-                    "Double-cliquer sur une catégorie pour tout sélectionner"
+                    "Glisser-déposer plusieurs fichiers DICOM à la fois",
+                    "Cliquer sur une structure dans le tableau pour toggle",
+                    "Double-cliquer sur une catégorie = sélection groupée"
                   ]}
                 />
                 <TipCard
-                  icon={Filter}
-                  title="Sélection efficace"
+                  icon={Search}
+                  title="Sélecteur intelligent"
                   tips={[
-                    "Utilisez le sélecteur intégré au graphique DVH pour un accès rapide",
-                    "Filtrez par catégorie (PTV/OAR/Autre) pour simplifier la vue",
-                    "La recherche par nom fonctionne en temps réel"
+                    "Ouvrez le popover depuis le graphique DVH",
+                    "Tapez pour rechercher une structure",
+                    "Utilisez les boutons de catégorie pour grouper"
+                  ]}
+                />
+                <TipCard
+                  icon={Scan}
+                  title="Import DICOM-RT"
+                  tips={[
+                    "Glissez tous vos fichiers DICOM ensemble",
+                    "L'ordre des fichiers n'importe pas",
+                    "Le type IOD est détecté automatiquement (RS, RD, RP)"
                   ]}
                 />
                 <TipCard
                   icon={FileImage}
-                  title="Conversion protocole"
+                  title="Conversion IA"
                   tips={[
                     "Photographiez un tableau de contraintes pour l'importer",
-                    "Copiez-collez le texte d'un document Word ou PDF",
+                    "Formats supportés : PDF, Word, Excel, images",
                     "Vérifiez toujours les valeurs extraites avant validation"
+                  ]}
+                />
+                <TipCard
+                  icon={Bug}
+                  title="Debug Comparaison"
+                  tips={[
+                    "Chargez DVH TomoTherapy ET DICOM-RT pour comparer",
+                    "Les différences > 5% sont signalées en rouge",
+                    "Export données brutes pour analyse externe"
                   ]}
                 />
                 <TipCard
@@ -526,16 +695,25 @@ const HelpGuide = () => {
                   tips={[
                     "Prévisualisez le rapport avant de générer le PDF",
                     "Le rapport compact est idéal pour l'impression",
-                    "Ajoutez le nom du médecin et des observations personnalisées"
+                    "Ajoutez le nom du médecin et des observations"
+                  ]}
+                />
+                <TipCard
+                  icon={Shield}
+                  title="Alertes critiques"
+                  tips={[
+                    "Les alertes apparaissent automatiquement au chargement",
+                    "Fermez individuellement les alertes vérifiées",
+                    "Le bouton 'Tout fermer' réinitialise l'affichage"
                   ]}
                 />
                 <TipCard
                   icon={Lightbulb}
                   title="Bonnes pratiques"
                   tips={[
-                    "Chargez toujours le fichier ABS pour les métriques volumiques",
-                    "Marquez vos protocoles fréquents en favoris",
-                    "Utilisez l'historique pour comparer des plans similaires"
+                    "Chargez toujours le fichier ABS pour métriques en cm³",
+                    "Marquez vos protocoles fréquents en favoris ★",
+                    "Utilisez l'historique pour traçabilité"
                   ]}
                 />
               </div>
@@ -546,35 +724,43 @@ const HelpGuide = () => {
               <Accordion type="single" collapsible className="w-full space-y-2">
                 <FAQItem
                   question="Quels formats de fichiers sont supportés ?"
-                  answer="DVH Analyzer supporte les fichiers DVH TomoTherapy (formats REL et ABS) ainsi que les fichiers DICOM-RT (RT-DOSE, RT-STRUCT, RT-PLAN). L'extraction DVH depuis DICOM-RT est automatique."
+                  answer="DVH Analyzer supporte les fichiers DVH TomoTherapy (REL/ABS), les fichiers DICOM-RT (RT-STRUCT, RT-DOSE, RT-PLAN), et peut extraire des protocoles depuis PDF, Word, Excel et images."
+                />
+                <FAQItem
+                  question="Comment fonctionne l'import DICOM-RT ?"
+                  answer="Glissez vos fichiers DICOM dans l'onglet 'DICOM RT'. Le type IOD (RS, RD, RP) est détecté automatiquement. Si RT-DOSE contient des DVH embarqués, ils sont extraits automatiquement avec conversion des unités."
                 />
                 <FAQItem
                   question="Le fichier DVH ABS est-il obligatoire ?"
-                  answer="Non, seul le fichier DVH REL est obligatoire. Cependant, le fichier ABS est fortement recommandé car il permet le calcul des métriques en valeurs absolues (cm³) essentielles pour certaines contraintes."
+                  answer="Non, seul le fichier DVH REL est obligatoire. Cependant, le fichier ABS est fortement recommandé car il permet le calcul des métriques en valeurs absolues (cm³)."
+                />
+                <FAQItem
+                  question="À quoi sert l'outil Debug Comparaison ?"
+                  answer="C'est un outil de validation pour comparer les données extraites par le DVH Parser TomoTherapy avec celles du parseur DICOM-RT. Il affiche les différences de métriques (Dmax, Dmean, Vx, Dx) pour identifier les écarts."
+                />
+                <FAQItem
+                  question="Comment utiliser le sélecteur de structures intelligent ?"
+                  answer="Cliquez sur le bouton 'Sélectionner structures' dans le graphique DVH. Un popover s'ouvre avec recherche, catégorisation (PTV/OAR/Autre), et sélection groupée par catégorie."
+                />
+                <FAQItem
+                  question="Comment convertir un document en protocole ?"
+                  answer="Utilisez l'onglet 'Convertisseur'. Vous pouvez coller du texte, uploader un fichier (PDF, Word, Excel) ou une image de tableau. L'IA (Gemini 2.5) extrait automatiquement les contraintes."
                 />
                 <FAQItem
                   question="Mes données sont-elles sécurisées ?"
-                  answer="Oui, toutes les données sont stockées localement dans votre navigateur (IndexedDB). Aucune donnée patient n'est envoyée vers un serveur externe. Les fichiers sont traités entièrement côté client."
-                />
-                <FAQItem
-                  question="Comment créer un protocole personnalisé ?"
-                  answer="Allez dans l'onglet 'Gestion Protocoles', cliquez sur 'Créer un protocole', définissez les prescriptions et contraintes, puis sauvegardez. Vous pouvez aussi utiliser le convertisseur IA pour extraire automatiquement les contraintes d'un document."
+                  answer="Oui, toutes les données sont stockées localement dans votre navigateur (IndexedDB). Les fichiers sont traités côté client. Seule la conversion IA envoie les données au serveur Lovable Cloud."
                 />
                 <FAQItem
                   question="Comment interpréter les indices de qualité ?"
-                  answer="CI (Conformité Index) proche de 1 = bonne couverture. HI (Homogeneity Index) proche de 0 = dose homogène. GI (Gradient Index) bas = bon gradient de dose. Le score global pondère ces indices."
+                  answer="CI (Conformité Index) proche de 1 = bonne couverture. HI (Homogeneity Index) proche de 0 = dose homogène. GI (Gradient Index) bas = bon gradient de dose."
                 />
                 <FAQItem
                   question="Que signifient les alertes de dose ?"
-                  answer="Les alertes rouges (critiques) indiquent un dépassement des tolérances maximales. Les alertes oranges (avertissements) signalent une approche des seuils recommandés (QUANTEC, RTOG). Chaque alerte peut être fermée individuellement."
+                  answer="Les alertes rouges (critiques) indiquent un dépassement des tolérances maximales. Les alertes oranges signalent une approche des seuils QUANTEC/RTOG. Chaque alerte peut être fermée individuellement."
                 />
                 <FAQItem
-                  question="Comment comparer deux plans ?"
-                  answer="Validez le premier plan et exportez le rapport (sauvegardé automatiquement dans l'historique). Chargez ensuite le second plan et validez avec le même protocole. Utilisez l'historique pour comparer les résultats."
-                />
-                <FAQItem
-                  question="Puis-je exporter les rapports ?"
-                  answer="Oui, les rapports de validation et d'évaluation peuvent être exportés en PDF. Utilisez le bouton 'Aperçu' pour visualiser avant export. Vous pouvez ajouter le nom du médecin et des observations."
+                  question="Comment comparer deux plans de traitement ?"
+                  answer="Utilisez l'onglet 'Comparer/Sommer plans'. Vous pouvez charger plusieurs fichiers et choisir entre mode Sommation (fusion des doses) ou Comparaison (côte à côte)."
                 />
               </Accordion>
             </TabsContent>
@@ -600,7 +786,7 @@ const HelpGuide = () => {
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <Badge variant="outline" className="gap-1">
                 <Zap className="w-3 h-3" />
-                v2.0.0
+                v2.1.0
               </Badge>
               <span>Mise à jour : Décembre 2025</span>
             </div>
