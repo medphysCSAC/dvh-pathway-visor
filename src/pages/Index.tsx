@@ -20,6 +20,7 @@ import { CriticalDoseAlerts } from '@/components/CriticalDoseAlerts';
 import { DicomRTUpload } from '@/components/DicomRTUpload';
 import DVHComparisonDebug from '@/components/DVHComparisonDebug';
 import DVHSourceComparison from '@/components/DVHSourceComparison';
+import { PlanSummationManager } from '@/components/PlanSummationManager';
 import { DVHData, StructureCategory, PlanData, Structure } from '@/types/dvh';
 import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
@@ -186,6 +187,15 @@ const Index = () => {
     }
   };
 
+  const handleDicomSummationComplete = (data: DVHData) => {
+    setDvhData(data);
+    setSelectedStructures([]);
+    setDicomRTStructures(data.structures);
+    toast.success('Sommation DICOM appliquée', {
+      description: `${data.structures.length} structures sommées chargées dans l'analyse.`,
+    });
+  };
+
   return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       <InteractiveTour />
       
@@ -257,6 +267,10 @@ const Index = () => {
                 
                 <TabsContent value="multi" className="mt-6">
                   <MultiFileUpload onPlansLoaded={handlePlansLoaded} />
+                </TabsContent>
+
+                <TabsContent value="dicom-sum" className="mt-6">
+                  <PlanSummationManager onSummationComplete={handleDicomSummationComplete} />
                 </TabsContent>
                 
                 <TabsContent value="converter" className="mt-6">
