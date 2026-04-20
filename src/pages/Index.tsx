@@ -199,9 +199,9 @@ const Index = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  DVH Analyzer
+                  DVH Analyzer & Tomo-Plan validation tool
                 </h1>
-                <p className="text-sm text-muted-foreground">Analyse des courbes Dose-Volume-Histogrames pour tomotherapy</p>
+                <p className="text-sm text-muted-foreground">Analyse des courbes Dose-Volume-Histogrames et validation des plans pour tomotherapy</p>
               </div>
             </div>
             <div data-tour="theme-toggle">
