@@ -259,6 +259,10 @@ const Index = () => {
                 <TabsContent value="multi" className="mt-6">
                   <MultiFileUpload onPlansLoaded={handlePlansLoaded} />
                 </TabsContent>
+
+                <TabsContent value="dicom-sum" className="mt-6">
+                  <PlanSummationManager onSummationComplete={handleDicomSummationComplete} />
+                </TabsContent>
                 
                 <TabsContent value="converter" className="mt-6">
                   <ProtocolDocumentConverter />
