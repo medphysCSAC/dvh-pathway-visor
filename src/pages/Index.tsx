@@ -20,6 +20,7 @@ import { CriticalDoseAlerts } from '@/components/CriticalDoseAlerts';
 import { DicomRTUpload } from '@/components/DicomRTUpload';
 import DVHComparisonDebug from '@/components/DVHComparisonDebug';
 import DVHSourceComparison from '@/components/DVHSourceComparison';
+import { PlanSummationManager } from '@/components/PlanSummationManager';
 import { DVHData, StructureCategory, PlanData, Structure } from '@/types/dvh';
 import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
