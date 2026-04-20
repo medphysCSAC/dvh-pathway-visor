@@ -187,6 +187,15 @@ const Index = () => {
     }
   };
 
+  const handleDicomSummationComplete = (data: DVHData) => {
+    setDvhData(data);
+    setSelectedStructures([]);
+    setDicomRTStructures(data.structures);
+    toast.success('Sommation DICOM appliquée', {
+      description: `${data.structures.length} structures sommées chargées dans l'analyse.`,
+    });
+  };
+
   return <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       <InteractiveTour />
       
