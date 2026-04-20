@@ -411,7 +411,7 @@ const FileSlot = ({
           {slot.patientId && <Badge variant="outline">Patient {slot.patientId}</Badge>}
           {slot.structures && <Badge variant="outline">{slot.structures.length} DVH</Badge>}
           {!slot.structures && !slot.loading && (
-            <Badge variant="outline" className="text-amber-600">sans DVH pré-calculés</Badge>
+            <Badge variant="outline" className="text-warning">sans DVH pré-calculés</Badge>
           )}
         </div>
       </div>
