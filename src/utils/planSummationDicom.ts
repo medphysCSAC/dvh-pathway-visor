@@ -161,29 +161,43 @@ export function describeGeometryMismatch(g1: DoseGridGeometry, g2: DoseGridGeome
 // ────────────────────────────────────────────────────────────────
 
 export function sumDoseGrids(buffer1: ArrayBuffer, buffer2: ArrayBuffer): SummedDoseGrid {
-  const p1 = parseDoseFile(buffer1);
-  const p2 = parseDoseFile(buffer2);
+  return sumDoseGridsN([buffer1, buffer2]);
+}
 
-  if (!geometriesMatch(p1.geometry, p2.geometry)) {
-    throw new Error(
-      `Grilles incompatibles : ${describeGeometryMismatch(p1.geometry, p2.geometry)}. ` +
-        `Recalculer les plans sur la même grille dans le TPS, ou utiliser la méthode "DVH direct".`,
-    );
+/**
+ * Somme N grilles de dose (≥ 2). La 1ʳᵉ grille sert de référence
+ * géométrique ; toutes les autres doivent matcher.
+ */
+export function sumDoseGridsN(buffers: ArrayBuffer[]): SummedDoseGrid {
+  if (!buffers || buffers.length < 2) {
+    throw new Error('Sommation grille : au moins 2 fichiers RTDOSE requis.');
   }
 
-  // Conversion d'unités vers Gy si nécessaire (cGy → Gy = ×0.01)
-  const u1Factor = p1.doseUnits === 'CGY' ? 0.01 : 1;
-  const u2Factor = p2.doseUnits === 'CGY' ? 0.01 : 1;
+  const parsed = buffers.map((b) => parseDoseFile(b));
+  const ref = parsed[0];
 
-  const len = p1.rawData.length;
+  for (let i = 1; i < parsed.length; i++) {
+    if (!geometriesMatch(ref.geometry, parsed[i].geometry)) {
+      throw new Error(
+        `Plan ${i + 1} incompatible : ${describeGeometryMismatch(ref.geometry, parsed[i].geometry)}. ` +
+          `Recalculer les plans sur la même grille dans le TPS, ou utiliser la méthode "DVH direct".`,
+      );
+    }
+  }
+
+  const len = ref.rawData.length;
   const summed = new Float32Array(len);
-  for (let i = 0; i < len; i++) {
-    summed[i] = p1.rawData[i] * p1.doseScaling * u1Factor + p2.rawData[i] * p2.doseScaling * u2Factor;
+  for (const p of parsed) {
+    const factor = p.doseUnits === 'CGY' ? 0.01 : 1;
+    const scale = p.doseScaling * factor;
+    for (let i = 0; i < len; i++) {
+      summed[i] += p.rawData[i] * scale;
+    }
   }
 
   return {
     data: summed,
-    geometry: p1.geometry,
+    geometry: ref.geometry,
     doseUnits: 'GY',
   };
 }
