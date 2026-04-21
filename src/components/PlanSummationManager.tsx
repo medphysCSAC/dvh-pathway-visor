@@ -1,5 +1,15 @@
-import { useState, useCallback } from 'react';
-import { Upload, FileText, X, CheckCircle2, AlertTriangle, Layers, Calculator } from 'lucide-react';
+import { useState, useCallback, useRef } from 'react';
+import {
+  Upload,
+  FileText,
+  X,
+  CheckCircle2,
+  AlertTriangle,
+  Layers,
+  Calculator,
+  Plus,
+  FileStack,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,22 +25,29 @@ import {
   type SummationMethod,
   type SummedPlanResult,
 } from '@/utils/planSummationDicom';
-import type { DicomRTStructure } from '@/types/dicomRT';
+import type { DicomRTStructure, DicomRTData } from '@/types/dicomRT';
 import type { DVHData, Structure } from '@/types/dvh';
 
+const MAX_PLANS = 4;
+const MIN_PLANS = 2;
+
 interface PlanSlot {
+  id: string;
   file: File | null;
   buffer: ArrayBuffer | null;
   structures: Structure[] | null;
   patientId: string | null;
   loading: boolean;
+  /** Méta optionnelles depuis un RTPLAN associé */
+  rtPlanInfo?: { fractions?: number; dosePerFraction?: number; planLabel?: string };
 }
 
 interface PlanSummationManagerProps {
   onSummationComplete: (data: DVHData, result: SummedPlanResult) => void;
 }
 
-const emptySlot = (): PlanSlot => ({
+const newSlot = (): PlanSlot => ({
+  id: crypto.randomUUID(),
   file: null,
   buffer: null,
   structures: null,
@@ -38,27 +55,62 @@ const emptySlot = (): PlanSlot => ({
   loading: false,
 });
 
+/** Détecte la modalité d'un fichier DICOM rapidement via parseDicomFile. */
+async function detectAndParse(file: File): Promise<{ data: DicomRTData; buffer: ArrayBuffer }> {
+  const buffer = await file.arrayBuffer();
+  const data = await parseDicomFile(file);
+  return { data, buffer };
+}
+
 export const PlanSummationManager = ({ onSummationComplete }: PlanSummationManagerProps) => {
   const { toast } = useToast();
-  const [plan1, setPlan1] = useState<PlanSlot>(emptySlot());
-  const [plan2, setPlan2] = useState<PlanSlot>(emptySlot());
+  const [plans, setPlans] = useState<PlanSlot[]>([newSlot(), newSlot()]);
   const [rtStructFile, setRtStructFile] = useState<File | null>(null);
   const [rtStructures, setRtStructures] = useState<DicomRTStructure[] | null>(null);
   const [method, setMethod] = useState<SummationMethod>('dose_grid');
   const [computing, setComputing] = useState(false);
   const [lastResult, setLastResult] = useState<SummedPlanResult | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dropRef = useRef<HTMLDivElement>(null);
 
-  const loadDoseFile = useCallback(
-    async (file: File, slot: 'plan1' | 'plan2') => {
-      const setter = slot === 'plan1' ? setPlan1 : setPlan2;
-      setter((p) => ({ ...p, file, loading: true }));
+  // ─────────── Mutations slots ───────────
+
+  const updateSlot = (id: string, patch: Partial<PlanSlot>) => {
+    setPlans((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  };
+
+  const removeSlot = (id: string) => {
+    setPlans((prev) => {
+      const next = prev.filter((s) => s.id !== id);
+      // Garantir au moins MIN_PLANS slots affichés
+      while (next.length < MIN_PLANS) next.push(newSlot());
+      return next;
+    });
+  };
+
+  const addSlot = () => {
+    setPlans((prev) => (prev.length >= MAX_PLANS ? prev : [...prev, newSlot()]));
+  };
+
+  /** Trouve le 1er slot vide, sinon en crée un (si limite non atteinte). */
+  const findOrCreateEmptySlot = (currentPlans: PlanSlot[]): { slots: PlanSlot[]; targetId: string | null } => {
+    const empty = currentPlans.find((s) => !s.file);
+    if (empty) return { slots: currentPlans, targetId: empty.id };
+    if (currentPlans.length >= MAX_PLANS) return { slots: currentPlans, targetId: null };
+    const fresh = newSlot();
+    return { slots: [...currentPlans, fresh], targetId: fresh.id };
+  };
+
+  // ─────────── Chargement RTDOSE dans un slot précis ───────────
+
+  const loadDoseIntoSlot = useCallback(
+    async (file: File, slotId: string, parsed?: { data: DicomRTData; buffer: ArrayBuffer }) => {
+      updateSlot(slotId, { file, loading: true });
       try {
-        const buffer = await file.arrayBuffer();
-        const data = await parseDicomFile(file);
+        const { data, buffer } = parsed ?? (await detectAndParse(file));
 
         let structures: Structure[] | null = null;
         if (data.dose?.dvhs && data.dose.dvhs.length > 0) {
-          // Pour DVH direct on a besoin du RTSTRUCT pour les noms ; sinon noms ROI génériques
           const dummyStructs: DicomRTStructure[] = data.dose.dvhs.map((dvh) => ({
             roiNumber: dvh.referencedROINumber ?? -1,
             name: `ROI_${dvh.referencedROINumber ?? '?'}`,
@@ -67,10 +119,7 @@ export const PlanSummationManager = ({ onSummationComplete }: PlanSummationManag
             color: null,
             contours: [],
           }));
-          const converted = convertDicomDVHToAppFormat(
-            rtStructures ?? dummyStructs,
-            data.dose.dvhs,
-          );
+          const converted = convertDicomDVHToAppFormat(rtStructures ?? dummyStructs, data.dose.dvhs);
           structures = converted.map((dvh) => ({
             name: dvh.name,
             type: 'STANDARD',
@@ -80,21 +129,16 @@ export const PlanSummationManager = ({ onSummationComplete }: PlanSummationManag
           }));
         }
 
-        setter({
+        updateSlot(slotId, {
           file,
           buffer,
           structures,
           patientId: data.patientId || null,
           loading: false,
         });
-
-        toast({
-          title: `Plan ${slot === 'plan1' ? '1' : '2'} chargé`,
-          description: `${file.name}${structures ? ` — ${structures.length} DVH` : ' — sans DVH pré-calculés'}`,
-        });
       } catch (err) {
         console.error('[PlanSummation] erreur chargement RTDOSE:', err);
-        setter(emptySlot());
+        updateSlot(slotId, { ...newSlot(), id: slotId });
         toast({
           title: 'Erreur de lecture RTDOSE',
           description: (err as Error).message,
@@ -105,10 +149,12 @@ export const PlanSummationManager = ({ onSummationComplete }: PlanSummationManag
     [rtStructures, toast],
   );
 
+  // ─────────── Chargement RTSTRUCT ───────────
+
   const loadStructFile = useCallback(
-    async (file: File) => {
+    async (file: File, parsedData?: DicomRTData) => {
       try {
-        const data = await parseDicomFile(file);
+        const data = parsedData ?? (await parseDicomFile(file));
         if (!data.structures || data.structures.length === 0) {
           throw new Error('Aucune structure trouvée dans ce fichier (pas un RTSTRUCT ?).');
         }
@@ -129,19 +175,144 @@ export const PlanSummationManager = ({ onSummationComplete }: PlanSummationManag
     [toast],
   );
 
+  // ─────────── Routing automatique multi-fichiers ───────────
+
+  const handleFiles = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return;
+
+      // Parse tous les fichiers en parallèle pour détecter leur modalité
+      const parsedAll = await Promise.allSettled(files.map((f) => detectAndParse(f)));
+
+      let workingPlans = plans;
+      let doseLoaded = 0;
+      let structLoaded = 0;
+      let planMetaApplied = 0;
+      let skipped = 0;
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const result = parsedAll[i];
+        if (result.status === 'rejected') {
+          console.warn('[PlanSummation] parse échec', file.name, result.reason);
+          skipped++;
+          continue;
+        }
+        const { data, buffer } = result.value;
+        const modality = data.modality?.toUpperCase();
+
+        if (modality === 'RTSTRUCT' && data.structures?.length) {
+          await loadStructFile(file, data);
+          structLoaded++;
+          continue;
+        }
+
+        if (modality === 'RTDOSE' || data.dose) {
+          const { slots, targetId } = findOrCreateEmptySlot(workingPlans);
+          if (!targetId) {
+            skipped++;
+            continue;
+          }
+          workingPlans = slots;
+          // Synchroniser le state des slots (création éventuelle)
+          setPlans(workingPlans);
+          // Charger sans re-parser
+          // eslint-disable-next-line no-await-in-loop
+          await loadDoseIntoSlot(file, targetId, { data, buffer });
+          // refresh local working ref
+          workingPlans = workingPlans.map((s) =>
+            s.id === targetId ? { ...s, file, buffer, patientId: data.patientId || null } : s,
+          );
+          doseLoaded++;
+          continue;
+        }
+
+        if (modality === 'RTPLAN' && data.plan) {
+          // Enrichit le 1er slot RTDOSE sans rtPlanInfo, sinon le plus récent
+          const fractions = data.plan.fractionGroups?.[0]?.numberOfFractionsPlanned;
+          const target = workingPlans.find((s) => s.file && !s.rtPlanInfo);
+          if (target) {
+            updateSlot(target.id, {
+              rtPlanInfo: {
+                fractions,
+                planLabel: data.plan.planName || data.plan.planDescription,
+              },
+            });
+            planMetaApplied++;
+          } else {
+            skipped++;
+          }
+          continue;
+        }
+
+        skipped++;
+      }
+
+      const summary: string[] = [];
+      if (doseLoaded) summary.push(`${doseLoaded} RTDOSE`);
+      if (structLoaded) summary.push(`${structLoaded} RTSTRUCT`);
+      if (planMetaApplied) summary.push(`${planMetaApplied} RTPLAN`);
+      if (skipped) summary.push(`${skipped} ignoré(s)`);
+      if (summary.length) {
+        toast({
+          title: 'Fichiers traités',
+          description: summary.join(' · '),
+        });
+      }
+    },
+    [plans, loadDoseIntoSlot, loadStructFile, toast],
+  );
+
+  // ─────────── Drag & drop ───────────
+
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+  const onDragLeave = (e: React.DragEvent) => {
+    if (e.currentTarget === dropRef.current) setIsDragging(false);
+  };
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files).filter(
+      (f) => f.name.toLowerCase().endsWith('.dcm') || f.type === 'application/dicom',
+    );
+    if (files.length === 0) {
+      toast({
+        title: 'Aucun fichier DICOM détecté',
+        description: 'Déposez des fichiers .dcm (RTDOSE, RTSTRUCT, RTPLAN).',
+        variant: 'destructive',
+      });
+      return;
+    }
+    handleFiles(files);
+  };
+
+  // ─────────── Validations ───────────
+
+  const filledPlans = plans.filter((p) => p.file && !p.loading);
+  const patientIds = Array.from(
+    new Set(filledPlans.map((p) => p.patientId).filter((id): id is string => !!id)),
+  );
+  const patientsDiffer = patientIds.length > 1;
+  const anyLoading = plans.some((p) => p.loading);
+
+  const canCompute =
+    !anyLoading &&
+    filledPlans.length >= MIN_PLANS &&
+    (method === 'dose_grid'
+      ? filledPlans.every((p) => !!p.buffer)
+      : filledPlans.every((p) => !!p.structures));
+
+  // ─────────── Calcul ───────────
+
   const reset = () => {
-    setPlan1(emptySlot());
-    setPlan2(emptySlot());
+    setPlans([newSlot(), newSlot()]);
     setRtStructFile(null);
     setRtStructures(null);
     setLastResult(null);
   };
-
-  const canCompute =
-    plan1.file && plan2.file && !plan1.loading && !plan2.loading &&
-    (method === 'dose_grid'
-      ? !!plan1.buffer && !!plan2.buffer
-      : !!plan1.structures && !!plan2.structures);
 
   const compute = async () => {
     if (!canCompute) return;
@@ -149,19 +320,19 @@ export const PlanSummationManager = ({ onSummationComplete }: PlanSummationManag
     setLastResult(null);
     try {
       const result = await summateDicomPlans({
-        plan1Name: plan1.file!.name,
-        plan2Name: plan2.file!.name,
-        rtDose1Buffer: plan1.buffer ?? undefined,
-        rtDose2Buffer: plan2.buffer ?? undefined,
+        plans: filledPlans.map((p, idx) => ({
+          name: p.rtPlanInfo?.planLabel || p.file!.name || `Plan ${idx + 1}`,
+          rtDoseBuffer: p.buffer ?? undefined,
+          structures: p.structures ?? undefined,
+          rtPlanInfo: p.rtPlanInfo,
+        })),
         rtStructures: rtStructures ?? undefined,
-        plan1Structures: plan1.structures ?? undefined,
-        plan2Structures: plan2.structures ?? undefined,
         preferredMethod: method,
       });
       setLastResult(result);
       toast({
         title: 'Sommation calculée',
-        description: `${result.structures.length} structures · méthode ${result.summationMethod === 'dose_grid' ? 'grille de dose' : 'DVH direct'}`,
+        description: `${filledPlans.length} plans · ${result.structures.length} structures · méthode ${result.summationMethod === 'dose_grid' ? 'grille de dose' : 'DVH direct'}`,
       });
     } catch (err) {
       console.error('[PlanSummation] erreur sommation:', err);
@@ -179,13 +350,14 @@ export const PlanSummationManager = ({ onSummationComplete }: PlanSummationManag
     if (!lastResult) return;
     const dvhData: DVHData = {
       patientId:
-        plan1.patientId ||
-        plan2.patientId ||
-        `Sommation ${plan1.file?.name ?? ''} + ${plan2.file?.name ?? ''}`,
+        patientIds[0] ||
+        `Sommation ${filledPlans.map((p) => p.file?.name ?? '').join(' + ')}`,
       structures: lastResult.structures,
     };
     onSummationComplete(dvhData, lastResult);
   };
+
+  // ─────────── Rendu ───────────
 
   return (
     <Card>
@@ -195,22 +367,26 @@ export const PlanSummationManager = ({ onSummationComplete }: PlanSummationManag
           Sommation de plans (DICOM RT)
         </CardTitle>
         <CardDescription>
-          Sommez deux plans RTDOSE (ex : 46 Gy + 14 Gy boost = 60 Gy) avec recalcul DVH depuis la grille sommée
-          ou approximation DVH direct.
+          Sommez jusqu'à {MAX_PLANS} plans RTDOSE (ex&nbsp;: 46&nbsp;Gy + 14&nbsp;Gy boost = 60&nbsp;Gy) avec recalcul DVH
+          depuis la grille sommée ou approximation DVH direct. L'ordre des plans n'a pas d'importance.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Méthode */}
         <div className="space-y-2">
           <Label>Méthode de sommation</Label>
-          <RadioGroup value={method} onValueChange={(v) => setMethod(v as SummationMethod)} className="grid gap-3">
+          <RadioGroup
+            value={method}
+            onValueChange={(v) => setMethod(v as SummationMethod)}
+            className="grid gap-3"
+          >
             <label className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/50">
               <RadioGroupItem value="dose_grid" id="method-grid" className="mt-1" />
               <div className="space-y-1">
                 <div className="font-medium text-sm">Grille de dose (précis)</div>
                 <p className="text-xs text-muted-foreground">
                   Sommation voxel-par-voxel des RTDOSE puis recalcul DVH cumulatif via les contours du RTSTRUCT.
-                  Nécessite des grilles compatibles (mêmes dimensions, origine, spacing).
+                  Nécessite des grilles compatibles (mêmes dimensions, origine, spacing) pour tous les plans.
                 </p>
               </div>
             </label>
@@ -219,8 +395,8 @@ export const PlanSummationManager = ({ onSummationComplete }: PlanSummationManag
               <div className="space-y-1">
                 <div className="font-medium text-sm">DVH direct (approximatif)</div>
                 <p className="text-xs text-muted-foreground">
-                  Combinaison borne-supérieure des courbes DVH déjà calculées dans chaque RTDOSE. Plus rapide,
-                  utile en fallback, mais à valider avec une sommation TPS pour usage clinique.
+                  Combinaison borne-supérieure des courbes DVH déjà calculées dans chaque RTDOSE
+                  (V_sum(d) = max_i(V_i(d))). Utile en fallback, à valider avec une sommation TPS pour usage clinique.
                 </p>
               </div>
             </label>
@@ -229,26 +405,79 @@ export const PlanSummationManager = ({ onSummationComplete }: PlanSummationManag
 
         <Separator />
 
-        {/* Slots fichiers */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <FileSlot
-            label="Plan 1 — RTDOSE"
-            slot={plan1}
-            onPick={(f) => loadDoseFile(f, 'plan1')}
-            onClear={() => setPlan1(emptySlot())}
-          />
-          <FileSlot
-            label="Plan 2 — RTDOSE"
-            slot={plan2}
-            onPick={(f) => loadDoseFile(f, 'plan2')}
-            onClear={() => setPlan2(emptySlot())}
-          />
+        {/* Drop zone multi-fichiers */}
+        <div
+          ref={dropRef}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          className={`rounded-lg border-2 border-dashed p-4 text-center transition-colors ${
+            isDragging ? 'border-primary bg-primary/5' : 'border-border'
+          }`}
+        >
+          <FileStack className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+          <p className="text-sm font-medium">
+            Glissez plusieurs fichiers DICOM ici (RTDOSE, RTSTRUCT, RTPLAN)
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Tri automatique : les RTDOSE remplissent les emplacements, le RTSTRUCT et les RTPLAN enrichissent
+            les métadonnées.
+          </p>
+          <div className="mt-3">
+            <Input
+              type="file"
+              multiple
+              accept=".dcm,application/dicom"
+              onChange={(e) => e.target.files && handleFiles(Array.from(e.target.files))}
+              className="hidden"
+              id="multi-dicom-input"
+            />
+            <Button asChild variant="outline" size="sm">
+              <label htmlFor="multi-dicom-input" className="cursor-pointer">
+                <Upload className="w-4 h-4 mr-2" />
+                Ou sélectionner des fichiers
+              </label>
+            </Button>
+          </div>
         </div>
 
-        {/* RTSTRUCT optionnel */}
+        {/* Slots dynamiques */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label>Plans à sommer ({filledPlans.length}/{MAX_PLANS})</Label>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={addSlot}
+              disabled={plans.length >= MAX_PLANS}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Ajouter un plan
+            </Button>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            {plans.map((slot, idx) => (
+              <FileSlot
+                key={slot.id}
+                index={idx + 1}
+                slot={slot}
+                canRemove={plans.length > MIN_PLANS}
+                onPick={(f) => loadDoseIntoSlot(f, slot.id)}
+                onClear={() =>
+                  slot.file
+                    ? updateSlot(slot.id, { ...newSlot(), id: slot.id })
+                    : removeSlot(slot.id)
+                }
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* RTSTRUCT */}
         <div className="space-y-2">
           <Label className="flex items-center gap-2">
-            RTSTRUCT
+            RTSTRUCT commun
             {method === 'dose_grid' ? (
               <Badge variant="outline" className="text-xs">requis</Badge>
             ) : (
@@ -298,14 +527,25 @@ export const PlanSummationManager = ({ onSummationComplete }: PlanSummationManag
         </div>
 
         {/* Avertissements pré-calcul */}
-        {plan1.patientId && plan2.patientId && plan1.patientId !== plan2.patientId && (
+        {patientsDiffer && (
           <Alert variant="destructive">
             <AlertTriangle className="w-4 h-4" />
-            <AlertTitle>Patients différents</AlertTitle>
+            <AlertTitle>Patients différents détectés</AlertTitle>
             <AlertDescription>
-              Plan 1 : {plan1.patientId} · Plan 2 : {plan2.patientId}. La sommation n'a de sens que pour le même patient.
+              IDs trouvés : {patientIds.join(', ')}. La sommation n'a de sens que pour le même patient.
             </AlertDescription>
           </Alert>
+        )}
+
+        {filledPlans.length >= MIN_PLANS && !patientsDiffer && (
+          <div className="rounded-lg border bg-muted/20 p-3 text-sm flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-success" />
+            <span>
+              {filledPlans.length} plans prêts
+              {patientIds[0] ? ` · patient ${patientIds[0]}` : ''}
+              {method === 'dose_grid' && rtStructures ? ` · ${rtStructures.length} structures` : ''}
+            </span>
+          </div>
         )}
 
         {/* Actions */}
@@ -342,8 +582,9 @@ export const PlanSummationManager = ({ onSummationComplete }: PlanSummationManag
             </div>
 
             <div className="grid gap-2 text-sm sm:grid-cols-2">
-              <InfoRow label="Plan 1" value={lastResult.info.plan1Name} />
-              <InfoRow label="Plan 2" value={lastResult.info.plan2Name} />
+              {lastResult.info.planNames.map((name, idx) => (
+                <InfoRow key={idx} label={`Plan ${idx + 1}`} value={name} />
+              ))}
               <InfoRow label="Structures" value={`${lastResult.structures.length}`} />
               {lastResult.info.maxDose !== undefined && (
                 <InfoRow label="Dose max sommée" value={`${lastResult.info.maxDose.toFixed(2)} Gy`} />
@@ -353,7 +594,7 @@ export const PlanSummationManager = ({ onSummationComplete }: PlanSummationManag
             {lastResult.info.unmatchedStructures.length > 0 && (
               <Alert>
                 <AlertTriangle className="w-4 h-4" />
-                <AlertTitle>Structures non appariées</AlertTitle>
+                <AlertTitle>Structures partiellement présentes</AlertTitle>
                 <AlertDescription className="text-xs">
                   {lastResult.info.unmatchedStructures.join(', ')}
                 </AlertDescription>
@@ -381,17 +622,21 @@ export const PlanSummationManager = ({ onSummationComplete }: PlanSummationManag
 // ────────── sous-composants ──────────
 
 const FileSlot = ({
-  label,
+  index,
   slot,
+  canRemove,
   onPick,
   onClear,
 }: {
-  label: string;
+  index: number;
   slot: PlanSlot;
+  canRemove: boolean;
   onPick: (f: File) => void;
   onClear: () => void;
 }) => {
-  const inputId = `slot-${label.replace(/\s+/g, '-')}`;
+  const inputId = `slot-${slot.id}`;
+  const label = `Plan ${index} — RTDOSE`;
+
   if (slot.file) {
     return (
       <div className="rounded-lg border p-3 space-y-2">
@@ -410,6 +655,9 @@ const FileSlot = ({
         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
           {slot.patientId && <Badge variant="outline">Patient {slot.patientId}</Badge>}
           {slot.structures && <Badge variant="outline">{slot.structures.length} DVH</Badge>}
+          {slot.rtPlanInfo?.fractions && (
+            <Badge variant="outline">{slot.rtPlanInfo.fractions} fx</Badge>
+          )}
           {!slot.structures && !slot.loading && (
             <Badge variant="outline" className="text-warning">sans DVH pré-calculés</Badge>
           )}
@@ -417,8 +665,20 @@ const FileSlot = ({
       </div>
     );
   }
+
   return (
-    <div className="rounded-lg border-2 border-dashed p-6 text-center space-y-2">
+    <div className="rounded-lg border-2 border-dashed p-4 text-center space-y-2 relative">
+      {canRemove && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute top-1 right-1 h-6 w-6 p-0"
+          onClick={onClear}
+          aria-label="Supprimer cet emplacement"
+        >
+          <X className="w-3 h-3" />
+        </Button>
+      )}
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <Input
         type="file"

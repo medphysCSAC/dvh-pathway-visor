@@ -48,8 +48,7 @@ export interface SummedPlanResult {
   warnings: string[];
   /** Dimensions/dose summary pour affichage */
   info: {
-    plan1Name: string;
-    plan2Name: string;
+    planNames: string[];
     matchedStructures: number;
     unmatchedStructures: string[];
     maxDose?: number;
@@ -162,29 +161,43 @@ export function describeGeometryMismatch(g1: DoseGridGeometry, g2: DoseGridGeome
 // ────────────────────────────────────────────────────────────────
 
 export function sumDoseGrids(buffer1: ArrayBuffer, buffer2: ArrayBuffer): SummedDoseGrid {
-  const p1 = parseDoseFile(buffer1);
-  const p2 = parseDoseFile(buffer2);
+  return sumDoseGridsN([buffer1, buffer2]);
+}
 
-  if (!geometriesMatch(p1.geometry, p2.geometry)) {
-    throw new Error(
-      `Grilles incompatibles : ${describeGeometryMismatch(p1.geometry, p2.geometry)}. ` +
-        `Recalculer les plans sur la même grille dans le TPS, ou utiliser la méthode "DVH direct".`,
-    );
+/**
+ * Somme N grilles de dose (≥ 2). La 1ʳᵉ grille sert de référence
+ * géométrique ; toutes les autres doivent matcher.
+ */
+export function sumDoseGridsN(buffers: ArrayBuffer[]): SummedDoseGrid {
+  if (!buffers || buffers.length < 2) {
+    throw new Error('Sommation grille : au moins 2 fichiers RTDOSE requis.');
   }
 
-  // Conversion d'unités vers Gy si nécessaire (cGy → Gy = ×0.01)
-  const u1Factor = p1.doseUnits === 'CGY' ? 0.01 : 1;
-  const u2Factor = p2.doseUnits === 'CGY' ? 0.01 : 1;
+  const parsed = buffers.map((b) => parseDoseFile(b));
+  const ref = parsed[0];
 
-  const len = p1.rawData.length;
+  for (let i = 1; i < parsed.length; i++) {
+    if (!geometriesMatch(ref.geometry, parsed[i].geometry)) {
+      throw new Error(
+        `Plan ${i + 1} incompatible : ${describeGeometryMismatch(ref.geometry, parsed[i].geometry)}. ` +
+          `Recalculer les plans sur la même grille dans le TPS, ou utiliser la méthode "DVH direct".`,
+      );
+    }
+  }
+
+  const len = ref.rawData.length;
   const summed = new Float32Array(len);
-  for (let i = 0; i < len; i++) {
-    summed[i] = p1.rawData[i] * p1.doseScaling * u1Factor + p2.rawData[i] * p2.doseScaling * u2Factor;
+  for (const p of parsed) {
+    const factor = p.doseUnits === 'CGY' ? 0.01 : 1;
+    const scale = p.doseScaling * factor;
+    for (let i = 0; i < len; i++) {
+      summed[i] += p.rawData[i] * scale;
+    }
   }
 
   return {
     data: summed,
-    geometry: p1.geometry,
+    geometry: ref.geometry,
     doseUnits: 'GY',
   };
 }
@@ -393,80 +406,113 @@ function interpolateVolume(points: DVHPoint[], targetDose: number): number {
 }
 
 /**
- * Sommation DVH approximative.
- * V_sum(d) ≈ max( V1(d), V2(d) ) — borne supérieure simple
- * (hypothèse de corrélation totale entre les deux distributions).
- * À documenter dans le rapport comme approximation.
+ * Sommation DVH approximative (2 plans).
+ * V_sum(d) ≈ max( V1(d), V2(d) ) — borne supérieure simple.
  */
 export function sumDVHDirect(
   structures1: Structure[],
   structures2: Structure[],
 ): { structures: Structure[]; matched: number; unmatched: string[] } {
+  return sumDVHDirectN([structures1, structures2]);
+}
+
+/**
+ * Sommation DVH approximative N plans.
+ * Pour chaque structure (matchée par nom fuzzy), V_sum(d) = max_i( V_i(d) )
+ * sur l'union des doses de tous les plans contenant la structure.
+ */
+export function sumDVHDirectN(
+  structuresList: Structure[][],
+): { structures: Structure[]; matched: number; unmatched: string[] } {
+  if (!structuresList || structuresList.length < 2) {
+    throw new Error('Sommation DVH direct : au moins 2 plans requis.');
+  }
+
+  // Index : nom normalisé -> { reference: Structure, sources: Structure[] }
+  const norm = (s: string) => s.toLowerCase().replace(/[\s_\-]/g, '');
+  type Entry = { reference: Structure; sources: Structure[]; presentInAll: boolean; presence: number };
+  const map = new Map<string, Entry>();
+
+  structuresList.forEach((plan, planIdx) => {
+    plan.forEach((s) => {
+      const key = norm(s.name);
+      const existing = map.get(key);
+      if (existing) {
+        existing.sources.push(s);
+        existing.presence |= 1 << planIdx;
+      } else {
+        map.set(key, {
+          reference: s,
+          sources: [s],
+          presentInAll: false,
+          presence: 1 << planIdx,
+        });
+      }
+    });
+  });
+
+  const fullMask = (1 << structuresList.length) - 1;
+  const result: Structure[] = [];
   const unmatched: string[] = [];
   let matched = 0;
 
-  const result = structures1.map((s1) => {
-    const s2 = structures2.find((s) => fuzzyMatch(s.name, s1.name));
-    if (!s2) {
-      unmatched.push(s1.name);
-      return s1;
-    }
-    matched++;
+  for (const entry of map.values()) {
+    if (entry.presence === fullMask) matched++;
+    else unmatched.push(entry.reference.name);
 
-    const allDoses = Array.from(
-      new Set([
-        ...s1.relativeVolume.map((p) => p.dose),
-        ...s2.relativeVolume.map((p) => p.dose),
-      ]),
-    ).sort((a, b) => a - b);
+    // Union des doses
+    const doseSet = new Set<number>();
+    for (const s of entry.sources) {
+      for (const p of s.relativeVolume) doseSet.add(p.dose);
+    }
+    const allDoses = Array.from(doseSet).sort((a, b) => a - b);
 
     const summedPoints: DVHPoint[] = allDoses.map((dose) => ({
       dose,
-      volume: Math.max(
-        interpolateVolume(s1.relativeVolume, dose),
-        interpolateVolume(s2.relativeVolume, dose),
-      ),
+      volume: Math.max(...entry.sources.map((s) => interpolateVolume(s.relativeVolume, dose))),
     }));
 
-    return {
-      ...s1,
+    result.push({
+      ...entry.reference,
       relativeVolume: summedPoints,
-    };
-  });
-
-  // Structures présentes seulement dans plan 2
-  for (const s2 of structures2) {
-    if (!structures1.some((s) => fuzzyMatch(s.name, s2.name))) {
-      result.push(s2);
-      unmatched.push(s2.name);
-    }
+    });
   }
 
   return { structures: result, matched, unmatched };
 }
 
 // ────────────────────────────────────────────────────────────────
-// API haut niveau : orchestrateur
+// API haut niveau : orchestrateur (N plans)
 // ────────────────────────────────────────────────────────────────
 
+export interface SummationPlanInput {
+  name: string;
+  rtDoseBuffer?: ArrayBuffer;
+  structures?: Structure[];
+  rtPlanInfo?: { fractions?: number; dosePerFraction?: number };
+}
+
 export interface SummationInput {
-  plan1Name: string;
-  plan2Name: string;
-  rtDose1Buffer?: ArrayBuffer;
-  rtDose2Buffer?: ArrayBuffer;
+  plans: SummationPlanInput[];
   rtStructures?: DicomRTStructure[]; // requis pour recalcul depuis grille
-  /** DVH déjà extraits (méthode dvh_direct) */
-  plan1Structures?: Structure[];
-  plan2Structures?: Structure[];
   preferredMethod: SummationMethod;
 }
 
 export async function summateDicomPlans(input: SummationInput): Promise<SummedPlanResult> {
   const warnings: string[] = [];
+  const planNames = input.plans.map((p) => p.name);
+
+  if (!input.plans || input.plans.length < 2) {
+    throw new Error('Sommation : au moins 2 plans sont requis.');
+  }
+  if (input.plans.length > 4) {
+    throw new Error('Sommation : maximum 4 plans supportés.');
+  }
 
   if (input.preferredMethod === 'dose_grid') {
-    if (!input.rtDose1Buffer || !input.rtDose2Buffer) {
-      throw new Error('Méthode "grille de dose" : les deux fichiers RTDOSE sont requis.');
+    const buffers = input.plans.map((p) => p.rtDoseBuffer).filter((b): b is ArrayBuffer => !!b);
+    if (buffers.length !== input.plans.length) {
+      throw new Error('Méthode "grille de dose" : un fichier RTDOSE est requis pour chaque plan.');
     }
     if (!input.rtStructures || input.rtStructures.length === 0) {
       warnings.push(
@@ -476,7 +522,7 @@ export async function summateDicomPlans(input: SummationInput): Promise<SummedPl
     }
 
     try {
-      const summed = sumDoseGrids(input.rtDose1Buffer, input.rtDose2Buffer);
+      const summed = sumDoseGridsN(buffers);
       const structures = recomputeStructuresFromGrid(summed, input.rtStructures);
       let maxDose = 0;
       for (let i = 0; i < summed.data.length; i++) {
@@ -487,8 +533,7 @@ export async function summateDicomPlans(input: SummationInput): Promise<SummedPl
         summationMethod: 'dose_grid',
         warnings,
         info: {
-          plan1Name: input.plan1Name,
-          plan2Name: input.plan2Name,
+          planNames,
           matchedStructures: structures.length,
           unmatchedStructures: [],
           maxDose,
@@ -503,18 +548,16 @@ export async function summateDicomPlans(input: SummationInput): Promise<SummedPl
   }
 
   // dvh_direct
-  if (!input.plan1Structures || !input.plan2Structures) {
+  const structuresList = input.plans.map((p) => p.structures).filter((s): s is Structure[] => !!s);
+  if (structuresList.length !== input.plans.length) {
     throw new Error(
-      'Méthode "DVH direct" : les structures DVH des deux plans sont requises (chargez les RTDOSE associés).',
+      'Méthode "DVH direct" : les structures DVH de tous les plans sont requises (chargez les RTDOSE associés).',
     );
   }
 
-  const { structures, matched, unmatched } = sumDVHDirect(
-    input.plan1Structures,
-    input.plan2Structures,
-  );
+  const { structures, matched, unmatched } = sumDVHDirectN(structuresList);
   warnings.push(
-    'Sommation par DVH direct : approximation V_sum(d) = max(V1(d), V2(d)). À valider avec une sommation TPS pour usage clinique.',
+    `Sommation par DVH direct (${input.plans.length} plans) : approximation V_sum(d) = max_i(V_i(d)). À valider avec une sommation TPS pour usage clinique.`,
   );
 
   let maxDose = 0;
@@ -529,8 +572,7 @@ export async function summateDicomPlans(input: SummationInput): Promise<SummedPl
     summationMethod: 'dvh_direct',
     warnings,
     info: {
-      plan1Name: input.plan1Name,
-      plan2Name: input.plan2Name,
+      planNames,
       matchedStructures: matched,
       unmatchedStructures: unmatched,
       maxDose,
