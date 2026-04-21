@@ -1,40 +1,95 @@
 
-User approved plan + wants Markdown version too. Generate both files in /mnt/documents/.
 
-# Plan : Génération du prompt JSON + version Markdown
+# Plan : Sommation N-plans (jusqu'à 4) — DICOM RT
 
-## Livrables
-Deux fichiers déposés dans `/mnt/documents/` :
+## Réponse à ta question préliminaire
 
-1. **`dvh-analyzer-prompt.json`** — Prompt structuré machine-readable pour agents IA
-2. **`dvh-analyzer-prompt.md`** — Version humaine lisible, structurée en sections avec titres, listes, blocs de code
+**RTDOSE vs RTPLAN — l'ordre n'a pas d'importance pour la sommation** :
+- **RTDOSE** = la grille 3D de dose (c'est ce qu'on additionne)
+- **RTPLAN** = les paramètres de traitement (faisceaux, fractions). Utile pour afficher les métadonnées (nom du plan, nb fractions) mais **non requis** pour le calcul.
+- **RTSTRUCT** = les contours (requis uniquement pour la méthode `dose_grid` afin de recalculer les DVH).
 
-## Contenu (identique pour les 2 formats)
+La sommation est **commutative et associative** : `A + B + C + D = D + C + B + A`. L'ordre d'upload est donc indifférent. On affichera juste un libellé "Plan 1, Plan 2, …" basé sur l'ordre d'ajout (renommable).
 
-**Sections couvertes** :
-- Identité projet & objectif clinique (Tomotherapy validation)
-- Stack technique (React/Vite/TS/Tailwind/shadcn/Cloud/AI)
-- Deux méthodes d'entrée détaillées :
-  - **TXT TomoTherapy** : format REL + ABS, détection cGy/Gy, parsing CSV
-  - **DICOM RT** : RTSTRUCT/RTDOSE/RTPLAN, cumsum incremental, point artificiel (0Gy,100%)
-- 12 features prioritaires (ordre de build MVP → avancé)
-- Calculs DVH exacts (Dmax, Dmean, Dmin, Dx%, Vx, HI, CI, CN)
-- Règle critique : DVH Parser = référence, précision décimale
-- Système de protocoles (predefined JSON + custom + extraction IA)
-- Design system (tokens HSL sémantiques, dark/light, badges)
-- Validation plan vs protocole (mapping fuzzy)
-- Pièges à éviter (tokens couleurs, RLS, CHECK constraints)
+## Approche UI recommandée — la plus pratique
 
-## Format Markdown spécifique
-- Titres hiérarchiques (#, ##, ###)
-- Tableaux pour features et calculs
-- Blocs de code pour exemples de structures de données
-- Listes à puces pour features
-- Section "Quick Start" en début pour usage rapide
+**Liste dynamique de slots** (au lieu de 2 slots fixes) :
 
-## Étapes
-1. Générer le JSON structuré (~20 KB)
-2. Générer le Markdown équivalent (~25 KB) avec mise en forme lecture humaine
-3. Émettre 2 balises `presentation-artifact` pour téléchargement
+```text
+┌────────────────────────────────────────────────────┐
+│ 📋 Sommation de plans (2 à 4 plans)                │
+│                                                    │
+│ [+] Ajouter un plan          Méthode : ◉ Grille    │
+│                                       ◯ DVH direct │
+│                                                    │
+│ ┌── Plan 1 ──────────────────────── [✕] ──┐        │
+│ │ 📄 RTDOSE_phase1.dcm    Patient: ABC123  │        │
+│ │ 🏷  46 Gy / 23 fx (depuis RTPLAN)        │        │
+│ │ [+ associer RTPLAN]                      │        │
+│ └──────────────────────────────────────────┘        │
+│ ┌── Plan 2 ──────────────────────── [✕] ──┐        │
+│ │ 📄 RTDOSE_boost.dcm     Patient: ABC123  │        │
+│ └──────────────────────────────────────────┘        │
+│ ┌── Plan 3 ──────────────────────── [✕] ──┐        │
+│ │ 📄 RTDOSE_sib.dcm       Patient: ABC123  │        │
+│ └──────────────────────────────────────────┘        │
+│ [+ Ajouter un plan]   (max 4 atteints → bouton off) │
+│                                                    │
+│ RTSTRUCT commun : 📄 struct.dcm  [✕]                │
+│                                                    │
+│ ✅ 3 plans · même patient · grilles compatibles     │
+│ Dose max sommée estimée : 60 Gy                    │
+│                                                    │
+│ [ Calculer la sommation ]   [ Réinitialiser ]      │
+└────────────────────────────────────────────────────┘
+```
 
-Aucune modification du codebase — uniquement génération de fichiers artefacts.
+**Drag & drop multi-fichiers** également supporté : déposer 3 RTDOSE + 1 RTSTRUCT remplit automatiquement les slots (détection par `Modality` DICOM).
+
+## Modifications techniques
+
+### 1. `src/utils/planSummationDicom.ts`
+- Généraliser `sumDoseGrids(buf1, buf2)` → `sumDoseGridsN(buffers: ArrayBuffer[])` : boucle de sommation N fois, validation géométrique deux à deux contre la 1ʳᵉ référence.
+- Généraliser `sumDVHDirect(s1, s2)` → `sumDVHDirectN(structuresList: Structure[][])` : pour chaque structure commune, `V_sum(d) = max(V_i(d))` sur tous les plans.
+- Étendre `SummationInput` :
+  ```ts
+  interface SummationInput {
+    plans: Array<{
+      name: string;
+      rtDoseBuffer?: ArrayBuffer;
+      structures?: Structure[];
+      rtPlanInfo?: { fractions?: number; dosePerFraction?: number };
+    }>;
+    rtStructures?: DicomRTStructure[];
+    preferredMethod: SummationMethod;
+  }
+  ```
+- `SummedPlanResult.info` : remplacer `plan1Name/plan2Name` par `planNames: string[]`.
+
+### 2. `src/components/PlanSummationManager.tsx`
+- Remplacer `plan1`/`plan2` par `plans: PlanSlot[]` (state array).
+- Ajouter `addPlan()` (limite 4), `removePlan(idx)`, `updatePlan(idx, ...)`.
+- Détecter automatiquement la modalité DICOM à l'upload : RTDOSE → slot, RTSTRUCT → champ commun, RTPLAN → enrichit le slot RTDOSE correspondant (matching par `ReferencedSOPInstanceUID` ou par sélection manuelle si ambigu).
+- Validation cross-plans : tous les patients identiques, toutes les géométries compatibles deux à deux.
+- Conserver le drag & drop, mais accepter N fichiers d'un coup.
+
+### 3. `src/pages/Index.tsx`
+- Aucun changement de structure — `handleDicomSummationComplete` reste compatible (reçoit `DVHData` + `SummedPlanResult`).
+
+## Points cliniques préservés
+- Avertissement si patients différents.
+- Avertissement si une géométrie ne matche pas → fallback `dvh_direct` automatique proposé.
+- Recalcul DVH depuis la grille N-sommée via le RTSTRUCT commun (raycasting actuel inchangé).
+- Le rapport PDF listera tous les plans sources (à étendre dans une étape suivante).
+
+## Étapes d'implémentation
+1. Refactor `planSummationDicom.ts` (sommation N).
+2. Refactor `PlanSummationManager.tsx` (slots dynamiques + drag&drop multi).
+3. Détection modalité DICOM (RTDOSE/RTSTRUCT/RTPLAN) à l'upload.
+4. Test manuel avec 3 plans (45+15+5 Gy par exemple).
+
+## Hors scope (à valider après)
+- Pondération par nombre de fractions effectivement délivrées (ex : plan interrompu).
+- Sommation EQD2/BED (nécessite α/β par structure).
+- Affichage côte-à-côte des DVH individuels vs sommé.
+
