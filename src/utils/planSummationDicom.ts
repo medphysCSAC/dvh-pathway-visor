@@ -500,10 +500,19 @@ export interface SummationInput {
 
 export async function summateDicomPlans(input: SummationInput): Promise<SummedPlanResult> {
   const warnings: string[] = [];
+  const planNames = input.plans.map((p) => p.name);
+
+  if (!input.plans || input.plans.length < 2) {
+    throw new Error('Sommation : au moins 2 plans sont requis.');
+  }
+  if (input.plans.length > 4) {
+    throw new Error('Sommation : maximum 4 plans supportés.');
+  }
 
   if (input.preferredMethod === 'dose_grid') {
-    if (!input.rtDose1Buffer || !input.rtDose2Buffer) {
-      throw new Error('Méthode "grille de dose" : les deux fichiers RTDOSE sont requis.');
+    const buffers = input.plans.map((p) => p.rtDoseBuffer).filter((b): b is ArrayBuffer => !!b);
+    if (buffers.length !== input.plans.length) {
+      throw new Error('Méthode "grille de dose" : un fichier RTDOSE est requis pour chaque plan.');
     }
     if (!input.rtStructures || input.rtStructures.length === 0) {
       warnings.push(
@@ -513,7 +522,7 @@ export async function summateDicomPlans(input: SummationInput): Promise<SummedPl
     }
 
     try {
-      const summed = sumDoseGrids(input.rtDose1Buffer, input.rtDose2Buffer);
+      const summed = sumDoseGridsN(buffers);
       const structures = recomputeStructuresFromGrid(summed, input.rtStructures);
       let maxDose = 0;
       for (let i = 0; i < summed.data.length; i++) {
@@ -524,8 +533,7 @@ export async function summateDicomPlans(input: SummationInput): Promise<SummedPl
         summationMethod: 'dose_grid',
         warnings,
         info: {
-          plan1Name: input.plan1Name,
-          plan2Name: input.plan2Name,
+          planNames,
           matchedStructures: structures.length,
           unmatchedStructures: [],
           maxDose,
@@ -540,18 +548,16 @@ export async function summateDicomPlans(input: SummationInput): Promise<SummedPl
   }
 
   // dvh_direct
-  if (!input.plan1Structures || !input.plan2Structures) {
+  const structuresList = input.plans.map((p) => p.structures).filter((s): s is Structure[] => !!s);
+  if (structuresList.length !== input.plans.length) {
     throw new Error(
-      'Méthode "DVH direct" : les structures DVH des deux plans sont requises (chargez les RTDOSE associés).',
+      'Méthode "DVH direct" : les structures DVH de tous les plans sont requises (chargez les RTDOSE associés).',
     );
   }
 
-  const { structures, matched, unmatched } = sumDVHDirect(
-    input.plan1Structures,
-    input.plan2Structures,
-  );
+  const { structures, matched, unmatched } = sumDVHDirectN(structuresList);
   warnings.push(
-    'Sommation par DVH direct : approximation V_sum(d) = max(V1(d), V2(d)). À valider avec une sommation TPS pour usage clinique.',
+    `Sommation par DVH direct (${input.plans.length} plans) : approximation V_sum(d) = max_i(V_i(d)). À valider avec une sommation TPS pour usage clinique.`,
   );
 
   let maxDose = 0;
@@ -566,8 +572,7 @@ export async function summateDicomPlans(input: SummationInput): Promise<SummedPl
     summationMethod: 'dvh_direct',
     warnings,
     info: {
-      plan1Name: input.plan1Name,
-      plan2Name: input.plan2Name,
+      planNames,
       matchedStructures: matched,
       unmatchedStructures: unmatched,
       maxDose,
