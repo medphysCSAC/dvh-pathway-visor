@@ -406,71 +406,95 @@ function interpolateVolume(points: DVHPoint[], targetDose: number): number {
 }
 
 /**
- * Sommation DVH approximative.
- * V_sum(d) ≈ max( V1(d), V2(d) ) — borne supérieure simple
- * (hypothèse de corrélation totale entre les deux distributions).
- * À documenter dans le rapport comme approximation.
+ * Sommation DVH approximative (2 plans).
+ * V_sum(d) ≈ max( V1(d), V2(d) ) — borne supérieure simple.
  */
 export function sumDVHDirect(
   structures1: Structure[],
   structures2: Structure[],
 ): { structures: Structure[]; matched: number; unmatched: string[] } {
+  return sumDVHDirectN([structures1, structures2]);
+}
+
+/**
+ * Sommation DVH approximative N plans.
+ * Pour chaque structure (matchée par nom fuzzy), V_sum(d) = max_i( V_i(d) )
+ * sur l'union des doses de tous les plans contenant la structure.
+ */
+export function sumDVHDirectN(
+  structuresList: Structure[][],
+): { structures: Structure[]; matched: number; unmatched: string[] } {
+  if (!structuresList || structuresList.length < 2) {
+    throw new Error('Sommation DVH direct : au moins 2 plans requis.');
+  }
+
+  // Index : nom normalisé -> { reference: Structure, sources: Structure[] }
+  const norm = (s: string) => s.toLowerCase().replace(/[\s_\-]/g, '');
+  type Entry = { reference: Structure; sources: Structure[]; presentInAll: boolean; presence: number };
+  const map = new Map<string, Entry>();
+
+  structuresList.forEach((plan, planIdx) => {
+    plan.forEach((s) => {
+      const key = norm(s.name);
+      const existing = map.get(key);
+      if (existing) {
+        existing.sources.push(s);
+        existing.presence |= 1 << planIdx;
+      } else {
+        map.set(key, {
+          reference: s,
+          sources: [s],
+          presentInAll: false,
+          presence: 1 << planIdx,
+        });
+      }
+    });
+  });
+
+  const fullMask = (1 << structuresList.length) - 1;
+  const result: Structure[] = [];
   const unmatched: string[] = [];
   let matched = 0;
 
-  const result = structures1.map((s1) => {
-    const s2 = structures2.find((s) => fuzzyMatch(s.name, s1.name));
-    if (!s2) {
-      unmatched.push(s1.name);
-      return s1;
-    }
-    matched++;
+  for (const entry of map.values()) {
+    if (entry.presence === fullMask) matched++;
+    else unmatched.push(entry.reference.name);
 
-    const allDoses = Array.from(
-      new Set([
-        ...s1.relativeVolume.map((p) => p.dose),
-        ...s2.relativeVolume.map((p) => p.dose),
-      ]),
-    ).sort((a, b) => a - b);
+    // Union des doses
+    const doseSet = new Set<number>();
+    for (const s of entry.sources) {
+      for (const p of s.relativeVolume) doseSet.add(p.dose);
+    }
+    const allDoses = Array.from(doseSet).sort((a, b) => a - b);
 
     const summedPoints: DVHPoint[] = allDoses.map((dose) => ({
       dose,
-      volume: Math.max(
-        interpolateVolume(s1.relativeVolume, dose),
-        interpolateVolume(s2.relativeVolume, dose),
-      ),
+      volume: Math.max(...entry.sources.map((s) => interpolateVolume(s.relativeVolume, dose))),
     }));
 
-    return {
-      ...s1,
+    result.push({
+      ...entry.reference,
       relativeVolume: summedPoints,
-    };
-  });
-
-  // Structures présentes seulement dans plan 2
-  for (const s2 of structures2) {
-    if (!structures1.some((s) => fuzzyMatch(s.name, s2.name))) {
-      result.push(s2);
-      unmatched.push(s2.name);
-    }
+    });
   }
 
   return { structures: result, matched, unmatched };
 }
 
 // ────────────────────────────────────────────────────────────────
-// API haut niveau : orchestrateur
+// API haut niveau : orchestrateur (N plans)
 // ────────────────────────────────────────────────────────────────
 
+export interface SummationPlanInput {
+  name: string;
+  rtDoseBuffer?: ArrayBuffer;
+  structures?: Structure[];
+  rtPlanInfo?: { fractions?: number; dosePerFraction?: number };
+}
+
 export interface SummationInput {
-  plan1Name: string;
-  plan2Name: string;
-  rtDose1Buffer?: ArrayBuffer;
-  rtDose2Buffer?: ArrayBuffer;
+  plans: SummationPlanInput[];
   rtStructures?: DicomRTStructure[]; // requis pour recalcul depuis grille
-  /** DVH déjà extraits (méthode dvh_direct) */
-  plan1Structures?: Structure[];
-  plan2Structures?: Structure[];
   preferredMethod: SummationMethod;
 }
 
