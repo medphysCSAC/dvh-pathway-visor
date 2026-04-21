@@ -48,8 +48,7 @@ export interface SummedPlanResult {
   warnings: string[];
   /** Dimensions/dose summary pour affichage */
   info: {
-    plan1Name: string;
-    plan2Name: string;
+    planNames: string[];
     matchedStructures: number;
     unmatchedStructures: string[];
     maxDose?: number;
