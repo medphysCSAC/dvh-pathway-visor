@@ -227,7 +227,7 @@ const Index = () => {
           {/* File Upload Section */}
           {!dvhData && <div className="max-w-5xl mx-auto space-y-6">
               <Tabs defaultValue="upload" className="w-full">
-                <TabsList className="grid w-full grid-cols-5">
+                <TabsList className="grid w-full grid-cols-6">
                   <TabsTrigger value="upload">Charger un plan</TabsTrigger>
                   <TabsTrigger value="dicom">DICOM RT</TabsTrigger>
                   <TabsTrigger value="debug-compare" className="text-amber-600">
@@ -235,6 +235,7 @@ const Index = () => {
                     Debug Comparaison
                   </TabsTrigger>
                   <TabsTrigger value="multi">Comparer/Sommer plans</TabsTrigger>
+                  <TabsTrigger value="dicom-sum">Sommation DICOM</TabsTrigger>
                   <TabsTrigger value="converter">Convertisseur</TabsTrigger>
                 </TabsList>
                 
