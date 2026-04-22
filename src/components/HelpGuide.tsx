@@ -760,7 +760,7 @@ const HelpGuide = () => {
                 />
                 <FAQItem
                   question="Comment comparer deux plans de traitement ?"
-                  answer="Utilisez l'onglet 'Comparer/Sommer plans'. Vous pouvez charger plusieurs fichiers et choisir entre mode Sommation (fusion des doses) ou Comparaison (côte à côte)."
+                  answer="Utilisez l'onglet 'Comparer plans'. Vous pouvez charger plusieurs fichiers et choisir entre mode Sommation (fusion des doses) ou Comparaison (côte à côte)."
                 />
               </Accordion>
             </TabsContent>
