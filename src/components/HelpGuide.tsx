@@ -194,7 +194,7 @@ const HelpGuide = () => {
                             Multi-plans
                           </p>
                           <ol className="list-decimal list-inside space-y-2 text-sm">
-                            <li>Onglet <strong>"Comparer/Sommer"</strong></li>
+                            <li>Onglet <strong>"Comparer plans"</strong></li>
                             <li>Mode Sommation ou Comparaison</li>
                             <li>Chargement multi-fichiers</li>
                             <li>Fusion automatique des DVH</li>
