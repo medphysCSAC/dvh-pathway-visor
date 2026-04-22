@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { ValidationReport } from "@/types/protocol";
+import { generateSummationCompactHTML } from "./summationReportSection";
 
 // Helper functions
 function calculateDeviation(measured: number, threshold: number): string {
@@ -77,6 +78,11 @@ export function generateUltraCompactHTMLReport(
     `<div class="summary-item"><span class="summary-label">Statut</span><span class="status-badge" style="background:${overallStatus === "PASS" ? "#D3F9D8" : "#FFE0E0"};color:${overallStatus === "PASS" ? "#2D7A3E" : "#C92A2A"}">${overallStatus || report.overallStatus}</span></div>`,
   );
   html.push("</div></div>");
+
+  // Encadré compact sommation multi-plans (si applicable) — entre Résumé et Table PTV
+  if (report.summationInfo) {
+    html.push(generateSummationCompactHTML(report.summationInfo));
+  }
 
   // SECTION 2 : Tableau PTV
   if (ptvMetrics.length > 0) {

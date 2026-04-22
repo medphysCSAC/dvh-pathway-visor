@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { ValidationReport } from "@/types/protocol";
+import { generateSummationSectionHTML } from "./summationReportSection";
 
 // Helper functions
 function getStatusBadgeHTML(status: string): string {
@@ -391,6 +392,11 @@ export function generateTestHTMLReport(
   html.push('<div class="institution-name">Centre Sidi Abdellah de Cancérologie</div>');
   html.push('<div class="department-name">Service de Radiothérapie</div>');
   html.push("</div>");
+
+  // Section sommation multi-plans (si applicable) — placée juste après l'en-tête institutionnel
+  if (report.summationInfo) {
+    html.push(generateSummationSectionHTML(report.summationInfo));
+  }
 
   html.push('<div class="report-header">');
   html.push('<div class="report-title">Rapport de Validation du Plan de Traitement</div>');
