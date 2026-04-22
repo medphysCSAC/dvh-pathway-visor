@@ -510,6 +510,21 @@ export interface SummationInput {
 export async function summateDicomPlans(input: SummationInput): Promise<SummedPlanResult> {
   const warnings: string[] = [];
   const planNames = input.plans.map((p) => p.name);
+  const planDetails: SummedPlanDetail[] = input.plans.map((p) => {
+    const fractions = p.rtPlanInfo?.fractions;
+    const dosePerFraction = p.rtPlanInfo?.dosePerFraction;
+    const dose =
+      fractions !== undefined && dosePerFraction !== undefined
+        ? +(fractions * dosePerFraction).toFixed(2)
+        : undefined;
+    return {
+      name: p.name,
+      fractions,
+      dosePerFraction,
+      dose,
+      label: p.rtPlanInfo?.planLabel,
+    };
+  });
 
   if (!input.plans || input.plans.length < 2) {
     throw new Error('Sommation : au moins 2 plans sont requis.');
@@ -543,6 +558,7 @@ export async function summateDicomPlans(input: SummationInput): Promise<SummedPl
         warnings,
         info: {
           planNames,
+          planDetails,
           matchedStructures: structures.length,
           unmatchedStructures: [],
           maxDose,
@@ -582,6 +598,7 @@ export async function summateDicomPlans(input: SummationInput): Promise<SummedPl
     warnings,
     info: {
       planNames,
+      planDetails,
       matchedStructures: matched,
       unmatchedStructures: unmatched,
       maxDose,

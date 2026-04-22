@@ -6,7 +6,8 @@ import {
   OARConstraint,
   ConstraintValidationResult,
   ValidationReport,
-  StructureMapping
+  StructureMapping,
+  SummationReportInfo
 } from '@/types/protocol';
 import { calculateDx, calculateVx, calculatePTVQualityMetrics, findPrimaryPTV, calculateVxAbsoluteCc } from './planQualityMetrics';
 
@@ -277,7 +278,8 @@ export function generateValidationReport(
   protocol: TreatmentProtocol,
   structures: Structure[],
   patientId: string,
-  mappings: StructureMapping[] = []
+  mappings: StructureMapping[] = [],
+  summationInfo?: SummationReportInfo
 ): ValidationReport {
   // Validation des prescriptions
   const prescriptionResults = protocol.prescriptions.map(prescription =>
@@ -350,6 +352,7 @@ export function generateValidationReport(
       ptvCount,
       oarCount
     },
-    ptvQualityMetrics
+    ptvQualityMetrics,
+    summationInfo
   };
 }
