@@ -1,95 +1,92 @@
 
 
-# Plan : Sommation N-plans (jusqu'à 4) — DICOM RT
+# Plan : Affichage des plans sources dans le rapport PDF
 
-## Réponse à ta question préliminaire
+## Objectif
+Lorsque l'analyse provient d'une **sommation DICOM multi-plans**, le rapport PDF doit afficher clairement :
+- La liste des plans sources additionnés
+- La méthode de sommation utilisée (`dose_grid` précis ou `dvh_direct` approximatif)
+- Les éventuels avertissements (patients différents, géométries incompatibles, fallback)
+- Une mention claire si méthode approximative → "à confirmer avec export TPS"
 
-**RTDOSE vs RTPLAN — l'ordre n'a pas d'importance pour la sommation** :
-- **RTDOSE** = la grille 3D de dose (c'est ce qu'on additionne)
-- **RTPLAN** = les paramètres de traitement (faisceaux, fractions). Utile pour afficher les métadonnées (nom du plan, nb fractions) mais **non requis** pour le calcul.
-- **RTSTRUCT** = les contours (requis uniquement pour la méthode `dose_grid` afin de recalculer les DVH).
-
-La sommation est **commutative et associative** : `A + B + C + D = D + C + B + A`. L'ordre d'upload est donc indifférent. On affichera juste un libellé "Plan 1, Plan 2, …" basé sur l'ordre d'ajout (renommable).
-
-## Approche UI recommandée — la plus pratique
-
-**Liste dynamique de slots** (au lieu de 2 slots fixes) :
+## Aperçu visuel (nouvelle section rapport)
 
 ```text
-┌────────────────────────────────────────────────────┐
-│ 📋 Sommation de plans (2 à 4 plans)                │
-│                                                    │
-│ [+] Ajouter un plan          Méthode : ◉ Grille    │
-│                                       ◯ DVH direct │
-│                                                    │
-│ ┌── Plan 1 ──────────────────────── [✕] ──┐        │
-│ │ 📄 RTDOSE_phase1.dcm    Patient: ABC123  │        │
-│ │ 🏷  46 Gy / 23 fx (depuis RTPLAN)        │        │
-│ │ [+ associer RTPLAN]                      │        │
-│ └──────────────────────────────────────────┘        │
-│ ┌── Plan 2 ──────────────────────── [✕] ──┐        │
-│ │ 📄 RTDOSE_boost.dcm     Patient: ABC123  │        │
-│ └──────────────────────────────────────────┘        │
-│ ┌── Plan 3 ──────────────────────── [✕] ──┐        │
-│ │ 📄 RTDOSE_sib.dcm       Patient: ABC123  │        │
-│ └──────────────────────────────────────────┘        │
-│ [+ Ajouter un plan]   (max 4 atteints → bouton off) │
-│                                                    │
-│ RTSTRUCT commun : 📄 struct.dcm  [✕]                │
-│                                                    │
-│ ✅ 3 plans · même patient · grilles compatibles     │
-│ Dose max sommée estimée : 60 Gy                    │
-│                                                    │
-│ [ Calculer la sommation ]   [ Réinitialiser ]      │
-└────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  📊 SOMMATION DOSIMÉTRIQUE                                  │
+│  Ce rapport est basé sur la sommation de 3 plans :          │
+│                                                             │
+│   • Plan 1 : RTDOSE_phase1.dcm   — 46 Gy / 23 fx            │
+│   • Plan 2 : RTDOSE_boost.dcm    — 14 Gy / 7 fx             │
+│   • Plan 3 : RTDOSE_sib.dcm      — 5 Gy  / 5 fx             │
+│                                                             │
+│   Dose totale estimée : 65 Gy                               │
+│   Méthode : ✅ Sommation sur grille de dose (précis)         │
+│                                                             │
+│   ⚠️ Moelle épinière absente du Plan 2                       │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Drag & drop multi-fichiers** également supporté : déposer 3 RTDOSE + 1 RTSTRUCT remplit automatiquement les slots (détection par `Modality` DICOM).
+Si méthode = `dvh_direct` : encadré orange + mention :
+> ⚠️ Validation par sommation approchée (DVH direct). Confirmer avec l'export sommation du TPS avant validation clinique.
 
 ## Modifications techniques
 
-### 1. `src/utils/planSummationDicom.ts`
-- Généraliser `sumDoseGrids(buf1, buf2)` → `sumDoseGridsN(buffers: ArrayBuffer[])` : boucle de sommation N fois, validation géométrique deux à deux contre la 1ʳᵉ référence.
-- Généraliser `sumDVHDirect(s1, s2)` → `sumDVHDirectN(structuresList: Structure[][])` : pour chaque structure commune, `V_sum(d) = max(V_i(d))` sur tous les plans.
-- Étendre `SummationInput` :
-  ```ts
-  interface SummationInput {
-    plans: Array<{
-      name: string;
-      rtDoseBuffer?: ArrayBuffer;
-      structures?: Structure[];
-      rtPlanInfo?: { fractions?: number; dosePerFraction?: number };
-    }>;
-    rtStructures?: DicomRTStructure[];
-    preferredMethod: SummationMethod;
-  }
-  ```
-- `SummedPlanResult.info` : remplacer `plan1Name/plan2Name` par `planNames: string[]`.
+### 1. `src/types/protocol.ts`
+Ajouter un champ optionnel `summationInfo` à `ValidationReport` :
 
-### 2. `src/components/PlanSummationManager.tsx`
-- Remplacer `plan1`/`plan2` par `plans: PlanSlot[]` (state array).
-- Ajouter `addPlan()` (limite 4), `removePlan(idx)`, `updatePlan(idx, ...)`.
-- Détecter automatiquement la modalité DICOM à l'upload : RTDOSE → slot, RTSTRUCT → champ commun, RTPLAN → enrichit le slot RTDOSE correspondant (matching par `ReferencedSOPInstanceUID` ou par sélection manuelle si ambigu).
-- Validation cross-plans : tous les patients identiques, toutes les géométries compatibles deux à deux.
-- Conserver le drag & drop, mais accepter N fichiers d'un coup.
+```ts
+export interface SummationReportInfo {
+  planNames: string[];
+  planDetails?: Array<{ 
+    name: string; 
+    fractions?: number; 
+    dose?: number;        // dose totale Gy
+    label?: string;       // depuis RTPLAN si dispo
+  }>;
+  method: 'dose_grid' | 'dvh_direct';
+  totalDose?: number;
+  warnings: string[];
+  matchedStructures?: number;
+  unmatchedStructures?: string[];
+}
 
-### 3. `src/pages/Index.tsx`
-- Aucun changement de structure — `handleDicomSummationComplete` reste compatible (reçoit `DVHData` + `SummedPlanResult`).
+export interface ValidationReport {
+  // ... existant
+  summationInfo?: SummationReportInfo;
+}
+```
 
-## Points cliniques préservés
-- Avertissement si patients différents.
-- Avertissement si une géométrie ne matche pas → fallback `dvh_direct` automatique proposé.
-- Recalcul DVH depuis la grille N-sommée via le RTSTRUCT commun (raycasting actuel inchangé).
-- Le rapport PDF listera tous les plans sources (à étendre dans une étape suivante).
+### 2. Propagation depuis la sommation
+- **`src/pages/Index.tsx`** — `handleDicomSummationComplete(data, result)` : stocker `result` dans un state `lastSummationResult: SummedPlanResult | null`.
+- **`src/components/ProtocolValidation.tsx`** : accepter en prop optionnelle `summationResult?: SummedPlanResult`. Au moment de `generateValidationReport(...)`, injecter `summationInfo` dans le rapport produit (mapping depuis `result.info` + `result.summationMethod` + `result.warnings` + `plans` slots).
+- **`src/utils/protocolValidator.ts`** : `generateValidationReport` accepte un paramètre optionnel `summationInfo` et le pose tel quel sur le rapport.
+- **`PlanSummationManager`** : déjà fournit `result` au callback — exposer aussi `planDetails` (nom fichier + fractions + dose) en enrichissant `SummedPlanResult.info.planDetails` (déjà partiellement présent via `rtPlanInfo` des slots).
 
-## Étapes d'implémentation
-1. Refactor `planSummationDicom.ts` (sommation N).
-2. Refactor `PlanSummationManager.tsx` (slots dynamiques + drag&drop multi).
-3. Détection modalité DICOM (RTDOSE/RTSTRUCT/RTPLAN) à l'upload.
-4. Test manuel avec 3 plans (45+15+5 Gy par exemple).
+### 3. Génération PDF — 3 endroits
+- **`src/utils/reportGeneratorTest.ts`** (rapport Officiel) : ajouter une **section dédiée** "Sommation Dosimétrique" entre l'en-tête institutionnel et la section Patient.
+- **`src/utils/reportGeneratorTest2.ts`** (rapport Essentiel) : ajouter un **encadré compact** entre le Résumé et la table PTV (3-4 lignes maxi pour rester ultra-compact).
+- **`src/components/ReportHTMLPreview.tsx`** : afficher la même section dans la prévisualisation pour cohérence visuelle.
 
-## Hors scope (à valider après)
-- Pondération par nombre de fractions effectivement délivrées (ex : plan interrompu).
-- Sommation EQD2/BED (nécessite α/β par structure).
-- Affichage côte-à-côte des DVH individuels vs sommé.
+### 4. Style conditionnel selon méthode
+- `dose_grid` → fond vert clair, badge "✅ Précis"
+- `dvh_direct` → fond orange, badge "⚠️ Approché", message d'avertissement explicite
+
+### 5. Cas sans sommation
+Si `report.summationInfo` est absent (analyse mono-plan classique), aucune section n'est ajoutée — rapport identique à aujourd'hui.
+
+## Fichiers modifiés
+1. `src/types/protocol.ts` — nouvelle interface `SummationReportInfo`
+2. `src/utils/planSummationDicom.ts` — enrichir `SummedPlanResult.info.planDetails`
+3. `src/utils/protocolValidator.ts` — accepter et propager `summationInfo`
+4. `src/pages/Index.tsx` — mémoriser `lastSummationResult`, le passer à `ProtocolValidation`
+5. `src/components/ProtocolValidation.tsx` — recevoir et injecter dans le rapport
+6. `src/utils/reportGeneratorTest.ts` — section "Sommation" complète
+7. `src/utils/reportGeneratorTest2.ts` — encadré compact
+8. `src/components/ReportHTMLPreview.tsx` — preview cohérent
+
+## Hors scope (étape suivante possible)
+- Ajout de la **dose biologique cumulée (EQD2/BED)** par structure
+- **Graphique miniature** des DVH individuels superposés au DVH sommé dans le rapport
+- Export structuré JSON des plans sources pour audit qualité
 
