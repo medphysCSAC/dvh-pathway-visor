@@ -498,7 +498,7 @@ export interface SummationPlanInput {
   name: string;
   rtDoseBuffer?: ArrayBuffer;
   structures?: Structure[];
-  rtPlanInfo?: { fractions?: number; dosePerFraction?: number };
+  rtPlanInfo?: { fractions?: number; dosePerFraction?: number; planLabel?: string };
 }
 
 export interface SummationInput {
