@@ -20,7 +20,7 @@ interface MultiFileUploadProps {
 }
 
 export const MultiFileUpload = ({ onPlansLoaded }: MultiFileUploadProps) => {
-  const [mode, setMode] = useState<'summation' | 'comparison' | 'multi-patient'>('summation');
+  const [mode, setMode] = useState<'comparison' | 'multi-patient'>('comparison');
   const [filePairs, setFilePairs] = useState<FilePair[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
