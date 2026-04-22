@@ -115,6 +115,51 @@ export default function ReportHTMLPreview({
         </div>
       </div>
 
+      {/* Section Sommation multi-plans (si applicable) */}
+      {report.summationInfo && (() => {
+        const info = report.summationInfo;
+        const isPrecise = info.method === 'dose_grid';
+        return (
+          <div className={`mb-4 rounded border-l-4 p-3 ${
+            isPrecise 
+              ? 'border-success bg-success/10' 
+              : 'border-warning bg-warning/10'
+          }`}>
+            <div className="font-semibold text-[10pt] mb-2 flex items-center gap-2">
+              📊 Sommation Dosimétrique — {info.planNames.length} plans
+              <span className={`px-2 py-0.5 rounded text-[8pt] font-semibold ${
+                isPrecise 
+                  ? 'bg-success text-success-foreground' 
+                  : 'bg-warning text-warning-foreground'
+              }`}>
+                {isPrecise ? '✓ Précis (grille)' : '⚠ Approché (DVH)'}
+              </span>
+            </div>
+            <ul className="text-[8pt] space-y-0.5 ml-4">
+              {info.planNames.map((name, idx) => {
+                const d = info.planDetails?.[idx];
+                return (
+                  <li key={idx}>
+                    <span className="font-mono">{idx + 1}. {name}</span>
+                    {d?.dose !== undefined && (
+                      <span className="text-muted-foreground"> — {d.dose} Gy{d.fractions ? ` / ${d.fractions} fx` : ''}</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            {info.totalDose !== undefined && (
+              <p className="text-[8pt] mt-1"><strong>Dose totale estimée :</strong> {info.totalDose} Gy</p>
+            )}
+            {!isPrecise && (
+              <p className="text-[8pt] mt-2 italic text-destructive">
+                ⚠ Validation par sommation approchée. Confirmer avec l'export TPS avant validation clinique.
+              </p>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Stats Summary */}
       <div className="flex gap-3 mb-4 text-[8pt] justify-center">
         <span className="text-green-600 dark:text-green-400 font-semibold">✓ {passCount} PASS</span>
