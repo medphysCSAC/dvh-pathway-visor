@@ -237,7 +237,7 @@ const Index = () => {
                     <Bug className="w-4 h-4 mr-1" />
                     Debug Comparaison
                   </TabsTrigger>
-                  <TabsTrigger value="multi">Comparer/Sommer plans</TabsTrigger>
+                  <TabsTrigger value="multi">Comparer plans</TabsTrigger>
                   <TabsTrigger value="dicom-sum">Sommation DICOM</TabsTrigger>
                   <TabsTrigger value="converter">Convertisseur</TabsTrigger>
                 </TabsList>

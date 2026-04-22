@@ -194,7 +194,7 @@ const HelpGuide = () => {
                             Multi-plans
                           </p>
                           <ol className="list-decimal list-inside space-y-2 text-sm">
-                            <li>Onglet <strong>"Comparer/Sommer"</strong></li>
+                            <li>Onglet <strong>"Comparer plans"</strong></li>
                             <li>Mode Sommation ou Comparaison</li>
                             <li>Chargement multi-fichiers</li>
                             <li>Fusion automatique des DVH</li>
@@ -760,7 +760,7 @@ const HelpGuide = () => {
                 />
                 <FAQItem
                   question="Comment comparer deux plans de traitement ?"
-                  answer="Utilisez l'onglet 'Comparer/Sommer plans'. Vous pouvez charger plusieurs fichiers et choisir entre mode Sommation (fusion des doses) ou Comparaison (côte à côte)."
+                  answer="Utilisez l'onglet 'Comparer plans'. Vous pouvez charger plusieurs fichiers et choisir entre mode Sommation (fusion des doses) ou Comparaison (côte à côte)."
                 />
               </Accordion>
             </TabsContent>
