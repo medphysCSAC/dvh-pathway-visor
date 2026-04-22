@@ -48,6 +48,23 @@ export interface PrescriptionValidationResult {
   warnings: string[];
 }
 
+// Informations sur la sommation multi-plans
+export interface SummationReportInfo {
+  planNames: string[];
+  planDetails?: Array<{
+    name: string;
+    fractions?: number;
+    dosePerFraction?: number;
+    dose?: number;        // dose totale Gy (depuis RTPLAN si dispo)
+    label?: string;       // label du plan depuis RTPLAN
+  }>;
+  method: 'dose_grid' | 'dvh_direct';
+  totalDose?: number;
+  warnings: string[];
+  matchedStructures?: number;
+  unmatchedStructures?: string[];
+}
+
 // Rapport de validation complet
 export interface ValidationReport {
   protocolName: string;
@@ -75,6 +92,8 @@ export interface ValidationReport {
     ci: number;
     cn: number;
   }>;
+  // Informations de sommation multi-plans (uniquement si applicable)
+  summationInfo?: SummationReportInfo;
 }
 
 // Mapping manuel de structures

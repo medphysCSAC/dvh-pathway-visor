@@ -42,6 +42,14 @@ export interface SummedDoseGrid {
   doseUnits: string; // 'GY'
 }
 
+export interface SummedPlanDetail {
+  name: string;
+  fractions?: number;
+  dosePerFraction?: number;
+  dose?: number;       // dose totale (Gy) si dérivable
+  label?: string;      // label depuis RTPLAN
+}
+
 export interface SummedPlanResult {
   structures: Structure[];
   summationMethod: SummationMethod;
@@ -49,6 +57,7 @@ export interface SummedPlanResult {
   /** Dimensions/dose summary pour affichage */
   info: {
     planNames: string[];
+    planDetails?: SummedPlanDetail[];
     matchedStructures: number;
     unmatchedStructures: string[];
     maxDose?: number;
