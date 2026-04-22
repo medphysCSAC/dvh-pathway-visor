@@ -21,6 +21,7 @@ import { DicomRTUpload } from '@/components/DicomRTUpload';
 import DVHComparisonDebug from '@/components/DVHComparisonDebug';
 import DVHSourceComparison from '@/components/DVHSourceComparison';
 import { PlanSummationManager } from '@/components/PlanSummationManager';
+import type { SummedPlanResult } from '@/utils/planSummationDicom';
 import { DVHData, StructureCategory, PlanData, Structure } from '@/types/dvh';
 import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
@@ -38,6 +39,7 @@ const Index = () => {
   const [comparisonPlans, setComparisonPlans] = useState<PlanData[]>([]);
   const [comparisonMode, setComparisonMode] = useState<'summation' | 'comparison' | 'multi-patient' | null>(null);
   const [criticalAlerts, setCriticalAlerts] = useState<DoseAlert[]>([]);
+  const [lastSummationResult, setLastSummationResult] = useState<SummedPlanResult | null>(null);
   
   // Debug: Stocker les structures des deux sources pour comparaison
   const [dvhParserStructures, setDvhParserStructures] = useState<Structure[] | null>(null);
@@ -187,10 +189,11 @@ const Index = () => {
     }
   };
 
-  const handleDicomSummationComplete = (data: DVHData) => {
+  const handleDicomSummationComplete = (data: DVHData, result?: SummedPlanResult) => {
     setDvhData(data);
     setSelectedStructures([]);
     setDicomRTStructures(data.structures);
+    setLastSummationResult(result ?? null);
     toast.success('Sommation DICOM appliquée', {
       description: `${data.structures.length} structures sommées chargées dans l'analyse.`,
     });
@@ -399,7 +402,11 @@ const Index = () => {
 
                 {/* Onglet Validation Protocole */}
                 <TabsContent value="validation">
-                  <ProtocolValidation structures={dvhData.structures} patientId={dvhData.patientId} />
+                  <ProtocolValidation 
+                    structures={dvhData.structures} 
+                    patientId={dvhData.patientId} 
+                    summationResult={lastSummationResult}
+                  />
                 </TabsContent>
 
                 {/* Onglet Gestion Protocoles */}

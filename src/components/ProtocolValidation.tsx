@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Structure } from '@/types/dvh';
-import { TreatmentProtocol, ValidationReport, StructureMapping as StructureMappingType } from '@/types/protocol';
+import { TreatmentProtocol, ValidationReport, StructureMapping as StructureMappingType, SummationReportInfo } from '@/types/protocol';
 import { getAllProtocols } from '@/data/predefinedProtocols';
 import { generateValidationReport, findBestStructureMatch } from '@/utils/protocolValidator';
 import { generateAndDownloadPDF, ReportTemplate } from '@/utils/pdfGenerator';
 import { calculatePTVQualityMetrics } from '@/utils/planQualityMetrics';
+import type { SummedPlanResult } from '@/utils/planSummationDicom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -18,9 +19,10 @@ import ExportReportDialog from './ExportReportDialog';
 interface ProtocolValidationProps {
   structures: Structure[];
   patientId: string;
+  summationResult?: SummedPlanResult | null;
 }
 
-export default function ProtocolValidation({ structures, patientId }: ProtocolValidationProps) {
+export default function ProtocolValidation({ structures, patientId, summationResult }: ProtocolValidationProps) {
   const { toast } = useToast();
   const { addToHistory } = useAnalysisHistory();
   const [protocols, setProtocols] = useState<TreatmentProtocol[]>([]);
@@ -60,7 +62,25 @@ export default function ProtocolValidation({ structures, patientId }: ProtocolVa
       return;
     }
 
-    const validationReport = generateValidationReport(protocol, structures, patientId, mappings);
+    // Construire summationInfo si une sommation multi-plans a été appliquée
+    let summationInfo: SummationReportInfo | undefined;
+    if (summationResult && summationResult.info?.planNames?.length >= 2) {
+      const totalDose =
+        summationResult.info.planDetails?.every(d => d.dose !== undefined)
+          ? summationResult.info.planDetails!.reduce((sum, d) => sum + (d.dose ?? 0), 0)
+          : summationResult.info.maxDose;
+      summationInfo = {
+        planNames: summationResult.info.planNames,
+        planDetails: summationResult.info.planDetails,
+        method: summationResult.summationMethod,
+        totalDose: totalDose ? +totalDose.toFixed(2) : undefined,
+        warnings: summationResult.warnings,
+        matchedStructures: summationResult.info.matchedStructures,
+        unmatchedStructures: summationResult.info.unmatchedStructures,
+      };
+    }
+
+    const validationReport = generateValidationReport(protocol, structures, patientId, mappings, summationInfo);
     setReport(validationReport);
 
     // Ajouter à l'historique
