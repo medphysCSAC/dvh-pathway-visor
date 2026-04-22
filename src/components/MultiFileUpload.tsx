@@ -163,7 +163,7 @@ export const MultiFileUpload = ({ onPlansLoaded }: MultiFileUploadProps) => {
           Import Multi-Plans
         </CardTitle>
         <CardDescription>
-          Importez plusieurs paires de fichiers DVH pour sommation ou comparaison
+          Importez plusieurs paires de fichiers DVH pour comparer des plans ou gérer plusieurs patients
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -174,13 +174,11 @@ export const MultiFileUpload = ({ onPlansLoaded }: MultiFileUploadProps) => {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="summation">Sommation de plans</SelectItem>
               <SelectItem value="comparison">Comparaison de plans</SelectItem>
               <SelectItem value="multi-patient">Multi-patients</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            {mode === 'summation' && 'Les doses des structures seront additionnées'}
             {mode === 'comparison' && 'Les plans seront comparés côte-à-côte'}
             {mode === 'multi-patient' && 'Gestion de plusieurs patients'}
           </p>
