@@ -42,6 +42,14 @@ export interface SummedDoseGrid {
   doseUnits: string; // 'GY'
 }
 
+export interface SummedPlanDetail {
+  name: string;
+  fractions?: number;
+  dosePerFraction?: number;
+  dose?: number;       // dose totale (Gy) si dérivable
+  label?: string;      // label depuis RTPLAN
+}
+
 export interface SummedPlanResult {
   structures: Structure[];
   summationMethod: SummationMethod;
@@ -49,6 +57,7 @@ export interface SummedPlanResult {
   /** Dimensions/dose summary pour affichage */
   info: {
     planNames: string[];
+    planDetails?: SummedPlanDetail[];
     matchedStructures: number;
     unmatchedStructures: string[];
     maxDose?: number;
@@ -489,7 +498,7 @@ export interface SummationPlanInput {
   name: string;
   rtDoseBuffer?: ArrayBuffer;
   structures?: Structure[];
-  rtPlanInfo?: { fractions?: number; dosePerFraction?: number };
+  rtPlanInfo?: { fractions?: number; dosePerFraction?: number; planLabel?: string };
 }
 
 export interface SummationInput {
@@ -501,6 +510,21 @@ export interface SummationInput {
 export async function summateDicomPlans(input: SummationInput): Promise<SummedPlanResult> {
   const warnings: string[] = [];
   const planNames = input.plans.map((p) => p.name);
+  const planDetails: SummedPlanDetail[] = input.plans.map((p) => {
+    const fractions = p.rtPlanInfo?.fractions;
+    const dosePerFraction = p.rtPlanInfo?.dosePerFraction;
+    const dose =
+      fractions !== undefined && dosePerFraction !== undefined
+        ? +(fractions * dosePerFraction).toFixed(2)
+        : undefined;
+    return {
+      name: p.name,
+      fractions,
+      dosePerFraction,
+      dose,
+      label: p.rtPlanInfo?.planLabel,
+    };
+  });
 
   if (!input.plans || input.plans.length < 2) {
     throw new Error('Sommation : au moins 2 plans sont requis.');
@@ -534,6 +558,7 @@ export async function summateDicomPlans(input: SummationInput): Promise<SummedPl
         warnings,
         info: {
           planNames,
+          planDetails,
           matchedStructures: structures.length,
           unmatchedStructures: [],
           maxDose,
@@ -573,6 +598,7 @@ export async function summateDicomPlans(input: SummationInput): Promise<SummedPl
     warnings,
     info: {
       planNames,
+      planDetails,
       matchedStructures: matched,
       unmatchedStructures: unmatched,
       maxDose,
