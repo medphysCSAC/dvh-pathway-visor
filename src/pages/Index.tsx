@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileUpload } from '@/components/FileUpload';
+import { UnifiedPlanUpload } from '@/components/UnifiedPlanUpload';
 import { MultiFileUpload } from '@/components/MultiFileUpload';
 import { PlanComparison } from '@/components/PlanComparison';
 import { ProtocolDocumentConverter } from '@/components/ProtocolDocumentConverter';
@@ -17,7 +17,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { InteractiveTour } from '@/components/InteractiveTour';
 import { ContextualHelp } from '@/components/ContextualHelp';
 import { CriticalDoseAlerts } from '@/components/CriticalDoseAlerts';
-import { DicomRTUpload } from '@/components/DicomRTUpload';
+
 import DVHComparisonDebug from '@/components/DVHComparisonDebug';
 import DVHSourceComparison from '@/components/DVHSourceComparison';
 import { PlanSummationManager } from '@/components/PlanSummationManager';
@@ -230,9 +230,8 @@ const Index = () => {
           {/* File Upload Section */}
           {!dvhData && <div className="max-w-5xl mx-auto space-y-6">
               <Tabs defaultValue="upload" className="w-full">
-                <TabsList className="grid w-full grid-cols-6">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="upload">Charger un plan</TabsTrigger>
-                  <TabsTrigger value="dicom">DICOM RT</TabsTrigger>
                   <TabsTrigger value="debug-compare" className="text-amber-600">
                     <Bug className="w-4 h-4 mr-1" />
                     Debug Comparaison
@@ -244,12 +243,11 @@ const Index = () => {
                 
                 <TabsContent value="upload" className="mt-6">
                   <div data-tour="file-upload">
-                    <FileUpload onFilesUploaded={handleFilesUploaded} />
+                    <UnifiedPlanUpload
+                      onCsvLoaded={handleFilesUploaded}
+                      onDicomLoaded={handleDicomRTLoaded}
+                    />
                   </div>
-                </TabsContent>
-
-                <TabsContent value="dicom" className="mt-6">
-                  <DicomRTUpload onDataLoaded={handleDicomRTLoaded} />
                 </TabsContent>
 
                 <TabsContent value="debug-compare" className="mt-6 space-y-6">
