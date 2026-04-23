@@ -38,10 +38,14 @@ const detectCsvKind = (name: string): CsvKind => {
 
 const detectDicomKind = (name: string): DicomKind => {
   const lower = name.toLowerCase();
-  if (lower.includes('rtstruct') || lower.startsWith('rs.') || lower.includes('_rs_') || lower.includes('rs_')) return 'RTSTRUCT';
-  if (lower.includes('rtdose') || lower.startsWith('rd.') || lower.includes('_rd_') || lower.includes('rd_')) return 'RTDOSE';
-  if (lower.includes('rtplan') || lower.startsWith('rp.') || lower.includes('_rp_') || lower.includes('rp_')) return 'RTPLAN';
-  if (lower.includes('ct') || lower.includes('_ct_')) return 'CT';
+  // Match RS / RD / RP / CT as tokens at start, end, or surrounded by non-alphanumeric separators (., _, -, space)
+  const tokenAt = (token: string) =>
+    new RegExp(`(^|[^a-z0-9])${token}([^a-z0-9]|$)`, 'i').test(lower);
+
+  if (lower.includes('rtstruct') || tokenAt('rs')) return 'RTSTRUCT';
+  if (lower.includes('rtdose') || tokenAt('rd')) return 'RTDOSE';
+  if (lower.includes('rtplan') || tokenAt('rp')) return 'RTPLAN';
+  if (tokenAt('ct')) return 'CT';
   return 'DICOM_UNKNOWN';
 };
 
