@@ -17,7 +17,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { InteractiveTour } from '@/components/InteractiveTour';
 import { ContextualHelp } from '@/components/ContextualHelp';
 import { CriticalDoseAlerts } from '@/components/CriticalDoseAlerts';
-import { DicomRTUpload } from '@/components/DicomRTUpload';
+
 import DVHComparisonDebug from '@/components/DVHComparisonDebug';
 import DVHSourceComparison from '@/components/DVHSourceComparison';
 import { PlanSummationManager } from '@/components/PlanSummationManager';
