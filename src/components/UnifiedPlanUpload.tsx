@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { ContextualHelp } from './ContextualHelp';
 import { parseDicomFile } from '@/utils/dicomRTParser';
+import * as dicomParser from 'dicom-parser';
 import { DicomRTData } from '@/types/dicomRT';
 import { toast } from 'sonner';
 
