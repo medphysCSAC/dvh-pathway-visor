@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { ContextualHelp } from './ContextualHelp';
 import { parseDicomFile } from '@/utils/dicomRTParser';
+import * as dicomParser from 'dicom-parser';
 import { DicomRTData } from '@/types/dicomRT';
 import { toast } from 'sonner';
 
@@ -38,10 +39,14 @@ const detectCsvKind = (name: string): CsvKind => {
 
 const detectDicomKind = (name: string): DicomKind => {
   const lower = name.toLowerCase();
-  if (lower.includes('rtstruct') || lower.startsWith('rs.') || lower.includes('_rs_') || lower.includes('rs_')) return 'RTSTRUCT';
-  if (lower.includes('rtdose') || lower.startsWith('rd.') || lower.includes('_rd_') || lower.includes('rd_')) return 'RTDOSE';
-  if (lower.includes('rtplan') || lower.startsWith('rp.') || lower.includes('_rp_') || lower.includes('rp_')) return 'RTPLAN';
-  if (lower.includes('ct') || lower.includes('_ct_')) return 'CT';
+  // Match RS / RD / RP / CT as tokens at start, end, or surrounded by non-alphanumeric separators (., _, -, space)
+  const tokenAt = (token: string) =>
+    new RegExp(`(^|[^a-z0-9])${token}([^a-z0-9]|$)`, 'i').test(lower);
+
+  if (lower.includes('rtstruct') || tokenAt('rs')) return 'RTSTRUCT';
+  if (lower.includes('rtdose') || tokenAt('rd')) return 'RTDOSE';
+  if (lower.includes('rtplan') || tokenAt('rp')) return 'RTPLAN';
+  if (tokenAt('ct')) return 'CT';
   return 'DICOM_UNKNOWN';
 };
 
@@ -101,7 +106,24 @@ export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoade
     return collected;
   }, []);
 
-  const ingestFiles = useCallback((rawFiles: File[]) => {
+  // Resolve real DICOM type by reading SOPClassUID — fallback for unusual filenames
+  const resolveDicomType = useCallback(async (file: File): Promise<DicomKind> => {
+    try {
+      const buf = await file.arrayBuffer();
+      const ds = dicomParser.parseDicom(new Uint8Array(buf));
+      const sop = ds.string('x00080016') || '';
+      const modality = (ds.string('x00080060') || '').toUpperCase();
+      if (sop === '1.2.840.10008.5.1.4.1.1.481.3' || modality === 'RTSTRUCT') return 'RTSTRUCT';
+      if (sop === '1.2.840.10008.5.1.4.1.1.481.2' || modality === 'RTDOSE') return 'RTDOSE';
+      if (sop === '1.2.840.10008.5.1.4.1.1.481.5' || modality === 'RTPLAN') return 'RTPLAN';
+      if (sop === '1.2.840.10008.5.1.4.1.1.2' || modality === 'CT') return 'CT';
+      return 'DICOM_UNKNOWN';
+    } catch {
+      return 'DICOM_UNKNOWN';
+    }
+  }, []);
+
+  const ingestFiles = useCallback(async (rawFiles: File[]) => {
     setError('');
     const detected: DetectedFile[] = rawFiles
       .map((file) => ({ file, kind: detectKind(file) }))
@@ -111,6 +133,15 @@ export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoade
       setError('Aucun fichier supporté (.txt, .csv, .dcm) détecté');
       return;
     }
+
+    // Resolve DICOM_UNKNOWN by parsing SOPClassUID
+    await Promise.all(
+      detected.map(async (d, i) => {
+        if (d.kind === 'DICOM_UNKNOWN' && isDcmName(d.file.name)) {
+          detected[i] = { ...d, kind: await resolveDicomType(d.file) };
+        }
+      })
+    );
 
     // Merge with previous files, dedupe by name+size
     setFiles((prev) => {
@@ -122,7 +153,7 @@ export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoade
       }
       return merged;
     });
-  }, []);
+  }, [resolveDicomType]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
