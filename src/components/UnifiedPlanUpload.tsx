@@ -106,7 +106,24 @@ export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoade
     return collected;
   }, []);
 
-  const ingestFiles = useCallback((rawFiles: File[]) => {
+  // Resolve real DICOM type by reading SOPClassUID — fallback for unusual filenames
+  const resolveDicomType = useCallback(async (file: File): Promise<DicomKind> => {
+    try {
+      const buf = await file.arrayBuffer();
+      const ds = dicomParser.parseDicom(new Uint8Array(buf));
+      const sop = ds.string('x00080016') || '';
+      const modality = (ds.string('x00080060') || '').toUpperCase();
+      if (sop === '1.2.840.10008.5.1.4.1.1.481.3' || modality === 'RTSTRUCT') return 'RTSTRUCT';
+      if (sop === '1.2.840.10008.5.1.4.1.1.481.2' || modality === 'RTDOSE') return 'RTDOSE';
+      if (sop === '1.2.840.10008.5.1.4.1.1.481.5' || modality === 'RTPLAN') return 'RTPLAN';
+      if (sop === '1.2.840.10008.5.1.4.1.1.2' || modality === 'CT') return 'CT';
+      return 'DICOM_UNKNOWN';
+    } catch {
+      return 'DICOM_UNKNOWN';
+    }
+  }, []);
+
+  const ingestFiles = useCallback(async (rawFiles: File[]) => {
     setError('');
     const detected: DetectedFile[] = rawFiles
       .map((file) => ({ file, kind: detectKind(file) }))
@@ -116,6 +133,15 @@ export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoade
       setError('Aucun fichier supporté (.txt, .csv, .dcm) détecté');
       return;
     }
+
+    // Resolve DICOM_UNKNOWN by parsing SOPClassUID
+    await Promise.all(
+      detected.map(async (d, i) => {
+        if (d.kind === 'DICOM_UNKNOWN' && isDcmName(d.file.name)) {
+          detected[i] = { ...d, kind: await resolveDicomType(d.file) };
+        }
+      })
+    );
 
     // Merge with previous files, dedupe by name+size
     setFiles((prev) => {
@@ -127,7 +153,7 @@ export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoade
       }
       return merged;
     });
-  }, []);
+  }, [resolveDicomType]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
