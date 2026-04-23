@@ -1,92 +1,87 @@
 
 
-# Plan : Affichage des plans sources dans le rapport PDF
+# Plan : Upload unifié dans "Charger un plan" + suppression de l'onglet DICOM RT
 
 ## Objectif
-Lorsque l'analyse provient d'une **sommation DICOM multi-plans**, le rapport PDF doit afficher clairement :
-- La liste des plans sources additionnés
-- La méthode de sommation utilisée (`dose_grid` précis ou `dvh_direct` approximatif)
-- Les éventuels avertissements (patients différents, géométries incompatibles, fallback)
-- Une mention claire si méthode approximative → "à confirmer avec export TPS"
+Fusionner les onglets **"Charger un plan"** (CSV TomoTherapy) et **"DICOM RT"** en une seule zone d'upload intelligente avec détection automatique du format. Supprimer l'onglet DICOM RT redondant.
 
-## Aperçu visuel (nouvelle section rapport)
+## Comportement cible
+
+Une zone de drop **unifiée** dans "Charger un plan" qui accepte :
+- **CSV TomoTherapy** : `*_REL.txt/csv` (+ `*_ABS.txt/csv` optionnel) — appariement auto
+- **DICOM RT** : `RTSTRUCT.dcm` + `RTDOSE.dcm` (+ `RTPLAN.dcm` optionnel) — détection IOD auto
+- **Modes d'upload** :
+  - Glisser-déposer fichier(s)
+  - Sélectionner fichier(s) via bouton
+  - Glisser-déposer un **dossier entier** (lecture récursive — déjà supporté par `DicomRTUpload`)
+
+## Logique de détection
+
+1. **Tri par extension** :
+   - `.txt` / `.csv` → branche CSV (réutilise la détection REL/ABS existante de `FileUpload`)
+   - `.dcm` → branche DICOM (réutilise la détection IOD de `DicomRTUpload`)
+2. **Affichage unifié** : liste des fichiers détectés avec badge `CSV REL`, `CSV ABS`, `RTSTRUCT`, `RTDOSE`, `RTPLAN`
+3. **Validation** :
+   - CSV : au minimum un REL
+   - DICOM : au minimum 1 RTSTRUCT + 1 RTDOSE
+   - Erreur claire si mélange ambigu (ex. 2 RTSTRUCT sans appariement clair)
+4. **Routing** : selon le type majoritaire détecté → appel à `parseTomoTherapyDVH` ou à `parseDicomFile` + `convertDicomDVHToAppFormat`
+
+## Aperçu visuel
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│  📊 SOMMATION DOSIMÉTRIQUE                                  │
-│  Ce rapport est basé sur la sommation de 3 plans :          │
-│                                                             │
-│   • Plan 1 : RTDOSE_phase1.dcm   — 46 Gy / 23 fx            │
-│   • Plan 2 : RTDOSE_boost.dcm    — 14 Gy / 7 fx             │
-│   • Plan 3 : RTDOSE_sib.dcm      — 5 Gy  / 5 fx             │
-│                                                             │
-│   Dose totale estimée : 65 Gy                               │
-│   Méthode : ✅ Sommation sur grille de dose (précis)         │
-│                                                             │
-│   ⚠️ Moelle épinière absente du Plan 2                       │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  📤 Charger un plan                                      │
+│                                                          │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │   Glissez fichiers ou dossier ici                  │  │
+│  │   (CSV TomoTherapy ou DICOM RT — détection auto)   │  │
+│  │   [ Sélectionner fichiers ] [ Sélectionner dossier ]│  │
+│  └────────────────────────────────────────────────────┘  │
+│                                                          │
+│  Fichiers détectés (3) :                                 │
+│   ✅ patient1_REL.txt        [CSV REL]                   │
+│   ✅ patient1_ABS.txt        [CSV ABS]                   │
+│   → Plan TomoTherapy détecté                             │
+│                                                          │
+│  [ Analyser le plan ]                                    │
+└──────────────────────────────────────────────────────────┘
 ```
 
-Si méthode = `dvh_direct` : encadré orange + mention :
-> ⚠️ Validation par sommation approchée (DVH direct). Confirmer avec l'export sommation du TPS avant validation clinique.
-
-## Modifications techniques
-
-### 1. `src/types/protocol.ts`
-Ajouter un champ optionnel `summationInfo` à `ValidationReport` :
-
-```ts
-export interface SummationReportInfo {
-  planNames: string[];
-  planDetails?: Array<{ 
-    name: string; 
-    fractions?: number; 
-    dose?: number;        // dose totale Gy
-    label?: string;       // depuis RTPLAN si dispo
-  }>;
-  method: 'dose_grid' | 'dvh_direct';
-  totalDose?: number;
-  warnings: string[];
-  matchedStructures?: number;
-  unmatchedStructures?: string[];
-}
-
-export interface ValidationReport {
-  // ... existant
-  summationInfo?: SummationReportInfo;
-}
+Si DICOM détecté à la place :
+```text
+   ✅ RS.dcm    [RTSTRUCT]    Patient: Dupont
+   ✅ RD.dcm    [RTDOSE]      45 Gy
+   ✅ RP.dcm    [RTPLAN]      25 fractions
+   → Plan DICOM RT détecté
 ```
 
-### 2. Propagation depuis la sommation
-- **`src/pages/Index.tsx`** — `handleDicomSummationComplete(data, result)` : stocker `result` dans un state `lastSummationResult: SummedPlanResult | null`.
-- **`src/components/ProtocolValidation.tsx`** : accepter en prop optionnelle `summationResult?: SummedPlanResult`. Au moment de `generateValidationReport(...)`, injecter `summationInfo` dans le rapport produit (mapping depuis `result.info` + `result.summationMethod` + `result.warnings` + `plans` slots).
-- **`src/utils/protocolValidator.ts`** : `generateValidationReport` accepte un paramètre optionnel `summationInfo` et le pose tel quel sur le rapport.
-- **`PlanSummationManager`** : déjà fournit `result` au callback — exposer aussi `planDetails` (nom fichier + fractions + dose) en enrichissant `SummedPlanResult.info.planDetails` (déjà partiellement présent via `rtPlanInfo` des slots).
+## Fichiers à modifier
 
-### 3. Génération PDF — 3 endroits
-- **`src/utils/reportGeneratorTest.ts`** (rapport Officiel) : ajouter une **section dédiée** "Sommation Dosimétrique" entre l'en-tête institutionnel et la section Patient.
-- **`src/utils/reportGeneratorTest2.ts`** (rapport Essentiel) : ajouter un **encadré compact** entre le Résumé et la table PTV (3-4 lignes maxi pour rester ultra-compact).
-- **`src/components/ReportHTMLPreview.tsx`** : afficher la même section dans la prévisualisation pour cohérence visuelle.
+1. **Nouveau composant `src/components/UnifiedPlanUpload.tsx`** :
+   - Fusionne la logique de `FileUpload.tsx` (CSV REL/ABS) et `DicomRTUpload.tsx` (DICOM + dossiers)
+   - Détection automatique par extension + parsing IOD pour les `.dcm`
+   - UI unifiée avec badges de type, drag&drop fichiers ET dossiers
+   - Callbacks : `onCsvLoaded(relFile, absFile?)` et `onDicomLoaded(data)` — réutilise les handlers existants de `Index.tsx`
 
-### 4. Style conditionnel selon méthode
-- `dose_grid` → fond vert clair, badge "✅ Précis"
-- `dvh_direct` → fond orange, badge "⚠️ Approché", message d'avertissement explicite
+2. **`src/pages/Index.tsx`** :
+   - Remplacer l'onglet "Charger un plan" (`FileUpload`) par `UnifiedPlanUpload`
+   - **Supprimer l'onglet "DICOM RT"** de la liste des `TabsTrigger`
+   - Réutiliser tels quels `handleFilesUploaded` et `handleDicomRTLoaded`
 
-### 5. Cas sans sommation
-Si `report.summationInfo` est absent (analyse mono-plan classique), aucune section n'est ajoutée — rapport identique à aujourd'hui.
+3. **`src/components/HelpGuide.tsx`** :
+   - Mettre à jour les références à "DICOM RT" comme onglet séparé → mentionner que tout passe par "Charger un plan"
 
-## Fichiers modifiés
-1. `src/types/protocol.ts` — nouvelle interface `SummationReportInfo`
-2. `src/utils/planSummationDicom.ts` — enrichir `SummedPlanResult.info.planDetails`
-3. `src/utils/protocolValidator.ts` — accepter et propager `summationInfo`
-4. `src/pages/Index.tsx` — mémoriser `lastSummationResult`, le passer à `ProtocolValidation`
-5. `src/components/ProtocolValidation.tsx` — recevoir et injecter dans le rapport
-6. `src/utils/reportGeneratorTest.ts` — section "Sommation" complète
-7. `src/utils/reportGeneratorTest2.ts` — encadré compact
-8. `src/components/ReportHTMLPreview.tsx` — preview cohérent
+4. **Conservation** :
+   - `FileUpload.tsx` et `DicomRTUpload.tsx` restent dans le projet (toujours utilisés par `DVHSourceComparison` pour le mode debug)
+   - Aucun changement aux parseurs (`dvhParser.ts`, `dicomRTParser.ts`)
 
-## Hors scope (étape suivante possible)
-- Ajout de la **dose biologique cumulée (EQD2/BED)** par structure
-- **Graphique miniature** des DVH individuels superposés au DVH sommé dans le rapport
-- Export structuré JSON des plans sources pour audit qualité
+## Avantages
+- **Interface allégée** : 1 onglet au lieu de 2 pour l'entrée principale
+- **UX plus fluide** : l'utilisateur n'a plus à savoir à l'avance quel format il a
+- **Cohérence** : même approche que celle adoptée pour "Comparer plans"
+
+## Hors scope
+- Modification du composant `DVHSourceComparison` (debug parsers — garde ses 2 zones séparées par design)
+- Refonte du `PlanSummationManager` (workflow multi-plans DICOM spécifique)
 
