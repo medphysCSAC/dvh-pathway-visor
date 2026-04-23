@@ -177,7 +177,7 @@ const HelpGuide = () => {
                             DICOM-RT natif
                           </p>
                           <ol className="list-decimal list-inside space-y-2 text-sm">
-                            <li>Onglet <strong>"DICOM RT"</strong></li>
+                            <li>Onglet <strong>"Charger un plan"</strong> (formats CSV et DICOM unifiés)</li>
                             <li>Glisser-déposer fichiers DICOM</li>
                             <li>Détection auto: <Badge variant="outline">RS</Badge> <Badge variant="outline">RD</Badge> <Badge variant="outline">RP</Badge></li>
                             <li>Extraction DVH automatique</li>
@@ -728,7 +728,7 @@ const HelpGuide = () => {
                 />
                 <FAQItem
                   question="Comment fonctionne l'import DICOM-RT ?"
-                  answer="Glissez vos fichiers DICOM dans l'onglet 'DICOM RT'. Le type IOD (RS, RD, RP) est détecté automatiquement. Si RT-DOSE contient des DVH embarqués, ils sont extraits automatiquement avec conversion des unités."
+                  answer="Glissez vos fichiers DICOM (ou un dossier complet) dans l'onglet 'Charger un plan'. La détection est automatique : CSV TomoTherapy ou DICOM RT (RS, RD, RP). Si RT-DOSE contient des DVH embarqués, ils sont extraits automatiquement avec conversion des unités."
                 />
                 <FAQItem
                   question="Le fichier DVH ABS est-il obligatoire ?"
