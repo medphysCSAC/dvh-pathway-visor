@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileUpload } from '@/components/FileUpload';
+import { UnifiedPlanUpload } from '@/components/UnifiedPlanUpload';
 import { MultiFileUpload } from '@/components/MultiFileUpload';
 import { PlanComparison } from '@/components/PlanComparison';
 import { ProtocolDocumentConverter } from '@/components/ProtocolDocumentConverter';
