@@ -129,16 +129,30 @@ export const DVHChart = ({
       const dataPoint: any = { dose };
       
       filteredStructures.forEach(structure => {
-        // Sélectionner la source de données (absolu ou relatif)
-        let dataSource = isAbsolute && structure.absoluteVolume
-          ? structure.absoluteVolume
-          : structure.relativeVolume;
-        
-        // Si DVH différentiel, calculer le différentiel à partir du cumulatif
+        // 🔥 Sélection de la source selon le mode demandé
+        let dataSource: { dose: number; volume: number }[];
+
         if (isDifferential) {
-          dataSource = calculateDifferentialDVH(dataSource);
+          // Préférer les données différentielles BRUTES préservées du DICOM
+          const rawDiff = isAbsolute
+            ? structure.differentialAbsoluteVolume
+            : structure.differentialRelativeVolume;
+
+          if (rawDiff && rawDiff.length > 0) {
+            dataSource = rawDiff;
+          } else {
+            // Fallback: dérivation numérique du cumulatif (cas DVH Parser CSV ou DICOM nativement CUMULATIVE)
+            const cumulativeSource = isAbsolute && structure.absoluteVolume
+              ? structure.absoluteVolume
+              : structure.relativeVolume;
+            dataSource = calculateDifferentialDVH(cumulativeSource);
+          }
+        } else {
+          dataSource = isAbsolute && structure.absoluteVolume
+            ? structure.absoluteVolume
+            : structure.relativeVolume;
         }
-        
+
         // Find the volume for this dose (interpolate if needed)
         const point = dataSource.find(p => 
           Math.abs(p.dose - dose) < 0.01
