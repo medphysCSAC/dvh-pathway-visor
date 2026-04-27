@@ -452,6 +452,10 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
       // Conversion DIFFERENTIAL si nécessaire
       if (dvhType === "DIFFERENTIAL") {
         console.log(`[DICOM RT] 🔄 Converting DIFFERENTIAL (volume-only) to CUMULATIVE...`);
+
+        // 🔥 Capture des volumes différentiels BRUTS avant cumsum
+        rawDifferentialVolumes = [...tempVolumes];
+
         const cumulativeVolumes: number[] = new Array(tempVolumes.length);
         let runningSum = 0;
 
