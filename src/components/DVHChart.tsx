@@ -110,14 +110,27 @@ export const DVHChart = ({
     const isDifferential = dvhType.includes('differential');
     const isAbsolute = dvhType.includes('absolute');
 
-    // Get all unique dose points
+    // Get all unique dose points — choose source matching the requested mode
     const allDoses = new Set<number>();
     filteredStructures.forEach(structure => {
-      const dataSource = isAbsolute && structure.absoluteVolume
-        ? structure.absoluteVolume
-        : structure.relativeVolume;
-      
-      dataSource.forEach(point => {
+      let doseSource: { dose: number; volume: number }[] | undefined;
+
+      if (isDifferential) {
+        const rawDiff = isAbsolute
+          ? structure.differentialAbsoluteVolume
+          : structure.differentialRelativeVolume;
+        if (rawDiff && rawDiff.length > 0) {
+          doseSource = rawDiff;
+        }
+      }
+
+      if (!doseSource || doseSource.length === 0) {
+        doseSource = isAbsolute && structure.absoluteVolume && structure.absoluteVolume.length > 0
+          ? structure.absoluteVolume
+          : structure.relativeVolume;
+      }
+
+      doseSource.forEach(point => {
         allDoses.add(parseFloat(point.dose.toFixed(2)));
       });
     });
@@ -142,13 +155,13 @@ export const DVHChart = ({
             dataSource = rawDiff;
           } else {
             // Fallback: dérivation numérique du cumulatif (cas DVH Parser CSV ou DICOM nativement CUMULATIVE)
-            const cumulativeSource = isAbsolute && structure.absoluteVolume
+            const cumulativeSource = isAbsolute && structure.absoluteVolume && structure.absoluteVolume.length > 0
               ? structure.absoluteVolume
               : structure.relativeVolume;
             dataSource = calculateDifferentialDVH(cumulativeSource);
           }
         } else {
-          dataSource = isAbsolute && structure.absoluteVolume
+          dataSource = isAbsolute && structure.absoluteVolume && structure.absoluteVolume.length > 0
             ? structure.absoluteVolume
             : structure.relativeVolume;
         }
