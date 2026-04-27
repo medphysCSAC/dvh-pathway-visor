@@ -862,7 +862,7 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
     meanDose: finalMeanDose,
     totalVolume,
     referencedROINumber,
-    data: { doses, volumes },
+    data: { doses, volumes, differentialVolumes: rawDifferentialVolumes },
   };
 }
 
