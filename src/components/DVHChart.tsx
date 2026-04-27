@@ -319,9 +319,9 @@ export const DVHChart = ({
                   value: dvhType === 'cumulative-absolute' 
                     ? 'Volume (cc)' 
                     : dvhType === 'differential-absolute'
-                    ? 'dV/dD (cc/Gy)'
+                    ? 'Volume différentiel (cc)'
                     : dvhType === 'differential-relative'
-                    ? 'dV/dD (%/Gy)'
+                    ? '% Normalized'
                     : 'Volume (%)', 
                   angle: -90, 
                   position: 'insideLeft' 
