@@ -11,6 +11,16 @@ export interface Structure {
   category: StructureCategory;
   relativeVolume: DVHPoint[];
   absoluteVolume?: DVHPoint[];
+  /**
+   * 🔥 DVH différentiel BRUT issu du DICOM (axe Y = % Normalized = dV/V_total × 100).
+   * Présent uniquement pour les DVH DICOM nativement DIFFERENTIAL.
+   * Si absent → fallback dérivation numérique du cumulatif.
+   */
+  differentialRelativeVolume?: DVHPoint[];
+  /**
+   * 🔥 DVH différentiel BRUT en volume absolu (cc).
+   */
+  differentialAbsoluteVolume?: DVHPoint[];
   totalVolume?: number;
 }
 

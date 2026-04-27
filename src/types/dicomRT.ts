@@ -67,6 +67,13 @@ export interface DicomDVH {
   data: {
     doses: number[];
     volumes: number[];
+    /**
+     * 🔥 Volumes différentiels BRUTS issus du DICOM (avant conversion vers cumulatif).
+     * Aligné avec `doses[i]` : volume contenu dans le bin [doses[i], doses[i+1]].
+     * Unité = même que `volumeUnits` (CM3 ou PERCENT).
+     * Présent uniquement si le DICOM source était de type DIFFERENTIAL.
+     */
+    differentialVolumes?: number[];
   };
 }
 

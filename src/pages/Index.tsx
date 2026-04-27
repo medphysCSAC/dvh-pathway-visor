@@ -169,6 +169,8 @@ const Index = () => {
           category: dvh.name.toUpperCase().startsWith('PTV') ? 'PTV' : 'OAR',
           relativeVolume: dvh.relativeVolume,
           absoluteVolume: [], // DVH absolu en points (non utilisé ici)
+          differentialRelativeVolume: dvh.differentialRelativeVolume,
+          differentialAbsoluteVolume: dvh.differentialAbsoluteVolume,
           totalVolume: dvh.absoluteVolume, // ✅ FIX: utiliser le volume total retourné
         })),
       };

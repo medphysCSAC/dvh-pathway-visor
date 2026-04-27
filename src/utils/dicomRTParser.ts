@@ -407,6 +407,8 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   // 🔥 LECTURE CORRECTE DES DONNÉES DVH
   let doses: number[] = [];
   let volumes: number[] = [];
+  // 🔥 Volumes différentiels BRUTS (capturés AVANT cumsum) — pour affichage différentiel fidèle
+  let rawDifferentialVolumes: number[] | undefined;
 
   // Essayer d'abord comme chaîne de caractères (DS VR - le plus commun)
   const dvhDataString = dvhItem.string("x30040058");
@@ -452,6 +454,10 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
       // Conversion DIFFERENTIAL si nécessaire
       if (dvhType === "DIFFERENTIAL") {
         console.log(`[DICOM RT] 🔄 Converting DIFFERENTIAL (volume-only) to CUMULATIVE...`);
+
+        // 🔥 Capture des volumes différentiels BRUTS avant cumsum
+        rawDifferentialVolumes = [...tempVolumes];
+
         const cumulativeVolumes: number[] = new Array(tempVolumes.length);
         let runningSum = 0;
 
@@ -568,6 +574,10 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
           sortedDiffVolumes = sortedIndices.map((i) => tempVolumes[i]);
         }
 
+        // 🔥 Capture des volumes différentiels BRUTS (triés par dose croissante, AVANT cumsum)
+        // Aligné avec sortedDoses[i] : dV dans le bin [sortedDoses[i], sortedDoses[i+1]]
+        rawDifferentialVolumes = [...sortedDiffVolumes];
+
         // dicompyler-core: cumsum from high dose to low dose
         const cumulativeVolumes: number[] = new Array(sortedDiffVolumes.length);
         let runningSum = 0;
@@ -601,6 +611,10 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
         console.log(`[DICOM RT] 🧹 Removing artificial (0Gy, ${volumes[0].toFixed(2)}) point`);
         doses = doses.slice(1);
         volumes = volumes.slice(1);
+        // 🔥 Garder l'alignement avec les volumes différentiels bruts
+        if (rawDifferentialVolumes && rawDifferentialVolumes.length === doses.length + 1) {
+          rawDifferentialVolumes = rawDifferentialVolumes.slice(1);
+        }
         console.log(`[DICOM RT]   New first point: (${doses[0].toFixed(4)}Gy, ${volumes[0].toFixed(2)})`);
       }
     } else {
@@ -659,6 +673,9 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
           const sortedIndices = tempDoses.map((d, i) => i).sort((a, b) => tempDoses[a] - tempDoses[b]);
           const sortedDoses = sortedIndices.map((i) => tempDoses[i]);
           const sortedDiffVolumes = sortedIndices.map((i) => tempVolumes[i]);
+
+          // 🔥 Capture des volumes différentiels BRUTS (avant cumsum)
+          rawDifferentialVolumes = [...sortedDiffVolumes];
 
           const cumulativeVolumes: number[] = new Array(sortedDiffVolumes.length);
           let runningSum = 0;
@@ -845,7 +862,7 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
     meanDose: finalMeanDose,
     totalVolume,
     referencedROINumber,
-    data: { doses, volumes },
+    data: { doses, volumes, differentialVolumes: rawDifferentialVolumes },
   };
 }
 
@@ -961,6 +978,14 @@ function extractDoseData(
 
 /**
  * 🔥 CONVERSION CORRECTE DVH DICOM → Format App
+ *
+ * Sortie:
+ * - relativeVolume: DVH cumulatif en % (axe Y = % volume total)
+ * - differentialRelativeVolume: DVH différentiel en % Normalized (= dV / V_total × 100, PAS de division par dD)
+ * - differentialAbsoluteVolume: DVH différentiel en cc (= dV brut)
+ *
+ * Les champs differential* ne sont produits que si le DICOM source était de type DIFFERENTIAL
+ * (les volumes différentiels bruts ont été préservés avant cumsum dans parseDVH).
  */
 export function convertDicomDVHToAppFormat(
   structures: DicomRTStructure[],
@@ -969,6 +994,8 @@ export function convertDicomDVHToAppFormat(
   name: string;
   roiNumber: number;
   relativeVolume: Array<{ dose: number; volume: number }>;
+  differentialRelativeVolume?: Array<{ dose: number; volume: number }>;
+  differentialAbsoluteVolume?: Array<{ dose: number; volume: number }>;
   absoluteVolume?: number;
 }> {
   if (!dvhs?.length) return [];
@@ -980,27 +1007,51 @@ export function convertDicomDVHToAppFormat(
     const totalVolume = dvh.totalVolume || dvh.data.volumes[0] || 0;
 
     // 🔥 CORRECTION #3: Conversion conditionnelle cm³ → %
-    // Si volumeUnits = "CM3", les volumes sont absolus → convertir en %
-    // Si volumeUnits = "PERCENT", les volumes sont déjà en %
     const isAbsoluteVolume = dvh.volumeUnits === "CM3";
 
     const relativeVolume = dvh.data.doses.map((dose, i) => ({
       dose,
       volume:
         isAbsoluteVolume && totalVolume > 0
-          ? (dvh.data.volumes[i] / totalVolume) * 100 // Conversion cm³ → %
-          : dvh.data.volumes[i], // Déjà en %
+          ? (dvh.data.volumes[i] / totalVolume) * 100
+          : dvh.data.volumes[i],
     }));
 
+    // 🔥 DVH DIFFÉRENTIEL BRUT (préservé depuis le DICOM avant cumsum)
+    let differentialRelativeVolume: Array<{ dose: number; volume: number }> | undefined;
+    let differentialAbsoluteVolume: Array<{ dose: number; volume: number }> | undefined;
+
+    const rawDiff = dvh.data.differentialVolumes;
+    if (rawDiff && rawDiff.length === dvh.data.doses.length) {
+      // % Normalized = dV / V_total × 100 (PAS de division par dD — affichage type TPS)
+      differentialRelativeVolume = dvh.data.doses.map((dose, i) => ({
+        dose,
+        volume:
+          isAbsoluteVolume && totalVolume > 0
+            ? (rawDiff[i] / totalVolume) * 100
+            : rawDiff[i], // déjà en %
+      }));
+
+      // Volume absolu différentiel en cc
+      differentialAbsoluteVolume = dvh.data.doses.map((dose, i) => ({
+        dose,
+        volume: isAbsoluteVolume
+          ? rawDiff[i]
+          : (rawDiff[i] / 100) * totalVolume, // % → cc si stocké en %
+      }));
+    }
+
     console.log(
-      `[DVH Convert] ${structure?.name || `ROI_${dvh.referencedROINumber}`}: totalVolume=${totalVolume.toFixed(2)} cm³, volumeUnits=${dvh.volumeUnits}, converted=${isAbsoluteVolume}`,
+      `[DVH Convert] ${structure?.name || `ROI_${dvh.referencedROINumber}`}: totalVolume=${totalVolume.toFixed(2)} cm³, volumeUnits=${dvh.volumeUnits}, hasRawDiff=${!!differentialRelativeVolume}`,
     );
 
     return {
       name: structure?.name || `ROI_${dvh.referencedROINumber}`,
       roiNumber: dvh.referencedROINumber || -1,
       relativeVolume,
-      absoluteVolume: totalVolume, // 🔥 CORRECTION: utiliser totalVolume, pas maxVolume
+      differentialRelativeVolume,
+      differentialAbsoluteVolume,
+      absoluteVolume: totalVolume,
     };
   });
 }
