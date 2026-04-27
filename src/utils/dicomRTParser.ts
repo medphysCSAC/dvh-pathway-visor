@@ -674,6 +674,9 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
           const sortedDoses = sortedIndices.map((i) => tempDoses[i]);
           const sortedDiffVolumes = sortedIndices.map((i) => tempVolumes[i]);
 
+          // 🔥 Capture des volumes différentiels BRUTS (avant cumsum)
+          rawDifferentialVolumes = [...sortedDiffVolumes];
+
           const cumulativeVolumes: number[] = new Array(sortedDiffVolumes.length);
           let runningSum = 0;
 
