@@ -574,6 +574,10 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
           sortedDiffVolumes = sortedIndices.map((i) => tempVolumes[i]);
         }
 
+        // 🔥 Capture des volumes différentiels BRUTS (triés par dose croissante, AVANT cumsum)
+        // Aligné avec sortedDoses[i] : dV dans le bin [sortedDoses[i], sortedDoses[i+1]]
+        rawDifferentialVolumes = [...sortedDiffVolumes];
+
         // dicompyler-core: cumsum from high dose to low dose
         const cumulativeVolumes: number[] = new Array(sortedDiffVolumes.length);
         let runningSum = 0;
@@ -607,6 +611,10 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
         console.log(`[DICOM RT] 🧹 Removing artificial (0Gy, ${volumes[0].toFixed(2)}) point`);
         doses = doses.slice(1);
         volumes = volumes.slice(1);
+        // 🔥 Garder l'alignement avec les volumes différentiels bruts
+        if (rawDifferentialVolumes && rawDifferentialVolumes.length === doses.length + 1) {
+          rawDifferentialVolumes = rawDifferentialVolumes.slice(1);
+        }
         console.log(`[DICOM RT]   New first point: (${doses[0].toFixed(4)}Gy, ${volumes[0].toFixed(2)})`);
       }
     } else {
