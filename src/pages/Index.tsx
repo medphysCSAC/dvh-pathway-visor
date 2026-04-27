@@ -163,16 +163,23 @@ const Index = () => {
       // Create DVHData structure compatible with the app
       const newDvhData: DVHData = {
         patientId: data.patientId || 'DICOM Patient',
-        structures: convertedDVH.map((dvh) => ({
-          name: dvh.name,
-          type: 'STANDARD',
-          category: dvh.name.toUpperCase().startsWith('PTV') ? 'PTV' : 'OAR',
-          relativeVolume: dvh.relativeVolume,
-          absoluteVolume: [], // DVH absolu en points (non utilisé ici)
-          differentialRelativeVolume: dvh.differentialRelativeVolume,
-          differentialAbsoluteVolume: dvh.differentialAbsoluteVolume,
-          totalVolume: dvh.absoluteVolume, // ✅ FIX: utiliser le volume total retourné
-        })),
+        structures: convertedDVH.map((dvh) => {
+          const totalVol = dvh.absoluteVolume || 0;
+          // 🔥 DVH cumulatif absolu (cc) = relatif (%) × volumeTotal / 100
+          const absoluteCumulative = totalVol > 0
+            ? dvh.relativeVolume.map((p) => ({ dose: p.dose, volume: (p.volume / 100) * totalVol }))
+            : [];
+          return {
+            name: dvh.name,
+            type: 'STANDARD' as const,
+            category: dvh.name.toUpperCase().startsWith('PTV') ? 'PTV' as const : 'OAR' as const,
+            relativeVolume: dvh.relativeVolume,
+            absoluteVolume: absoluteCumulative,
+            differentialRelativeVolume: dvh.differentialRelativeVolume,
+            differentialAbsoluteVolume: dvh.differentialAbsoluteVolume,
+            totalVolume: totalVol,
+          };
+        }),
       };
 
       setDvhData(newDvhData);
