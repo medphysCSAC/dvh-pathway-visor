@@ -407,6 +407,8 @@ function parseDVH(dvhItem: dicomParser.DataSet, originalByteArray: Uint8Array): 
   // 🔥 LECTURE CORRECTE DES DONNÉES DVH
   let doses: number[] = [];
   let volumes: number[] = [];
+  // 🔥 Volumes différentiels BRUTS (capturés AVANT cumsum) — pour affichage différentiel fidèle
+  let rawDifferentialVolumes: number[] | undefined;
 
   // Essayer d'abord comme chaîne de caractères (DS VR - le plus commun)
   const dvhDataString = dvhItem.string("x30040058");
