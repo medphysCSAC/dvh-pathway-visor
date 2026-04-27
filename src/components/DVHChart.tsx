@@ -155,13 +155,13 @@ export const DVHChart = ({
             dataSource = rawDiff;
           } else {
             // Fallback: dérivation numérique du cumulatif (cas DVH Parser CSV ou DICOM nativement CUMULATIVE)
-            const cumulativeSource = isAbsolute && structure.absoluteVolume
+            const cumulativeSource = isAbsolute && structure.absoluteVolume && structure.absoluteVolume.length > 0
               ? structure.absoluteVolume
               : structure.relativeVolume;
             dataSource = calculateDifferentialDVH(cumulativeSource);
           }
         } else {
-          dataSource = isAbsolute && structure.absoluteVolume
+          dataSource = isAbsolute && structure.absoluteVolume && structure.absoluteVolume.length > 0
             ? structure.absoluteVolume
             : structure.relativeVolume;
         }
