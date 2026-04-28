@@ -209,6 +209,7 @@ export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoade
   const [isDragActive, setIsDragActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [pendingDicomData, setPendingDicomData] = useState<DicomRTData | null>(null);
   const filesInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
