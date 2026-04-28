@@ -164,7 +164,24 @@ export const ProtocolFileExtractor: React.FC<ProtocolFileExtractorProps> = ({
     const finalProtocol: TreatmentProtocol = {
       ...extractedProtocol,
       name: protocolName || extractedProtocol.name,
-      location: protocolLocation || extractedProtocol.location
+      location: protocolLocation || extractedProtocol.location,
+      oarConstraints: (extractedProtocol.oarConstraints || []).map((c) => {
+        if (c.constraintType === 'Vx') {
+          return {
+            ...c,
+            targetUnit: (c.unit === 'cc' ? 'cc' : '%') as '%' | 'cc',
+            unit: 'Gy' as const,
+          };
+        }
+        if (c.constraintType === 'Dx') {
+          return {
+            ...c,
+            targetUnit: (c.targetUnit || '%') as '%' | 'cc',
+            unit: 'Gy' as const,
+          };
+        }
+        return c;
+      }),
     };
 
     onProtocolExtracted(finalProtocol);

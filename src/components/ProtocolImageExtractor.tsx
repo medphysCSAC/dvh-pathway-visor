@@ -120,7 +120,23 @@ export default function ProtocolImageExtractor({
       name: protocolName || extractedData.name || 'Protocole extrait',
       location: protocolLocation || extractedData.location || 'Non spécifié',
       prescriptions: extractedData.prescriptions || [],
-      oarConstraints: extractedData.oarConstraints || [],
+      oarConstraints: (extractedData.oarConstraints || []).map((c) => {
+        if (c.constraintType === 'Vx') {
+          return {
+            ...c,
+            targetUnit: (c.unit === 'cc' ? 'cc' : '%') as '%' | 'cc',
+            unit: 'Gy' as const,
+          };
+        }
+        if (c.constraintType === 'Dx') {
+          return {
+            ...c,
+            targetUnit: (c.targetUnit || '%') as '%' | 'cc',
+            unit: 'Gy' as const,
+          };
+        }
+        return c;
+      }),
       createdAt: new Date(),
       modifiedAt: new Date(),
       isCustom: true,
