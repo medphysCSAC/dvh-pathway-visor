@@ -6,12 +6,139 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import {
   Upload, FileText, AlertCircle, FolderOpen, Files, Loader2, CheckCircle2, X, FileCheck,
+  Shield, Calendar, Layers, Activity, ChevronRight, CheckCircle,
 } from 'lucide-react';
 import { ContextualHelp } from './ContextualHelp';
+import { Separator } from '@/components/ui/separator';
 import { parseDicomFile } from '@/utils/dicomRTParser';
 import * as dicomParser from 'dicom-parser';
 import { DicomRTData } from '@/types/dicomRT';
 import { toast } from 'sonner';
+
+// ===== Helpers : résumé DICOM avant confirmation =====
+const maskPatientName = (name?: string): string => {
+  if (!name) return '—';
+  return name
+    .split('^')
+    .map((part) => (part.length > 1 ? part[0] + '***' : part))
+    .join(' ');
+};
+
+const getDoseRange = (data: DicomRTData): { min: number; max: number } | null => {
+  if (!data.dose?.dvhs?.length) return null;
+  const mins = data.dose.dvhs.map((d) => d.minimumDose).filter((v) => v > 0);
+  const maxs = data.dose.dvhs.map((d) => d.maximumDose).filter((v) => v > 0);
+  if (!maxs.length) return null;
+  return {
+    min: mins.length ? Math.min(...mins) : 0,
+    max: Math.max(...maxs),
+  };
+};
+
+const formatDicomDate = (date?: string): string => {
+  if (!date || date.length !== 8) return date || '—';
+  return `${date.slice(6, 8)}/${date.slice(4, 6)}/${date.slice(0, 4)}`;
+};
+
+const DicomConfirmPanel: React.FC<{
+  data: DicomRTData;
+  onConfirm: () => void;
+  onCancel: () => void;
+}> = ({ data, onConfirm, onCancel }) => {
+  const doseRange = getDoseRange(data);
+  const planDate = data.plan?.planDate || data.studyDate;
+  const dvhCount = data.dose?.dvhs?.length ?? 0;
+  const structCount = data.structures?.length ?? 0;
+
+  return (
+    <Card className="border-2 border-primary/40 bg-primary/5">
+      <CardContent className="p-5 space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-primary" />
+            <h3 className="text-base font-semibold">Vérification avant import</h3>
+          </div>
+          <Badge variant="outline" className="bg-primary/15 text-primary border-primary/30">
+            DICOM RT
+          </Badge>
+        </div>
+
+        <Separator />
+
+        {/* Infos patient */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Patient</p>
+            <p className="font-medium">{maskPatientName(data.patientName)}</p>
+            <p className="text-xs text-muted-foreground font-mono">{data.patientId || '—'}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+              <Calendar className="w-3 h-3" /> Date du plan
+            </p>
+            <p className="font-medium">{formatDicomDate(planDate)}</p>
+            {data.plan?.planName && (
+              <p className="text-xs text-muted-foreground truncate">{data.plan.planName}</p>
+            )}
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Infos dosimétriques */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-md border bg-card p-3 text-center">
+            <Layers className="w-4 h-4 mx-auto text-info mb-1" />
+            <p className="text-lg font-semibold">{structCount}</p>
+            <p className="text-xs text-muted-foreground">Structures</p>
+          </div>
+          <div className="rounded-md border bg-card p-3 text-center">
+            <Activity className="w-4 h-4 mx-auto text-success mb-1" />
+            <p className="text-lg font-semibold">{dvhCount}</p>
+            <p className="text-xs text-muted-foreground">DVH</p>
+          </div>
+          <div className="rounded-md border bg-card p-3 text-center">
+            <ChevronRight className="w-4 h-4 mx-auto text-accent mb-1" />
+            <p className="text-sm font-semibold">
+              {doseRange ? `${doseRange.min.toFixed(1)}–${doseRange.max.toFixed(1)}` : '—'}
+            </p>
+            <p className="text-xs text-muted-foreground">Plage (Gy)</p>
+          </div>
+        </div>
+
+        {/* Liste des structures */}
+        {structCount > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Structures détectées :</p>
+            <div className="flex flex-wrap gap-1 max-h-24 overflow-auto">
+              {data.structures!.map((s, i) => (
+                <Badge key={i} variant="outline" className="text-[10px] font-mono">
+                  {s.name}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={onCancel}>
+            <X className="w-4 h-4 mr-2" />
+            Annuler
+          </Button>
+          <Button
+            onClick={onConfirm}
+            className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+          >
+            <CheckCircle className="w-4 h-4 mr-2" />
+            Confirmer et charger
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 interface UnifiedPlanUploadProps {
   onCsvLoaded: (relFile: File, absFile?: File) => void;
