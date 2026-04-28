@@ -224,6 +224,34 @@ export const DVHChart = ({
     return structures.filter(s => selectedStructures.includes(s.name));
   }, [structures, selectedStructures]);
 
+  // Constraint overlays — only in cumulative mode, when a protocol is active
+  const constraintOverlays = useMemo(() => {
+    if (!activeProtocol || dvhType.includes('differential')) return [];
+    const isAbsolute = dvhType.includes('absolute');
+
+    return activeProtocol.oarConstraints
+      .filter(c => c.constraintType === 'Vx' && c.target !== undefined)
+      .filter(c => isAbsolute ? c.targetUnit === 'cc' : c.targetUnit !== 'cc')
+      .flatMap(constraint => {
+        const structure = findBestStructureMatch(
+          constraint.organName, structures, structureMappings || []
+        );
+        if (!structure || !selectedStructures.includes(structure.name)) return [];
+        const measured = interpolateVolumeAtDose(structure, constraint.target!, isAbsolute);
+        if (measured === null) return [];
+        const pass = measured <= constraint.value;
+        const unit = constraint.targetUnit || '%';
+        return [{
+          dose: constraint.target!,
+          volume: measured,
+          label: `V${constraint.target}Gy`,
+          measuredLabel: `${measured.toFixed(1)}${unit}`,
+          color: pass ? '#16a34a' : '#dc2626',
+          status: pass ? 'PASS' : 'FAIL',
+        }];
+      });
+  }, [activeProtocol, structures, selectedStructures, structureMappings, dvhType]);
+
   // Show selector even when no structures selected
   const showEmptyState = selectedStructures.length === 0 && !onStructureToggle;
   
