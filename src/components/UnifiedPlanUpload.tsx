@@ -386,7 +386,7 @@ export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoade
           if (parsed.patientName) (combined as any).patientName = parsed.patientName;
         }
 
-        onDicomLoaded(combined);
+        setPendingDicomData(combined);
       } catch (err) {
         console.error(err);
         const msg = err instanceof Error ? err.message : 'Erreur lors du parsing DICOM';
@@ -550,21 +550,37 @@ export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoade
           </div>
         )}
 
+        {/* Panneau de confirmation DICOM */}
+        {pendingDicomData && (
+          <DicomConfirmPanel
+            data={pendingDicomData}
+            onConfirm={() => {
+              const data = pendingDicomData;
+              setPendingDicomData(null);
+              onDicomLoaded(data);
+              clearAll();
+            }}
+            onCancel={() => setPendingDicomData(null)}
+          />
+        )}
+
         {/* Action */}
-        <div className="flex justify-center">
-          <Button
-            size="lg"
-            onClick={handleAnalyze}
-            disabled={!canAnalyze || isProcessing}
-            className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
-          >
-            {isProcessing ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analyse…</>
-            ) : (
-              'Analyser le plan'
-            )}
-          </Button>
-        </div>
+        {!pendingDicomData && (
+          <div className="flex justify-center">
+            <Button
+              size="lg"
+              onClick={handleAnalyze}
+              disabled={!canAnalyze || isProcessing}
+              className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+            >
+              {isProcessing ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Analyse…</>
+              ) : (
+                'Analyser le plan'
+              )}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
