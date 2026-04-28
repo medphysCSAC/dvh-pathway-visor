@@ -20,9 +20,11 @@ interface ProtocolValidationProps {
   structures: Structure[];
   patientId: string;
   summationResult?: SummedPlanResult | null;
+  onProtocolChange?: (protocol: TreatmentProtocol | null) => void;
+  onMappingsChange?: (mappings: StructureMappingType[]) => void;
 }
 
-export default function ProtocolValidation({ structures, patientId, summationResult }: ProtocolValidationProps) {
+export default function ProtocolValidation({ structures, patientId, summationResult, onProtocolChange, onMappingsChange }: ProtocolValidationProps) {
   const { toast } = useToast();
   const { addToHistory } = useAnalysisHistory();
   const [protocols, setProtocols] = useState<TreatmentProtocol[]>([]);
@@ -49,6 +51,14 @@ export default function ProtocolValidation({ structures, patientId, summationRes
     setSelectedProtocolId(protocolId);
     setReport(null);
     setMappings([]);
+    onMappingsChange?.([]);
+    const proto = protocols.find(p => p.id === protocolId) || null;
+    onProtocolChange?.(proto);
+  };
+
+  const handleMappingsChange = (newMappings: StructureMappingType[]) => {
+    setMappings(newMappings);
+    onMappingsChange?.(newMappings);
   };
 
   const handleValidate = () => {
@@ -201,7 +211,7 @@ export default function ProtocolValidation({ structures, patientId, summationRes
         <StructureMapping
           unmatchedStructures={report ? report.unmatchedStructures : []}
           availableStructures={structures}
-          onMappingsChange={setMappings}
+          onMappingsChange={handleMappingsChange}
           protocolId={selectedProtocolId}
           protocol={selectedProtocol}
           currentMappings={mappings}
