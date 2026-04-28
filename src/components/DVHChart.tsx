@@ -351,6 +351,17 @@ export const DVHChart = ({
               <Download className="w-4 h-4 mr-2" />
               PNG
             </Button>
+            {activeProtocol && !dvhType.includes('differential') && (
+              <Button
+                variant={showConstraints ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowConstraints(v => !v)}
+                title={`Protocole : ${activeProtocol.name}`}
+              >
+                <Target className="w-4 h-4 mr-2" />
+                Contraintes {showConstraints ? 'ON' : 'OFF'}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -437,6 +448,26 @@ export const DVHChart = ({
                   />
                 );
               })}
+              {showConstraints && constraintOverlays.flatMap((o, i) => [
+                <ReferenceLine
+                  key={`rl-${i}`}
+                  x={o.dose}
+                  stroke={o.color}
+                  strokeDasharray="5 3"
+                  strokeWidth={1.5}
+                  label={{ value: o.label, position: 'insideTopRight', fontSize: 10, fill: o.color }}
+                />,
+                <ReferenceDot
+                  key={`rd-${i}`}
+                  x={o.dose}
+                  y={o.volume}
+                  r={6}
+                  fill={o.color}
+                  stroke="white"
+                  strokeWidth={2}
+                  label={{ value: o.measuredLabel, position: 'right', fontSize: 10, fill: o.color }}
+                />
+              ])}
             </LineChart>
           </ResponsiveContainer>
         </div>
