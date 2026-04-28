@@ -25,22 +25,33 @@ Extrais les informations suivantes au format JSON strict:
       "organName": "Nom de l'organe (Coeur, Poumon, Moelle, etc.)",
       "constraintType": "Dmax" | "Dmean" | "Vx" | "Dx",
       "value": valeur numérique du seuil,
-      "unit": "Gy" ou "%",
-      "target": valeur cible pour Vx (dose en Gy) ou Dx (volume en % ou cc),
-      "targetUnit": "%" ou "cc" (pour Dx seulement),
+      "unit": "Gy" | "%" | "cc",
+      "target": valeur numérique (dose en Gy pour Vx, volume en % ou cc pour Dx),
       "priority": "mandatory" | "optimal" | "desirable",
       "description": "Description originale de la contrainte"
     }
   ]
 }
 
-Règles importantes:
-1. Pour les contraintes Vx (ex: V20Gy < 30%), target = 20, value = 30, unit = "%"
-2. Pour les contraintes Dx (ex: D2% < 50Gy), target = 2, value = 50, unit = "Gy"
-3. Pour Dmax et Dmean, pas de target nécessaire
+Règles STRICTES pour les contraintes:
+
+1. Vx — le résultat est un VOLUME (% ou cc):
+   - V20Gy < 30%   → constraintType:"Vx", target:20, value:30,  unit:"%"
+   - V30Gy < 500cc → constraintType:"Vx", target:30, value:500, unit:"cc"
+   - V40Gy < 200cc → constraintType:"Vx", target:40, value:200, unit:"cc"
+   - V50Gy < 10%   → constraintType:"Vx", target:50, value:10,  unit:"%"
+   RÈGLE: unit = "%" si le seuil est en %, unit = "cc" si le seuil est en cc ou cm3
+
+2. Dx — le résultat est une DOSE:
+   - D2% < 50Gy → constraintType:"Dx", target:2, value:50, unit:"Gy"
+
+3. Dmax / Dmean — pas de target:
+   - DMax < 1.5Gy → constraintType:"Dmax", value:1.5, unit:"Gy"
+
 4. Priorité par défaut: "mandatory" sauf si explicitement indiqué autrement
 5. Convertis les noms d'organes en français si nécessaire
-6. Si l'image est floue ou illisible, retourne un JSON partiel avec ce qui est lisible
+6. Convertis toutes les doses en Gy (divise par 100 si en cGy)
+7. Si l'image est floue ou illisible, retourne un JSON partiel avec ce qui est lisible
 
 Retourne UNIQUEMENT le JSON, sans markdown ni commentaires.`;
 
