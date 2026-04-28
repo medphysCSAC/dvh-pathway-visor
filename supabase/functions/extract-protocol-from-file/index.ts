@@ -164,11 +164,13 @@ RETOURNE UNIQUEMENT UN JSON VALIDE avec cette structure exacte:
 RÈGLES STRICTES:
 1. Extrais TOUTES les prescriptions (PTV) avec leurs doses et fractionnements
 2. Extrais TOUTES les contraintes OAR (organes à risque)
-3. Pour les contraintes, identifie le type:
-   - "Vx" (ex: V20Gy < 30%) → constraintType: "Vx", target: 20, value: 30, unit: "%"
-   - "Dx" (ex: D2% < 50Gy) → constraintType: "Dx", target: 2, value: 50, unit: "Gy"
-   - "Dmax" → constraintType: "Dmax", value: dose en Gy, unit: "Gy"
-   - "Dmean" → constraintType: "Dmean", value: dose en Gy, unit: "Gy"
+3. Pour les contraintes, identifie le type ET l'unité du résultat:
+   - "Vx" résultat en %  (ex: V20Gy < 30%)    → constraintType:"Vx", target:20, value:30,  unit:"%"
+   - "Vx" résultat en cc (ex: V30Gy < 500cc)  → constraintType:"Vx", target:30, value:500, unit:"cc"
+   - "Dx" (ex: D2% < 50Gy)                    → constraintType:"Dx", target:2,  value:50,  unit:"Gy"
+   - "Dmax" (ex: DMax < 1.5Gy)                → constraintType:"Dmax", value:1.5, unit:"Gy"
+   - "Dmean"                                  → constraintType:"Dmean", value: dose en Gy, unit:"Gy"
+   RÈGLE CRITIQUE: unit = "%" si résultat en %, unit = "cc" si résultat en cc/cm3, unit = "Gy" si résultat en dose
 4. Convertis TOUTES les doses en Gy (divise par 100 si en cGy)
 5. Priority: "mandatory" = obligatoire, "optimal" = important, "desirable" = souhaitable
 
@@ -188,9 +190,9 @@ RETOURNE UNIQUEMENT UN JSON VALIDE avec cette structure exacte:
     {
       "organName": "Nom OAR",
       "constraintType": "Vx" | "Dx" | "Dmax" | "Dmean",
-      "target": number (optionnel, pour Vx=dose en Gy, pour Dx=volume en %),
+      "target": number (optionnel, pour Vx=dose en Gy, pour Dx=volume en % ou cc),
       "value": number,
-      "unit": "Gy" | "%",
+      "unit": "Gy" | "%" | "cc",
       "priority": "mandatory" | "optimal" | "desirable"
     }
   ]
