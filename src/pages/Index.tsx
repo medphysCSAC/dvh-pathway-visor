@@ -23,6 +23,7 @@ import DVHSourceComparison from '@/components/DVHSourceComparison';
 import { PlanSummationManager } from '@/components/PlanSummationManager';
 import type { SummedPlanResult } from '@/utils/planSummationDicom';
 import { DVHData, StructureCategory, PlanData, Structure } from '@/types/dvh';
+import { TreatmentProtocol, StructureMapping as StructureMappingType } from '@/types/protocol';
 import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
 import { checkCriticalDoses, DoseAlert } from '@/utils/criticalDoseAlerts';
@@ -40,6 +41,8 @@ const Index = () => {
   const [comparisonMode, setComparisonMode] = useState<'summation' | 'comparison' | 'multi-patient' | null>(null);
   const [criticalAlerts, setCriticalAlerts] = useState<DoseAlert[]>([]);
   const [lastSummationResult, setLastSummationResult] = useState<SummedPlanResult | null>(null);
+  const [activeProtocol, setActiveProtocol] = useState<TreatmentProtocol | null>(null);
+  const [structureMappings, setStructureMappings] = useState<StructureMappingType[]>([]);
   
   // Debug: Stocker les structures des deux sources pour comparaison
   const [dvhParserStructures, setDvhParserStructures] = useState<Structure[] | null>(null);
@@ -388,6 +391,8 @@ const Index = () => {
                     onStructureToggle={handleStructureToggle}
                     onSelectAll={handleSelectAll}
                     onDeselectAll={handleDeselectAll}
+                    activeProtocol={activeProtocol}
+                    structureMappings={structureMappings}
                   />
 
                   {/* Calculateur unifié de métriques DVH */}
@@ -413,6 +418,8 @@ const Index = () => {
                     structures={dvhData.structures} 
                     patientId={dvhData.patientId} 
                     summationResult={lastSummationResult}
+                    onProtocolChange={setActiveProtocol}
+                    onMappingsChange={setStructureMappings}
                   />
                 </TabsContent>
 

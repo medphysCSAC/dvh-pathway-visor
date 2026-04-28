@@ -1,11 +1,13 @@
 import { useMemo, useState, useRef } from 'react';
 import { Structure } from '@/types/dvh';
+import { TreatmentProtocol, StructureMapping as StructureMappingType } from '@/types/protocol';
+import { findBestStructureMatch } from '@/utils/protocolValidator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, ReferenceDot } from 'recharts';
 import { findMaxDoseAcrossStructures } from '@/utils/dvhParser';
-import { Eye, Maximize2, Download, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+import { Eye, Maximize2, Download, ZoomIn, ZoomOut, Maximize, Target } from 'lucide-react';
 import { toast } from 'sonner';
 import { DVHStructureSelector } from './DVHStructureSelector';
 
@@ -15,6 +17,8 @@ interface DVHChartProps {
   onStructureToggle?: (structureName: string) => void;
   onSelectAll?: () => void;
   onDeselectAll?: () => void;
+  activeProtocol?: TreatmentProtocol | null;
+  structureMappings?: StructureMappingType[];
 }
 
 const getColorForStructure = (structure: Structure, index: number): string => {
@@ -58,16 +62,39 @@ const calculateDifferentialDVH = (cumulativePoints: { dose: number; volume: numb
   
   return differential;
 };
+// Interpolate volume at a given dose for a structure
+const interpolateVolumeAtDose = (
+  structure: Structure,
+  targetDose: number,
+  isAbsolute: boolean
+): number | null => {
+  const source = isAbsolute && structure.absoluteVolume?.length
+    ? structure.absoluteVolume
+    : structure.relativeVolume;
+  if (!source?.length) return null;
+  const sorted = [...source].sort((a, b) => a.dose - b.dose);
+  const before = sorted.filter(p => p.dose <= targetDose).at(-1);
+  const after = sorted.find(p => p.dose > targetDose);
+  if (!before && !after) return null;
+  if (!before) return after!.volume;
+  if (!after) return before.volume;
+  const ratio = (targetDose - before.dose) / (after.dose - before.dose);
+  return before.volume + ratio * (after.volume - before.volume);
+};
+
 export const DVHChart = ({ 
   structures, 
   selectedStructures, 
   onStructureToggle,
   onSelectAll,
-  onDeselectAll 
+  onDeselectAll,
+  activeProtocol,
+  structureMappings,
 }: DVHChartProps) => {
   const [viewMode, setViewMode] = useState<'optimal' | 'full'>('optimal');
   const [zoomLevel, setZoomLevel] = useState(1);
   const [dvhType, setDvhType] = useState<DVHType>('cumulative-relative');
+  const [showConstraints, setShowConstraints] = useState(true);
   const chartRef = useRef<HTMLDivElement>(null);
 
   const handleExportPNG = () => {
@@ -197,6 +224,34 @@ export const DVHChart = ({
     return structures.filter(s => selectedStructures.includes(s.name));
   }, [structures, selectedStructures]);
 
+  // Constraint overlays — only in cumulative mode, when a protocol is active
+  const constraintOverlays = useMemo(() => {
+    if (!activeProtocol || dvhType.includes('differential')) return [];
+    const isAbsolute = dvhType.includes('absolute');
+
+    return activeProtocol.oarConstraints
+      .filter(c => c.constraintType === 'Vx' && c.target !== undefined)
+      .filter(c => isAbsolute ? c.targetUnit === 'cc' : c.targetUnit !== 'cc')
+      .flatMap(constraint => {
+        const structure = findBestStructureMatch(
+          constraint.organName, structures, structureMappings || []
+        );
+        if (!structure || !selectedStructures.includes(structure.name)) return [];
+        const measured = interpolateVolumeAtDose(structure, constraint.target!, isAbsolute);
+        if (measured === null) return [];
+        const pass = measured <= constraint.value;
+        const unit = constraint.targetUnit || '%';
+        return [{
+          dose: constraint.target!,
+          volume: measured,
+          label: `V${constraint.target}Gy`,
+          measuredLabel: `${measured.toFixed(1)}${unit}`,
+          color: pass ? '#16a34a' : '#dc2626',
+          status: pass ? 'PASS' : 'FAIL',
+        }];
+      });
+  }, [activeProtocol, structures, selectedStructures, structureMappings, dvhType]);
+
   // Show selector even when no structures selected
   const showEmptyState = selectedStructures.length === 0 && !onStructureToggle;
   
@@ -296,6 +351,17 @@ export const DVHChart = ({
               <Download className="w-4 h-4 mr-2" />
               PNG
             </Button>
+            {activeProtocol && !dvhType.includes('differential') && (
+              <Button
+                variant={showConstraints ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowConstraints(v => !v)}
+                title={`Protocole : ${activeProtocol.name}`}
+              >
+                <Target className="w-4 h-4 mr-2" />
+                Contraintes {showConstraints ? 'ON' : 'OFF'}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -382,6 +448,26 @@ export const DVHChart = ({
                   />
                 );
               })}
+              {showConstraints && constraintOverlays.flatMap((o, i) => [
+                <ReferenceLine
+                  key={`rl-${i}`}
+                  x={o.dose}
+                  stroke={o.color}
+                  strokeDasharray="5 3"
+                  strokeWidth={1.5}
+                  label={{ value: o.label, position: 'insideTopRight', fontSize: 10, fill: o.color }}
+                />,
+                <ReferenceDot
+                  key={`rd-${i}`}
+                  x={o.dose}
+                  y={o.volume}
+                  r={6}
+                  fill={o.color}
+                  stroke="white"
+                  strokeWidth={2}
+                  label={{ value: o.measuredLabel, position: 'right', fontSize: 10, fill: o.color }}
+                />
+              ])}
             </LineChart>
           </ResponsiveContainer>
         </div>
