@@ -388,6 +388,34 @@ export const DVHChart = ({
         </div>
       </CardHeader>
       <CardContent>
+        {comparePlans && comparePlans.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 p-3 rounded-md bg-muted/40 border text-sm">
+            <span className="font-medium text-muted-foreground">Comparaison :</span>
+            <div className="flex items-center gap-2">
+              <svg width="32" height="8"><line x1="0" y1="4" x2="32" y2="4" stroke="currentColor" strokeWidth="2.5" /></svg>
+              <span>{mainPlanLabel || 'Plan principal'}</span>
+            </div>
+            {comparePlans.map((p, i) => {
+              const style = PLAN_STROKE_STYLES[(i + 1) % PLAN_STROKE_STYLES.length];
+              return (
+                <div key={i} className="flex items-center gap-2">
+                  <svg width="32" height="8">
+                    <line
+                      x1="0" y1="4" x2="32" y2="4"
+                      stroke="currentColor"
+                      strokeWidth={style.strokeWidth}
+                      strokeDasharray={style.strokeDasharray}
+                    />
+                  </svg>
+                  <span>{p.label}</span>
+                </div>
+              );
+            })}
+            <span className="text-xs text-muted-foreground ml-auto">
+              Même couleur = même structure · style de trait = plan
+            </span>
+          </div>
+        )}
         <div 
           ref={chartRef} 
           style={{ 
