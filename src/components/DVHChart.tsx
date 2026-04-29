@@ -11,6 +11,11 @@ import { Eye, Maximize2, Download, ZoomIn, ZoomOut, Maximize, Target } from 'luc
 import { toast } from 'sonner';
 import { DVHStructureSelector } from './DVHStructureSelector';
 
+interface ComparePlan {
+  label: string;
+  structures: Structure[];
+}
+
 interface DVHChartProps {
   structures: Structure[];
   selectedStructures: string[];
@@ -19,7 +24,30 @@ interface DVHChartProps {
   onDeselectAll?: () => void;
   activeProtocol?: TreatmentProtocol | null;
   structureMappings?: StructureMappingType[];
+  comparePlans?: ComparePlan[];
+  mainPlanLabel?: string;
 }
+
+const PLAN_STROKE_STYLES: { strokeDasharray?: string; strokeWidth: number }[] = [
+  { strokeDasharray: undefined, strokeWidth: 2.5 },
+  { strokeDasharray: '8 4', strokeWidth: 2 },
+  { strokeDasharray: '3 3', strokeWidth: 2 },
+  { strokeDasharray: '10 4 3 4', strokeWidth: 1.5 },
+];
+
+const getColorForStructureName = (
+  structureName: string,
+  category: 'PTV' | 'OAR' | 'OTHER',
+  uniqueNames: string[]
+): string => {
+  const ptvColors = ['#EF4444', '#F59E0B', '#DC2626', '#FB923C', '#EA580C'];
+  const oarColors = ['#3B82F6', '#10B981', '#14B8A6', '#06B6D4', '#8B5CF6'];
+  const otherColors = ['#64748B', '#94A3B8', '#475569', '#CBD5E1'];
+  const idx = Math.max(0, uniqueNames.indexOf(structureName));
+  if (category === 'PTV') return ptvColors[idx % ptvColors.length];
+  if (category === 'OAR') return oarColors[idx % oarColors.length];
+  return otherColors[idx % otherColors.length];
+};
 
 const getColorForStructure = (structure: Structure, index: number): string => {
   const ptvColors = ['#EF4444', '#F59E0B', '#DC2626', '#FB923C', '#EA580C'];
