@@ -108,6 +108,7 @@ const interpolateVolumeAtDose = (
   if (!after) return before.volume;
   const ratio = (targetDose - before.dose) / (after.dose - before.dose);
   return before.volume + ratio * (after.volume - before.volume);
+};
 
 const getDataSource = (
   structure: Structure,
