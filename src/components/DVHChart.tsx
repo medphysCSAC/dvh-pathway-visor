@@ -108,6 +108,25 @@ const interpolateVolumeAtDose = (
   if (!after) return before.volume;
   const ratio = (targetDose - before.dose) / (after.dose - before.dose);
   return before.volume + ratio * (after.volume - before.volume);
+
+const getDataSource = (
+  structure: Structure,
+  isDifferential: boolean,
+  isAbsolute: boolean
+): { dose: number; volume: number }[] => {
+  if (isDifferential) {
+    const rawDiff = isAbsolute
+      ? structure.differentialAbsoluteVolume
+      : structure.differentialRelativeVolume;
+    if (rawDiff?.length) return rawDiff;
+    const cum = isAbsolute && structure.absoluteVolume?.length
+      ? structure.absoluteVolume
+      : structure.relativeVolume;
+    return calculateDifferentialDVH(cum);
+  }
+  return isAbsolute && structure.absoluteVolume?.length
+    ? structure.absoluteVolume
+    : structure.relativeVolume;
 };
 
 export const DVHChart = ({ 
