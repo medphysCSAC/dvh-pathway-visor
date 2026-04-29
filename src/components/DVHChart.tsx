@@ -453,23 +453,48 @@ export const DVHChart = ({
                 wrapperStyle={{ paddingTop: '20px' }}
                 iconType="line"
               />
-              {selectedFilteredStructures.map((structure, index) => {
-                const categoryIndex = selectedFilteredStructures
-                  .filter(s => s.category === structure.category)
-                  .findIndex(s => s.name === structure.name);
-                
+              {/* Plan principal */}
+              {selectedFilteredStructures.map((structure) => {
+                const color = getColorForStructureName(structure.name, structure.category, allUniqueStructureNames);
+                const style = PLAN_STROKE_STYLES[0];
                 return (
                   <Line
-                    key={structure.name}
+                    key={`0::${structure.name}`}
                     type="monotone"
-                    dataKey={structure.name}
-                    stroke={getColorForStructure(structure, categoryIndex)}
-                    strokeWidth={structure.category === 'PTV' ? 3 : 2}
+                    dataKey={`0::${structure.name}`}
+                    name={comparePlans && comparePlans.length > 0 ? `${structure.name} — ${mainPlanLabel || 'Plan 1'}` : structure.name}
+                    stroke={color}
+                    strokeWidth={structure.category === 'PTV' ? Math.max(style.strokeWidth, 2.5) : style.strokeWidth}
+                    strokeDasharray={style.strokeDasharray}
                     dot={false}
                     activeDot={{ r: 4 }}
+                    connectNulls
                   />
                 );
               })}
+              {/* Plans secondaires */}
+              {(comparePlans || []).flatMap((plan, planIdx) =>
+                plan.structures
+                  .filter(s => selectedStructures.includes(s.name))
+                  .map((structure) => {
+                    const color = getColorForStructureName(structure.name, structure.category, allUniqueStructureNames);
+                    const style = PLAN_STROKE_STYLES[(planIdx + 1) % PLAN_STROKE_STYLES.length];
+                    return (
+                      <Line
+                        key={`${planIdx + 1}::${structure.name}`}
+                        type="monotone"
+                        dataKey={`${planIdx + 1}::${structure.name}`}
+                        name={`${structure.name} — ${plan.label}`}
+                        stroke={color}
+                        strokeWidth={style.strokeWidth}
+                        strokeDasharray={style.strokeDasharray}
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                        connectNulls
+                      />
+                    );
+                  })
+              )}
               {showConstraints && constraintOverlays.flatMap((o, i) => [
                 <ReferenceLine
                   key={`rl-${i}`}
