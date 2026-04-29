@@ -178,101 +178,73 @@ export const DVHChart = ({
   }, [viewMode, maxDoseGlobal]);
 
   const prepareChartData = useMemo(() => {
-    const filteredStructures = structures.filter(s => 
-      selectedStructures.includes(s.name)
-    );
-
-    if (filteredStructures.length === 0) return [];
+    const allPlans: { structures: Structure[]; planIndex: number }[] = [
+      { structures, planIndex: 0 },
+      ...(comparePlans || []).map((p, i) => ({ structures: p.structures, planIndex: i + 1 })),
+    ];
 
     const isDifferential = dvhType.includes('differential');
     const isAbsolute = dvhType.includes('absolute');
 
-    // Get all unique dose points — choose source matching the requested mode
     const allDoses = new Set<number>();
-    filteredStructures.forEach(structure => {
-      let doseSource: { dose: number; volume: number }[] | undefined;
-
-      if (isDifferential) {
-        const rawDiff = isAbsolute
-          ? structure.differentialAbsoluteVolume
-          : structure.differentialRelativeVolume;
-        if (rawDiff && rawDiff.length > 0) {
-          doseSource = rawDiff;
-        }
-      }
-
-      if (!doseSource || doseSource.length === 0) {
-        doseSource = isAbsolute && structure.absoluteVolume && structure.absoluteVolume.length > 0
-          ? structure.absoluteVolume
-          : structure.relativeVolume;
-      }
-
-      doseSource.forEach(point => {
-        allDoses.add(parseFloat(point.dose.toFixed(2)));
-      });
+    allPlans.forEach(({ structures: planStructures }) => {
+      planStructures
+        .filter(s => selectedStructures.includes(s.name))
+        .forEach(structure => {
+          const ds = getDataSource(structure, isDifferential, isAbsolute);
+          ds.forEach(p => allDoses.add(parseFloat(p.dose.toFixed(2))));
+        });
     });
+
+    if (allDoses.size === 0) return [];
 
     const sortedDoses = Array.from(allDoses).sort((a, b) => a - b);
 
-    // Create chart data
     return sortedDoses.map(dose => {
       const dataPoint: any = { dose };
-      
-      filteredStructures.forEach(structure => {
-        // 🔥 Sélection de la source selon le mode demandé
-        let dataSource: { dose: number; volume: number }[];
 
-        if (isDifferential) {
-          // Préférer les données différentielles BRUTES préservées du DICOM
-          const rawDiff = isAbsolute
-            ? structure.differentialAbsoluteVolume
-            : structure.differentialRelativeVolume;
+      allPlans.forEach(({ structures: planStructures, planIndex }) => {
+        planStructures
+          .filter(s => selectedStructures.includes(s.name))
+          .forEach(structure => {
+            const key = `${planIndex}::${structure.name}`;
+            const dataSource = getDataSource(structure, isDifferential, isAbsolute);
 
-          if (rawDiff && rawDiff.length > 0) {
-            dataSource = rawDiff;
-          } else {
-            // Fallback: dérivation numérique du cumulatif (cas DVH Parser CSV ou DICOM nativement CUMULATIVE)
-            const cumulativeSource = isAbsolute && structure.absoluteVolume && structure.absoluteVolume.length > 0
-              ? structure.absoluteVolume
-              : structure.relativeVolume;
-            dataSource = calculateDifferentialDVH(cumulativeSource);
-          }
-        } else {
-          dataSource = isAbsolute && structure.absoluteVolume && structure.absoluteVolume.length > 0
-            ? structure.absoluteVolume
-            : structure.relativeVolume;
-        }
-
-        // Find the volume for this dose (interpolate if needed)
-        const point = dataSource.find(p => 
-          Math.abs(p.dose - dose) < 0.01
-        );
-        
-        if (point) {
-          dataPoint[structure.name] = point.volume;
-        } else {
-          // Linear interpolation
-          const before = dataSource
-            .filter(p => p.dose < dose)
-            .sort((a, b) => b.dose - a.dose)[0];
-          const after = dataSource
-            .filter(p => p.dose > dose)
-            .sort((a, b) => a.dose - b.dose)[0];
-          
-          if (before && after) {
-            const ratio = (dose - before.dose) / (after.dose - before.dose);
-            dataPoint[structure.name] = before.volume + ratio * (after.volume - before.volume);
-          }
-        }
+            const point = dataSource.find(p => Math.abs(p.dose - dose) < 0.01);
+            if (point) {
+              dataPoint[key] = point.volume;
+            } else {
+              const before = dataSource
+                .filter(p => p.dose < dose)
+                .sort((a, b) => b.dose - a.dose)[0];
+              const after = dataSource
+                .filter(p => p.dose > dose)
+                .sort((a, b) => a.dose - b.dose)[0];
+              if (before && after) {
+                const ratio = (dose - before.dose) / (after.dose - before.dose);
+                dataPoint[key] = before.volume + ratio * (after.volume - before.volume);
+              }
+            }
+          });
       });
-      
+
       return dataPoint;
     });
-  }, [structures, selectedStructures, dvhType]);
+  }, [structures, selectedStructures, dvhType, comparePlans]);
 
   const selectedFilteredStructures = useMemo(() => {
     return structures.filter(s => selectedStructures.includes(s.name));
   }, [structures, selectedStructures]);
+
+  // Unique structure names across all plans (for color stability)
+  const allUniqueStructureNames = useMemo(() => {
+    const names = new Set<string>();
+    structures.filter(s => selectedStructures.includes(s.name)).forEach(s => names.add(s.name));
+    (comparePlans || []).forEach(p =>
+      p.structures.filter(s => selectedStructures.includes(s.name)).forEach(s => names.add(s.name))
+    );
+    return Array.from(names);
+  }, [structures, comparePlans, selectedStructures]);
 
   // Constraint overlays — only in cumulative mode, when a protocol is active
   const constraintOverlays = useMemo(() => {
