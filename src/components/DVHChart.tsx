@@ -138,6 +138,8 @@ export const DVHChart = ({
   onDeselectAll,
   activeProtocol,
   structureMappings,
+  comparePlans,
+  mainPlanLabel,
 }: DVHChartProps) => {
   const [viewMode, setViewMode] = useState<'optimal' | 'full'>('optimal');
   const [zoomLevel, setZoomLevel] = useState(1);
