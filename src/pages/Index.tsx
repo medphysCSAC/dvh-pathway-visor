@@ -393,6 +393,19 @@ const Index = () => {
                     onDeselectAll={handleDeselectAll}
                     activeProtocol={activeProtocol}
                     structureMappings={structureMappings}
+                    comparePlans={
+                      comparisonMode === 'comparison' && comparisonPlans.length > 1
+                        ? comparisonPlans.slice(1).map((p, i) => ({
+                            label: p.name || p.patientId || `Plan ${i + 2}`,
+                            structures: p.structures,
+                          }))
+                        : undefined
+                    }
+                    mainPlanLabel={
+                      comparisonMode === 'comparison'
+                        ? (comparisonPlans[0]?.name || comparisonPlans[0]?.patientId || 'Plan 1')
+                        : undefined
+                    }
                   />
 
                   {/* Calculateur unifié de métriques DVH */}

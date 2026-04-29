@@ -11,6 +11,11 @@ import { Eye, Maximize2, Download, ZoomIn, ZoomOut, Maximize, Target } from 'luc
 import { toast } from 'sonner';
 import { DVHStructureSelector } from './DVHStructureSelector';
 
+interface ComparePlan {
+  label: string;
+  structures: Structure[];
+}
+
 interface DVHChartProps {
   structures: Structure[];
   selectedStructures: string[];
@@ -19,7 +24,30 @@ interface DVHChartProps {
   onDeselectAll?: () => void;
   activeProtocol?: TreatmentProtocol | null;
   structureMappings?: StructureMappingType[];
+  comparePlans?: ComparePlan[];
+  mainPlanLabel?: string;
 }
+
+const PLAN_STROKE_STYLES: { strokeDasharray?: string; strokeWidth: number }[] = [
+  { strokeDasharray: undefined, strokeWidth: 2.5 },
+  { strokeDasharray: '8 4', strokeWidth: 2 },
+  { strokeDasharray: '3 3', strokeWidth: 2 },
+  { strokeDasharray: '10 4 3 4', strokeWidth: 1.5 },
+];
+
+const getColorForStructureName = (
+  structureName: string,
+  category: 'PTV' | 'OAR' | 'OTHER',
+  uniqueNames: string[]
+): string => {
+  const ptvColors = ['#EF4444', '#F59E0B', '#DC2626', '#FB923C', '#EA580C'];
+  const oarColors = ['#3B82F6', '#10B981', '#14B8A6', '#06B6D4', '#8B5CF6'];
+  const otherColors = ['#64748B', '#94A3B8', '#475569', '#CBD5E1'];
+  const idx = Math.max(0, uniqueNames.indexOf(structureName));
+  if (category === 'PTV') return ptvColors[idx % ptvColors.length];
+  if (category === 'OAR') return oarColors[idx % oarColors.length];
+  return otherColors[idx % otherColors.length];
+};
 
 const getColorForStructure = (structure: Structure, index: number): string => {
   const ptvColors = ['#EF4444', '#F59E0B', '#DC2626', '#FB923C', '#EA580C'];
@@ -82,6 +110,26 @@ const interpolateVolumeAtDose = (
   return before.volume + ratio * (after.volume - before.volume);
 };
 
+const getDataSource = (
+  structure: Structure,
+  isDifferential: boolean,
+  isAbsolute: boolean
+): { dose: number; volume: number }[] => {
+  if (isDifferential) {
+    const rawDiff = isAbsolute
+      ? structure.differentialAbsoluteVolume
+      : structure.differentialRelativeVolume;
+    if (rawDiff?.length) return rawDiff;
+    const cum = isAbsolute && structure.absoluteVolume?.length
+      ? structure.absoluteVolume
+      : structure.relativeVolume;
+    return calculateDifferentialDVH(cum);
+  }
+  return isAbsolute && structure.absoluteVolume?.length
+    ? structure.absoluteVolume
+    : structure.relativeVolume;
+};
+
 export const DVHChart = ({ 
   structures, 
   selectedStructures, 
@@ -90,6 +138,8 @@ export const DVHChart = ({
   onDeselectAll,
   activeProtocol,
   structureMappings,
+  comparePlans,
+  mainPlanLabel,
 }: DVHChartProps) => {
   const [viewMode, setViewMode] = useState<'optimal' | 'full'>('optimal');
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -128,101 +178,73 @@ export const DVHChart = ({
   }, [viewMode, maxDoseGlobal]);
 
   const prepareChartData = useMemo(() => {
-    const filteredStructures = structures.filter(s => 
-      selectedStructures.includes(s.name)
-    );
-
-    if (filteredStructures.length === 0) return [];
+    const allPlans: { structures: Structure[]; planIndex: number }[] = [
+      { structures, planIndex: 0 },
+      ...(comparePlans || []).map((p, i) => ({ structures: p.structures, planIndex: i + 1 })),
+    ];
 
     const isDifferential = dvhType.includes('differential');
     const isAbsolute = dvhType.includes('absolute');
 
-    // Get all unique dose points — choose source matching the requested mode
     const allDoses = new Set<number>();
-    filteredStructures.forEach(structure => {
-      let doseSource: { dose: number; volume: number }[] | undefined;
-
-      if (isDifferential) {
-        const rawDiff = isAbsolute
-          ? structure.differentialAbsoluteVolume
-          : structure.differentialRelativeVolume;
-        if (rawDiff && rawDiff.length > 0) {
-          doseSource = rawDiff;
-        }
-      }
-
-      if (!doseSource || doseSource.length === 0) {
-        doseSource = isAbsolute && structure.absoluteVolume && structure.absoluteVolume.length > 0
-          ? structure.absoluteVolume
-          : structure.relativeVolume;
-      }
-
-      doseSource.forEach(point => {
-        allDoses.add(parseFloat(point.dose.toFixed(2)));
-      });
+    allPlans.forEach(({ structures: planStructures }) => {
+      planStructures
+        .filter(s => selectedStructures.includes(s.name))
+        .forEach(structure => {
+          const ds = getDataSource(structure, isDifferential, isAbsolute);
+          ds.forEach(p => allDoses.add(parseFloat(p.dose.toFixed(2))));
+        });
     });
+
+    if (allDoses.size === 0) return [];
 
     const sortedDoses = Array.from(allDoses).sort((a, b) => a - b);
 
-    // Create chart data
     return sortedDoses.map(dose => {
       const dataPoint: any = { dose };
-      
-      filteredStructures.forEach(structure => {
-        // 🔥 Sélection de la source selon le mode demandé
-        let dataSource: { dose: number; volume: number }[];
 
-        if (isDifferential) {
-          // Préférer les données différentielles BRUTES préservées du DICOM
-          const rawDiff = isAbsolute
-            ? structure.differentialAbsoluteVolume
-            : structure.differentialRelativeVolume;
+      allPlans.forEach(({ structures: planStructures, planIndex }) => {
+        planStructures
+          .filter(s => selectedStructures.includes(s.name))
+          .forEach(structure => {
+            const key = `${planIndex}::${structure.name}`;
+            const dataSource = getDataSource(structure, isDifferential, isAbsolute);
 
-          if (rawDiff && rawDiff.length > 0) {
-            dataSource = rawDiff;
-          } else {
-            // Fallback: dérivation numérique du cumulatif (cas DVH Parser CSV ou DICOM nativement CUMULATIVE)
-            const cumulativeSource = isAbsolute && structure.absoluteVolume && structure.absoluteVolume.length > 0
-              ? structure.absoluteVolume
-              : structure.relativeVolume;
-            dataSource = calculateDifferentialDVH(cumulativeSource);
-          }
-        } else {
-          dataSource = isAbsolute && structure.absoluteVolume && structure.absoluteVolume.length > 0
-            ? structure.absoluteVolume
-            : structure.relativeVolume;
-        }
-
-        // Find the volume for this dose (interpolate if needed)
-        const point = dataSource.find(p => 
-          Math.abs(p.dose - dose) < 0.01
-        );
-        
-        if (point) {
-          dataPoint[structure.name] = point.volume;
-        } else {
-          // Linear interpolation
-          const before = dataSource
-            .filter(p => p.dose < dose)
-            .sort((a, b) => b.dose - a.dose)[0];
-          const after = dataSource
-            .filter(p => p.dose > dose)
-            .sort((a, b) => a.dose - b.dose)[0];
-          
-          if (before && after) {
-            const ratio = (dose - before.dose) / (after.dose - before.dose);
-            dataPoint[structure.name] = before.volume + ratio * (after.volume - before.volume);
-          }
-        }
+            const point = dataSource.find(p => Math.abs(p.dose - dose) < 0.01);
+            if (point) {
+              dataPoint[key] = point.volume;
+            } else {
+              const before = dataSource
+                .filter(p => p.dose < dose)
+                .sort((a, b) => b.dose - a.dose)[0];
+              const after = dataSource
+                .filter(p => p.dose > dose)
+                .sort((a, b) => a.dose - b.dose)[0];
+              if (before && after) {
+                const ratio = (dose - before.dose) / (after.dose - before.dose);
+                dataPoint[key] = before.volume + ratio * (after.volume - before.volume);
+              }
+            }
+          });
       });
-      
+
       return dataPoint;
     });
-  }, [structures, selectedStructures, dvhType]);
+  }, [structures, selectedStructures, dvhType, comparePlans]);
 
   const selectedFilteredStructures = useMemo(() => {
     return structures.filter(s => selectedStructures.includes(s.name));
   }, [structures, selectedStructures]);
+
+  // Unique structure names across all plans (for color stability)
+  const allUniqueStructureNames = useMemo(() => {
+    const names = new Set<string>();
+    structures.filter(s => selectedStructures.includes(s.name)).forEach(s => names.add(s.name));
+    (comparePlans || []).forEach(p =>
+      p.structures.filter(s => selectedStructures.includes(s.name)).forEach(s => names.add(s.name))
+    );
+    return Array.from(names);
+  }, [structures, comparePlans, selectedStructures]);
 
   // Constraint overlays — only in cumulative mode, when a protocol is active
   const constraintOverlays = useMemo(() => {
@@ -366,6 +388,34 @@ export const DVHChart = ({
         </div>
       </CardHeader>
       <CardContent>
+        {comparePlans && comparePlans.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 p-3 rounded-md bg-muted/40 border text-sm">
+            <span className="font-medium text-muted-foreground">Comparaison :</span>
+            <div className="flex items-center gap-2">
+              <svg width="32" height="8"><line x1="0" y1="4" x2="32" y2="4" stroke="currentColor" strokeWidth="2.5" /></svg>
+              <span>{mainPlanLabel || 'Plan principal'}</span>
+            </div>
+            {comparePlans.map((p, i) => {
+              const style = PLAN_STROKE_STYLES[(i + 1) % PLAN_STROKE_STYLES.length];
+              return (
+                <div key={i} className="flex items-center gap-2">
+                  <svg width="32" height="8">
+                    <line
+                      x1="0" y1="4" x2="32" y2="4"
+                      stroke="currentColor"
+                      strokeWidth={style.strokeWidth}
+                      strokeDasharray={style.strokeDasharray}
+                    />
+                  </svg>
+                  <span>{p.label}</span>
+                </div>
+              );
+            })}
+            <span className="text-xs text-muted-foreground ml-auto">
+              Même couleur = même structure · style de trait = plan
+            </span>
+          </div>
+        )}
         <div 
           ref={chartRef} 
           style={{ 
@@ -431,23 +481,48 @@ export const DVHChart = ({
                 wrapperStyle={{ paddingTop: '20px' }}
                 iconType="line"
               />
-              {selectedFilteredStructures.map((structure, index) => {
-                const categoryIndex = selectedFilteredStructures
-                  .filter(s => s.category === structure.category)
-                  .findIndex(s => s.name === structure.name);
-                
+              {/* Plan principal */}
+              {selectedFilteredStructures.map((structure) => {
+                const color = getColorForStructureName(structure.name, structure.category, allUniqueStructureNames);
+                const style = PLAN_STROKE_STYLES[0];
                 return (
                   <Line
-                    key={structure.name}
+                    key={`0::${structure.name}`}
                     type="monotone"
-                    dataKey={structure.name}
-                    stroke={getColorForStructure(structure, categoryIndex)}
-                    strokeWidth={structure.category === 'PTV' ? 3 : 2}
+                    dataKey={`0::${structure.name}`}
+                    name={comparePlans && comparePlans.length > 0 ? `${structure.name} — ${mainPlanLabel || 'Plan 1'}` : structure.name}
+                    stroke={color}
+                    strokeWidth={structure.category === 'PTV' ? Math.max(style.strokeWidth, 2.5) : style.strokeWidth}
+                    strokeDasharray={style.strokeDasharray}
                     dot={false}
                     activeDot={{ r: 4 }}
+                    connectNulls
                   />
                 );
               })}
+              {/* Plans secondaires */}
+              {(comparePlans || []).flatMap((plan, planIdx) =>
+                plan.structures
+                  .filter(s => selectedStructures.includes(s.name))
+                  .map((structure) => {
+                    const color = getColorForStructureName(structure.name, structure.category, allUniqueStructureNames);
+                    const style = PLAN_STROKE_STYLES[(planIdx + 1) % PLAN_STROKE_STYLES.length];
+                    return (
+                      <Line
+                        key={`${planIdx + 1}::${structure.name}`}
+                        type="monotone"
+                        dataKey={`${planIdx + 1}::${structure.name}`}
+                        name={`${structure.name} — ${plan.label}`}
+                        stroke={color}
+                        strokeWidth={style.strokeWidth}
+                        strokeDasharray={style.strokeDasharray}
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                        connectNulls
+                      />
+                    );
+                  })
+              )}
               {showConstraints && constraintOverlays.flatMap((o, i) => [
                 <ReferenceLine
                   key={`rl-${i}`}
