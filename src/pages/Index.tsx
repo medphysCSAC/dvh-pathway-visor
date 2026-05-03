@@ -177,7 +177,7 @@ const Index = () => {
     setComparisonPlans([]);
   };
 
-  const handleDicomRTLoaded = (data: DicomRTData) => {
+  const handleDicomRTLoaded = (data: DicomRTData, protocol?: TreatmentProtocol) => {
     const structures = convertDicomToStructures(data);
     if (structures.length > 0) {
       const newDvhData: DVHData = {
@@ -190,6 +190,12 @@ const Index = () => {
       toast.success('DICOM RT importé', {
         description: `${structures.length} structures avec DVH chargées`,
       });
+      if (protocol) {
+        setActiveProtocol(protocol);
+        toast.success(`Protocole "${protocol.name}" associé`, {
+          description: 'Les contraintes sont visibles sur les courbes DVH',
+        });
+      }
     } else if (data.structures) {
       toast.info('Structures détectées', {
         description: `${data.structures.length} structures sans données DVH. Chargez un fichier RTDOSE pour les DVH.`,
