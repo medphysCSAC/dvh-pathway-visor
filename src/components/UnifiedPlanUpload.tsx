@@ -10,9 +10,11 @@ import {
 } from 'lucide-react';
 import { ContextualHelp } from './ContextualHelp';
 import { Separator } from '@/components/ui/separator';
-import { parseDicomFile } from '@/utils/dicomRTParser';
+import { parseDicomFile, convertDicomToStructures } from '@/utils/dicomRTParser';
 import * as dicomParser from 'dicom-parser';
 import { DicomRTData } from '@/types/dicomRT';
+import { TreatmentProtocol } from '@/types/protocol';
+import { ProtocolSelectorStep } from './ProtocolSelectorStep';
 import { toast } from 'sonner';
 
 // ===== Helpers : résumé DICOM avant confirmation =====
