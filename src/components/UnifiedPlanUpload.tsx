@@ -206,13 +206,14 @@ const KindBadge: React.FC<{ kind: FileKind }> = ({ kind }) => {
   );
 };
 
-export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoaded, onDicomLoaded }) => {
+export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoaded, onDicomLoaded, enableProtocolStep = true }) => {
   const [files, setFiles] = useState<DetectedFile[]>([]);
   const [error, setError] = useState<string>('');
   const [isDragActive, setIsDragActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [pendingDicomData, setPendingDicomData] = useState<DicomRTData | null>(null);
+  const [protocolStepData, setProtocolStepData] = useState<DicomRTData | null>(null);
   const filesInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
