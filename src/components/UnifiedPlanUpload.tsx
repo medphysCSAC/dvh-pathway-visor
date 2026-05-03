@@ -555,21 +555,44 @@ export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoade
         )}
 
         {/* Panneau de confirmation DICOM */}
-        {pendingDicomData && (
+        {pendingDicomData && !protocolStepData && (
           <DicomConfirmPanel
             data={pendingDicomData}
             onConfirm={() => {
               const data = pendingDicomData;
               setPendingDicomData(null);
-              onDicomLoaded(data);
-              clearAll();
+              if (enableProtocolStep) {
+                setProtocolStepData(data);
+              } else {
+                onDicomLoaded(data);
+                clearAll();
+              }
             }}
             onCancel={() => setPendingDicomData(null)}
           />
         )}
 
+        {/* Étape de sélection de protocole */}
+        {protocolStepData && (
+          <ProtocolSelectorStep
+            structures={convertDicomToStructures(protocolStepData)}
+            onSelect={(protocol) => {
+              const data = protocolStepData;
+              setProtocolStepData(null);
+              onDicomLoaded(data, protocol);
+              clearAll();
+            }}
+            onSkip={() => {
+              const data = protocolStepData;
+              setProtocolStepData(null);
+              onDicomLoaded(data);
+              clearAll();
+            }}
+          />
+        )}
+
         {/* Action */}
-        {!pendingDicomData && (
+        {!pendingDicomData && !protocolStepData && (
           <div className="flex justify-center">
             <Button
               size="lg"
