@@ -371,6 +371,14 @@ const Index = () => {
                       {findMaxDoseAcrossStructures(dvhData.structures).toFixed(2)} Gy
                     </p>
                   </div>
+                  {comparisonMode === 'comparison' && (
+                    <div className="ml-auto">
+                      <Button variant="outline" size="sm" onClick={handleExitComparison}>
+                        <X className="w-4 h-4 mr-2" />
+                        Quitter la comparaison
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
