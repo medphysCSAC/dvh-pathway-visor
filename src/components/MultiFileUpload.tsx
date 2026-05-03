@@ -119,6 +119,7 @@ const PlanSlot = ({
             key={slot.id + '-empty'}
             onCsvLoaded={handleCsvLoaded}
             onDicomLoaded={handleDicomLoaded}
+            enableProtocolStep={false}
           />
         ) : (
           <div className="flex items-center justify-between p-3 rounded-md bg-muted/40 border">

@@ -10,9 +10,11 @@ import {
 } from 'lucide-react';
 import { ContextualHelp } from './ContextualHelp';
 import { Separator } from '@/components/ui/separator';
-import { parseDicomFile } from '@/utils/dicomRTParser';
+import { parseDicomFile, convertDicomToStructures } from '@/utils/dicomRTParser';
 import * as dicomParser from 'dicom-parser';
 import { DicomRTData } from '@/types/dicomRT';
+import { TreatmentProtocol } from '@/types/protocol';
+import { ProtocolSelectorStep } from './ProtocolSelectorStep';
 import { toast } from 'sonner';
 
 // ===== Helpers : résumé DICOM avant confirmation =====
@@ -142,7 +144,8 @@ const DicomConfirmPanel: React.FC<{
 
 interface UnifiedPlanUploadProps {
   onCsvLoaded: (relFile: File, absFile?: File) => void;
-  onDicomLoaded: (data: DicomRTData) => void;
+  onDicomLoaded: (data: DicomRTData, protocol?: TreatmentProtocol) => void;
+  enableProtocolStep?: boolean;
 }
 
 type CsvKind = 'CSV_REL' | 'CSV_ABS' | 'CSV_UNKNOWN';
@@ -203,13 +206,14 @@ const KindBadge: React.FC<{ kind: FileKind }> = ({ kind }) => {
   );
 };
 
-export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoaded, onDicomLoaded }) => {
+export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoaded, onDicomLoaded, enableProtocolStep = true }) => {
   const [files, setFiles] = useState<DetectedFile[]>([]);
   const [error, setError] = useState<string>('');
   const [isDragActive, setIsDragActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [pendingDicomData, setPendingDicomData] = useState<DicomRTData | null>(null);
+  const [protocolStepData, setProtocolStepData] = useState<DicomRTData | null>(null);
   const filesInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -551,21 +555,44 @@ export const UnifiedPlanUpload: React.FC<UnifiedPlanUploadProps> = ({ onCsvLoade
         )}
 
         {/* Panneau de confirmation DICOM */}
-        {pendingDicomData && (
+        {pendingDicomData && !protocolStepData && (
           <DicomConfirmPanel
             data={pendingDicomData}
             onConfirm={() => {
               const data = pendingDicomData;
               setPendingDicomData(null);
-              onDicomLoaded(data);
-              clearAll();
+              if (enableProtocolStep) {
+                setProtocolStepData(data);
+              } else {
+                onDicomLoaded(data);
+                clearAll();
+              }
             }}
             onCancel={() => setPendingDicomData(null)}
           />
         )}
 
+        {/* Étape de sélection de protocole */}
+        {protocolStepData && (
+          <ProtocolSelectorStep
+            structures={convertDicomToStructures(protocolStepData)}
+            onSelect={(protocol) => {
+              const data = protocolStepData;
+              setProtocolStepData(null);
+              onDicomLoaded(data, protocol);
+              clearAll();
+            }}
+            onSkip={() => {
+              const data = protocolStepData;
+              setProtocolStepData(null);
+              onDicomLoaded(data);
+              clearAll();
+            }}
+          />
+        )}
+
         {/* Action */}
-        {!pendingDicomData && (
+        {!pendingDicomData && !protocolStepData && (
           <div className="flex justify-center">
             <Button
               size="lg"
