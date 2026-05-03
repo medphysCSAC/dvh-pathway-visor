@@ -32,6 +32,7 @@ import { DicomRTData } from '@/types/dicomRT';
 import { toast } from 'sonner';
 import { Activity, Bug, X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 
 const Index = () => {
   const [dvhData, setDvhData] = useState<DVHData | null>(null);
