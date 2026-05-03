@@ -141,7 +141,6 @@ const Index = () => {
     setComparisonPlans(plans);
     setComparisonMode(mode);
     if (mode === 'summation') {
-      // Summate plans into a single DVH
       const summatedPlan = summatePlans(plans);
       setDvhData({
         patientId: summatedPlan.patientId,
@@ -149,50 +148,46 @@ const Index = () => {
       });
       setSelectedStructures([]);
     } else if (mode === 'comparison') {
-      // Load first plan as the main view
       setDvhData({
         patientId: plans[0].patientId,
         structures: plans[0].structures
       });
-      setSelectedStructures([]);
+      // Pré-sélectionner les structures communes à tous les plans
+      if (plans.length >= 2) {
+        const namesInAllPlans = plans[0].structures
+          .map(s => s.name)
+          .filter(name => plans.every(p => p.structures.some(s => s.name === name)));
+        setSelectedStructures(namesInAllPlans);
+        if (namesInAllPlans.length === 0) {
+          toast.warning('Aucune structure en commun', {
+            description: 'Les noms de structures diffèrent entre les plans. Sélectionnez manuellement.',
+          });
+        } else {
+          toast.success(`${namesInAllPlans.length} structures communes présélectionnées`);
+        }
+      } else {
+        setSelectedStructures([]);
+      }
     }
   };
 
+  const handleExitComparison = () => {
+    setComparisonMode(null);
+    setComparisonPlans([]);
+  };
+
   const handleDicomRTLoaded = (data: DicomRTData) => {
-    // Convert DICOM RT data to app format
-    if (data.structures && data.dose?.dvhs) {
-      const convertedDVH = convertDicomDVHToAppFormat(data.structures, data.dose.dvhs);
-      
-      // Create DVHData structure compatible with the app
+    const structures = convertDicomToStructures(data);
+    if (structures.length > 0) {
       const newDvhData: DVHData = {
         patientId: data.patientId || 'DICOM Patient',
-        structures: convertedDVH.map((dvh) => {
-          const totalVol = dvh.absoluteVolume || 0;
-          // 🔥 DVH cumulatif absolu (cc) = relatif (%) × volumeTotal / 100
-          const absoluteCumulative = totalVol > 0
-            ? dvh.relativeVolume.map((p) => ({ dose: p.dose, volume: (p.volume / 100) * totalVol }))
-            : [];
-          return {
-            name: dvh.name,
-            type: 'STANDARD' as const,
-            category: dvh.name.toUpperCase().startsWith('PTV') ? 'PTV' as const : 'OAR' as const,
-            relativeVolume: dvh.relativeVolume,
-            absoluteVolume: absoluteCumulative,
-            differentialRelativeVolume: dvh.differentialRelativeVolume,
-            differentialAbsoluteVolume: dvh.differentialAbsoluteVolume,
-            totalVolume: totalVol,
-          };
-        }),
+        structures,
       };
-
       setDvhData(newDvhData);
       setSelectedStructures([]);
-      
-      // Debug: stocker les structures DICOM RT pour comparaison
-      setDicomRTStructures(newDvhData.structures);
-      
+      setDicomRTStructures(structures);
       toast.success('DICOM RT importé', {
-        description: `${newDvhData.structures.length} structures avec DVH chargées`,
+        description: `${structures.length} structures avec DVH chargées`,
       });
     } else if (data.structures) {
       toast.info('Structures détectées', {
