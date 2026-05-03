@@ -1055,3 +1055,28 @@ export function convertDicomDVHToAppFormat(
     };
   });
 }
+
+/**
+ * Convertit un DicomRTData parsé en Structure[] prêt pour l'app
+ * (mêmes règles que handleDicomRTLoaded dans Index.tsx).
+ */
+export function convertDicomToStructures(data: import('@/types/dicomRT').DicomRTData): import('@/types/dvh').Structure[] {
+  if (!data.structures || !data.dose?.dvhs) return [];
+  const convertedDVH = convertDicomDVHToAppFormat(data.structures, data.dose.dvhs);
+  return convertedDVH.map((dvh) => {
+    const totalVol = dvh.absoluteVolume || 0;
+    const absoluteCumulative = totalVol > 0
+      ? dvh.relativeVolume.map((p) => ({ dose: p.dose, volume: (p.volume / 100) * totalVol }))
+      : [];
+    return {
+      name: dvh.name,
+      type: 'STANDARD' as const,
+      category: dvh.name.toUpperCase().startsWith('PTV') ? ('PTV' as const) : ('OAR' as const),
+      relativeVolume: dvh.relativeVolume,
+      absoluteVolume: absoluteCumulative,
+      differentialRelativeVolume: dvh.differentialRelativeVolume,
+      differentialAbsoluteVolume: dvh.differentialAbsoluteVolume,
+      totalVolume: totalVol,
+    };
+  });
+}

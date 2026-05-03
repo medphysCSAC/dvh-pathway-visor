@@ -27,11 +27,12 @@ import { TreatmentProtocol, StructureMapping as StructureMappingType } from '@/t
 import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
 import { checkCriticalDoses, DoseAlert } from '@/utils/criticalDoseAlerts';
-import { convertDicomDVHToAppFormat } from '@/utils/dicomRTParser';
+import { convertDicomDVHToAppFormat, convertDicomToStructures } from '@/utils/dicomRTParser';
 import { DicomRTData } from '@/types/dicomRT';
 import { toast } from 'sonner';
-import { Activity, Bug } from 'lucide-react';
+import { Activity, Bug, X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 
 const Index = () => {
   const [dvhData, setDvhData] = useState<DVHData | null>(null);
@@ -141,7 +142,6 @@ const Index = () => {
     setComparisonPlans(plans);
     setComparisonMode(mode);
     if (mode === 'summation') {
-      // Summate plans into a single DVH
       const summatedPlan = summatePlans(plans);
       setDvhData({
         patientId: summatedPlan.patientId,
@@ -149,50 +149,46 @@ const Index = () => {
       });
       setSelectedStructures([]);
     } else if (mode === 'comparison') {
-      // Load first plan as the main view
       setDvhData({
         patientId: plans[0].patientId,
         structures: plans[0].structures
       });
-      setSelectedStructures([]);
+      // Pré-sélectionner les structures communes à tous les plans
+      if (plans.length >= 2) {
+        const namesInAllPlans = plans[0].structures
+          .map(s => s.name)
+          .filter(name => plans.every(p => p.structures.some(s => s.name === name)));
+        setSelectedStructures(namesInAllPlans);
+        if (namesInAllPlans.length === 0) {
+          toast.warning('Aucune structure en commun', {
+            description: 'Les noms de structures diffèrent entre les plans. Sélectionnez manuellement.',
+          });
+        } else {
+          toast.success(`${namesInAllPlans.length} structures communes présélectionnées`);
+        }
+      } else {
+        setSelectedStructures([]);
+      }
     }
   };
 
+  const handleExitComparison = () => {
+    setComparisonMode(null);
+    setComparisonPlans([]);
+  };
+
   const handleDicomRTLoaded = (data: DicomRTData) => {
-    // Convert DICOM RT data to app format
-    if (data.structures && data.dose?.dvhs) {
-      const convertedDVH = convertDicomDVHToAppFormat(data.structures, data.dose.dvhs);
-      
-      // Create DVHData structure compatible with the app
+    const structures = convertDicomToStructures(data);
+    if (structures.length > 0) {
       const newDvhData: DVHData = {
         patientId: data.patientId || 'DICOM Patient',
-        structures: convertedDVH.map((dvh) => {
-          const totalVol = dvh.absoluteVolume || 0;
-          // 🔥 DVH cumulatif absolu (cc) = relatif (%) × volumeTotal / 100
-          const absoluteCumulative = totalVol > 0
-            ? dvh.relativeVolume.map((p) => ({ dose: p.dose, volume: (p.volume / 100) * totalVol }))
-            : [];
-          return {
-            name: dvh.name,
-            type: 'STANDARD' as const,
-            category: dvh.name.toUpperCase().startsWith('PTV') ? 'PTV' as const : 'OAR' as const,
-            relativeVolume: dvh.relativeVolume,
-            absoluteVolume: absoluteCumulative,
-            differentialRelativeVolume: dvh.differentialRelativeVolume,
-            differentialAbsoluteVolume: dvh.differentialAbsoluteVolume,
-            totalVolume: totalVol,
-          };
-        }),
+        structures,
       };
-
       setDvhData(newDvhData);
       setSelectedStructures([]);
-      
-      // Debug: stocker les structures DICOM RT pour comparaison
-      setDicomRTStructures(newDvhData.structures);
-      
+      setDicomRTStructures(structures);
       toast.success('DICOM RT importé', {
-        description: `${newDvhData.structures.length} structures avec DVH chargées`,
+        description: `${structures.length} structures avec DVH chargées`,
       });
     } else if (data.structures) {
       toast.info('Structures détectées', {
@@ -376,6 +372,14 @@ const Index = () => {
                       {findMaxDoseAcrossStructures(dvhData.structures).toFixed(2)} Gy
                     </p>
                   </div>
+                  {comparisonMode === 'comparison' && (
+                    <div className="ml-auto">
+                      <Button variant="outline" size="sm" onClick={handleExitComparison}>
+                        <X className="w-4 h-4 mr-2" />
+                        Quitter la comparaison
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
