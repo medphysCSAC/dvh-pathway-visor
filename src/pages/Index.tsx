@@ -30,7 +30,7 @@ import { checkCriticalDoses, DoseAlert } from '@/utils/criticalDoseAlerts';
 import { convertDicomDVHToAppFormat, convertDicomToStructures } from '@/utils/dicomRTParser';
 import { DicomRTData } from '@/types/dicomRT';
 import { toast } from 'sonner';
-import { Activity, Bug } from 'lucide-react';
+import { Activity, Bug, X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index = () => {
