@@ -144,7 +144,8 @@ const DicomConfirmPanel: React.FC<{
 
 interface UnifiedPlanUploadProps {
   onCsvLoaded: (relFile: File, absFile?: File) => void;
-  onDicomLoaded: (data: DicomRTData) => void;
+  onDicomLoaded: (data: DicomRTData, protocol?: TreatmentProtocol) => void;
+  enableProtocolStep?: boolean;
 }
 
 type CsvKind = 'CSV_REL' | 'CSV_ABS' | 'CSV_UNKNOWN';
