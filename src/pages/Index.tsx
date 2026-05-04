@@ -204,8 +204,8 @@ const Index = () => {
   const [lastSummationResult, setLastSummationResult] = useState<SummedPlanResult | null>(null);
   const [activeProtocol, setActiveProtocol] = useState<TreatmentProtocol | null>(null);
 
-  // Tab actif dans la barre principale (3 groupes + outils)
-  const [mainTab, setMainTab] = useState<string>('tools');
+  // Tab actif — 'welcome' tant qu'aucun plan n'est chargé (état invisible)
+  const [mainTab, setMainTab] = useState<string>('welcome');
 
   // Sous-onglet actif dans chaque groupe
   const [analyzeSubTab, setAnalyzeSubTab] = useState<string>('dvh');
@@ -376,7 +376,7 @@ const Index = () => {
     setCriticalAlerts([]);
     setLastSummationResult(null);
     setActiveProtocol(null);
-    setMainTab('tools');
+    setMainTab('welcome');
     setToolsSubTab('protocols');
   };
 
@@ -502,11 +502,28 @@ const Index = () => {
                 <CheckSquare className="w-4 h-4" />
                 Validation
               </TabsTrigger>
-              <TabsTrigger value="tools" className="flex items-center gap-1.5">
+              <TabsTrigger
+                value="tools"
+                className="flex items-center gap-1.5"
+                onClick={() => {
+                  if (mainTab === 'welcome') setToolsSubTab('protocols');
+                }}
+              >
                 <Settings className="w-4 h-4" />
                 Outils
               </TabsTrigger>
             </TabsList>
+
+            {/* ── TAB WELCOME (état invisible — pas de TabsTrigger) ────────── */}
+            <TabsContent value="welcome" className="mt-4">
+              <WelcomeScreen
+                onCsvLoaded={handleFilesUploaded}
+                onDicomLoaded={handleDicomRTLoaded}
+                onPlansLoaded={handlePlansLoaded}
+                onSummationComplete={handleDicomSummationComplete}
+                onSwitchToTools={handleSwitchToTools}
+              />
+            </TabsContent>
 
             {/* ── TAB ANALYSE ──────────────────────────────────────────────── */}
             <TabsContent value="analyze" className="mt-4">
@@ -657,32 +674,8 @@ const Index = () => {
                   <HelpGuide />
                 </TabsContent>
               </Tabs>
-
-              {/* WelcomeScreen — affiché dans Outils si aucun plan chargé */}
-              {!dvhData && toolsSubTab === 'protocols' && (
-                <div className="mt-8 border-t pt-8">
-                  <WelcomeScreen
-                    onCsvLoaded={handleFilesUploaded}
-                    onDicomLoaded={handleDicomRTLoaded}
-                    onPlansLoaded={handlePlansLoaded}
-                    onSummationComplete={handleDicomSummationComplete}
-                    onSwitchToTools={handleSwitchToTools}
-                  />
-                </div>
-              )}
             </TabsContent>
           </Tabs>
-
-          {/* WelcomeScreen principal — si aucun plan et pas dans Outils */}
-          {!dvhData && mainTab !== 'tools' && (
-            <WelcomeScreen
-              onCsvLoaded={handleFilesUploaded}
-              onDicomLoaded={handleDicomRTLoaded}
-              onPlansLoaded={handlePlansLoaded}
-              onSummationComplete={handleDicomSummationComplete}
-              onSwitchToTools={handleSwitchToTools}
-            />
-          )}
 
         </div>
       </main>
