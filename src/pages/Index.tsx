@@ -674,32 +674,8 @@ const Index = () => {
                   <HelpGuide />
                 </TabsContent>
               </Tabs>
-
-              {/* WelcomeScreen — affiché dans Outils si aucun plan chargé */}
-              {!dvhData && toolsSubTab === 'protocols' && (
-                <div className="mt-8 border-t pt-8">
-                  <WelcomeScreen
-                    onCsvLoaded={handleFilesUploaded}
-                    onDicomLoaded={handleDicomRTLoaded}
-                    onPlansLoaded={handlePlansLoaded}
-                    onSummationComplete={handleDicomSummationComplete}
-                    onSwitchToTools={handleSwitchToTools}
-                  />
-                </div>
-              )}
             </TabsContent>
           </Tabs>
-
-          {/* WelcomeScreen principal — si aucun plan et pas dans Outils */}
-          {!dvhData && mainTab !== 'tools' && (
-            <WelcomeScreen
-              onCsvLoaded={handleFilesUploaded}
-              onDicomLoaded={handleDicomRTLoaded}
-              onPlansLoaded={handlePlansLoaded}
-              onSummationComplete={handleDicomSummationComplete}
-              onSwitchToTools={handleSwitchToTools}
-            />
-          )}
 
         </div>
       </main>
