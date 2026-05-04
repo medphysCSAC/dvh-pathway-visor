@@ -204,8 +204,8 @@ const Index = () => {
   const [lastSummationResult, setLastSummationResult] = useState<SummedPlanResult | null>(null);
   const [activeProtocol, setActiveProtocol] = useState<TreatmentProtocol | null>(null);
 
-  // Tab actif — 'welcome' tant qu'aucun plan n'est chargé (état invisible)
-  const [mainTab, setMainTab] = useState<string>('welcome');
+  // Tab actif dans la barre principale (3 groupes)
+  const [mainTab, setMainTab] = useState<string>('tools');
 
   // Sous-onglet actif dans chaque groupe
   const [analyzeSubTab, setAnalyzeSubTab] = useState<string>('dvh');
