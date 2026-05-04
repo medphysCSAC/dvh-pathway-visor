@@ -376,7 +376,7 @@ const Index = () => {
     setCriticalAlerts([]);
     setLastSummationResult(null);
     setActiveProtocol(null);
-    setMainTab('welcome');
+    setMainTab('tools');
     setToolsSubTab('protocols');
   };
 
