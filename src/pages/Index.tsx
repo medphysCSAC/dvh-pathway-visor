@@ -431,206 +431,20 @@ const Index = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="space-y-6">
 
-          {/* ── Barre patient (si plan chargé) ─────────────────────────────── */}
-          {dvhData && (
-            <div className="bg-card border rounded-lg px-5 py-3">
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-6 flex-wrap">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Patient</p>
-                    <p className="font-semibold">{dvhData.patientId}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Structures</p>
-                    <p className="font-semibold">{dvhData.structures.length}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Sélectionnées</p>
-                    <p className="font-semibold text-primary">{selectedStructures.length}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Dose max</p>
-                    <p className="font-semibold text-accent">
-                      {findMaxDoseAcrossStructures(dvhData.structures).toFixed(2)} Gy
-                    </p>
-                  </div>
-                  {activeProtocol && (
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs text-muted-foreground">Protocole actif</p>
-                      <Badge className="bg-primary/15 text-primary border-primary/30 text-xs">
-                        {activeProtocol.name}
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-5 text-xs text-muted-foreground px-1"
-                        onClick={() => setActiveProtocol(null)}
-                      >
-                        ✕
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                {comparisonMode === 'comparison' && (
-                  <Badge variant="outline" className="text-blue-500 border-blue-500/40">
-                    Mode comparaison — {comparisonPlans.length} plans
-                  </Badge>
-                )}
-              </div>
-            </div>
+          {/* ── État 1 : Aucun plan → WelcomeScreen seul ──────────────── */}
+          {!dvhData && (
+            <WelcomeScreen
+              onCsvLoaded={handleFilesUploaded}
+              onDicomLoaded={handleDicomRTLoaded}
+              onPlansLoaded={handlePlansLoaded}
+              onSummationComplete={handleDicomSummationComplete}
+              onSwitchToTools={handleSwitchToTools}
+            />
           )}
 
-          {/* ── Alertes doses critiques ─────────────────────────────────────── */}
-          {dvhData && <CriticalDoseAlerts alerts={criticalAlerts} />}
-
-          {/* ── Navigation principale — 3 groupes ───────────────────────────── */}
-          <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
-            <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3">
-              <TabsTrigger
-                value="analyze"
-                disabled={!dvhData}
-                className="flex items-center gap-1.5"
-              >
-                <BarChart3 className="w-4 h-4" />
-                Analyse
-              </TabsTrigger>
-              <TabsTrigger
-                value="validation"
-                disabled={!dvhData}
-                className="flex items-center gap-1.5"
-              >
-                <CheckSquare className="w-4 h-4" />
-                Validation
-              </TabsTrigger>
-              <TabsTrigger
-                value="tools"
-                className="flex items-center gap-1.5"
-                onClick={() => {
-                  if (mainTab === 'welcome') setToolsSubTab('protocols');
-                }}
-              >
-                <Settings className="w-4 h-4" />
-                Outils
-              </TabsTrigger>
-            </TabsList>
-
-            {/* ── TAB WELCOME (état invisible — pas de TabsTrigger) ────────── */}
-            <TabsContent value="welcome" className="mt-4">
-              <WelcomeScreen
-                onCsvLoaded={handleFilesUploaded}
-                onDicomLoaded={handleDicomRTLoaded}
-                onPlansLoaded={handlePlansLoaded}
-                onSummationComplete={handleDicomSummationComplete}
-                onSwitchToTools={handleSwitchToTools}
-              />
-            </TabsContent>
-
-            {/* ── TAB ANALYSE ──────────────────────────────────────────────── */}
-            <TabsContent value="analyze" className="mt-4">
-              {dvhData && (
-                <Tabs value={analyzeSubTab} onValueChange={setAnalyzeSubTab}>
-                  <TabsList className="mb-4">
-                    <TabsTrigger value="dvh">Courbes DVH</TabsTrigger>
-                    <TabsTrigger
-                      value="comparison"
-                      disabled={comparisonMode !== 'comparison'}
-                    >
-                      Comparaison
-                    </TabsTrigger>
-                    <TabsTrigger value="evaluation">Évaluation du plan</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="dvh" className="space-y-6">
-                    <FilterBar
-                      structures={dvhData.structures}
-                      selectedStructures={selectedStructures}
-                      onFilterChange={handleFilterChange}
-                      onSelectAll={handleSelectAll}
-                      onDeselectAll={handleDeselectAll}
-                      activeFilter={activeFilter}
-                    />
-                    <DVHChart
-                      structures={dvhData.structures}
-                      selectedStructures={selectedStructures}
-                      onStructureToggle={handleStructureToggle}
-                      onSelectAll={handleSelectAll}
-                      onDeselectAll={handleDeselectAll}
-                      activeProtocol={activeProtocol}
-                      comparePlans={
-                        comparisonMode === 'comparison' && comparisonPlans.length > 1
-                          ? comparisonPlans.slice(1).map(p => ({
-                              label: p.name || p.patientId,
-                              structures: p.structures,
-                            }))
-                          : undefined
-                      }
-                      mainPlanLabel={
-                        comparisonMode === 'comparison'
-                          ? (comparisonPlans[0]?.name || comparisonPlans[0]?.patientId)
-                          : undefined
-                      }
-                    />
-                    <UnifiedMetricsCalculator
-                      structures={dvhData.structures}
-                      selectedStructures={selectedStructures}
-                    />
-                    <StructureTable
-                      structures={dvhData.structures}
-                      selectedStructures={selectedStructures}
-                      onStructureToggle={handleStructureToggle}
-                      onCategoryChange={handleCategoryChange}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="comparison">
-                    {comparisonMode === 'comparison' && comparisonPlans.length > 0 && (
-                      <PlanComparison plans={comparisonPlans} />
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="evaluation">
-                    <PlanEvaluation
-                      structures={dvhData.structures}
-                      patientId={dvhData.patientId}
-                    />
-                  </TabsContent>
-                </Tabs>
-              )}
-            </TabsContent>
-
-            {/* ── TAB VALIDATION ───────────────────────────────────────────── */}
-            <TabsContent value="validation" className="mt-4">
-              {dvhData && (
-                <Tabs value={validationSubTab} onValueChange={setValidationSubTab}>
-                  <TabsList className="mb-4">
-                    <TabsTrigger value="validation">Validation Protocole</TabsTrigger>
-                    <TabsTrigger value="protocols">Gérer les protocoles</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="validation">
-                    <ProtocolValidation
-                      structures={dvhData.structures}
-                      patientId={dvhData.patientId}
-                      summationResult={lastSummationResult}
-                      onProtocolChange={setActiveProtocol}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="protocols">
-                    <ProtocolManager
-                      onProtocolSelect={(p) => {
-                        setActiveProtocol(p);
-                        setValidationSubTab('validation');
-                        toast.success(`Protocole "${p.name}" activé`);
-                      }}
-                    />
-                  </TabsContent>
-                </Tabs>
-              )}
-            </TabsContent>
-
-            {/* ── TAB OUTILS ───────────────────────────────────────────────── */}
-            <TabsContent value="tools" className="mt-4">
+          {/* ── Outils accessibles sans plan (via "Accès direct") ─────── */}
+          {!dvhData && mainTab === 'tools' && (
+            <div className="border-t pt-6">
               <Tabs value={toolsSubTab} onValueChange={setToolsSubTab}>
                 <TabsList className="mb-4">
                   <TabsTrigger value="protocols">
@@ -650,17 +464,11 @@ const Index = () => {
                     Aide
                   </TabsTrigger>
                 </TabsList>
-
                 <TabsContent value="protocols">
                   <ProtocolManager
                     onProtocolSelect={(p) => {
                       setActiveProtocol(p);
-                      if (dvhData) {
-                        setMainTab('analyze');
-                        toast.success(`Protocole "${p.name}" activé`, {
-                          description: 'Visible sur les courbes DVH',
-                        });
-                      }
+                      toast.success(`Protocole "${p.name}" sélectionné`);
                     }}
                   />
                 </TabsContent>
@@ -674,8 +482,226 @@ const Index = () => {
                   <HelpGuide />
                 </TabsContent>
               </Tabs>
-            </TabsContent>
-          </Tabs>
+            </div>
+          )}
+
+          {/* ── État 2 : Plan chargé → barre patient + navigation ───── */}
+          {dvhData && (
+            <>
+              {/* Barre patient */}
+              <div className="bg-card border rounded-lg px-5 py-3">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex items-center gap-6 flex-wrap">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Patient</p>
+                      <p className="font-semibold">{dvhData.patientId}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Structures</p>
+                      <p className="font-semibold">{dvhData.structures.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Sélectionnées</p>
+                      <p className="font-semibold text-primary">{selectedStructures.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Dose max</p>
+                      <p className="font-semibold text-accent">
+                        {findMaxDoseAcrossStructures(dvhData.structures).toFixed(2)} Gy
+                      </p>
+                    </div>
+                    {activeProtocol && (
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-muted-foreground">Protocole actif</p>
+                        <Badge className="bg-primary/15 text-primary border-primary/30 text-xs">
+                          {activeProtocol.name}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 text-xs text-muted-foreground px-1"
+                          onClick={() => setActiveProtocol(null)}
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                  {comparisonMode === 'comparison' && (
+                    <Badge variant="outline" className="text-blue-500 border-blue-500/40">
+                      Mode comparaison — {comparisonPlans.length} plans
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Alertes doses critiques */}
+              <CriticalDoseAlerts alerts={criticalAlerts} />
+
+              {/* Navigation principale — 3 groupes */}
+              <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
+                <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3">
+                  <TabsTrigger value="analyze" className="flex items-center gap-1.5">
+                    <BarChart3 className="w-4 h-4" />
+                    Analyse
+                  </TabsTrigger>
+                  <TabsTrigger value="validation" className="flex items-center gap-1.5">
+                    <CheckSquare className="w-4 h-4" />
+                    Validation
+                  </TabsTrigger>
+                  <TabsTrigger value="tools" className="flex items-center gap-1.5">
+                    <Settings className="w-4 h-4" />
+                    Outils
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* TAB ANALYSE */}
+                <TabsContent value="analyze" className="mt-4">
+                  <Tabs value={analyzeSubTab} onValueChange={setAnalyzeSubTab}>
+                    <TabsList className="mb-4">
+                      <TabsTrigger value="dvh">Courbes DVH</TabsTrigger>
+                      <TabsTrigger
+                        value="comparison"
+                        disabled={comparisonMode !== 'comparison'}
+                      >
+                        Comparaison
+                      </TabsTrigger>
+                      <TabsTrigger value="evaluation">Évaluation du plan</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="dvh" className="space-y-6">
+                      <FilterBar
+                        structures={dvhData.structures}
+                        selectedStructures={selectedStructures}
+                        onFilterChange={handleFilterChange}
+                        onSelectAll={handleSelectAll}
+                        onDeselectAll={handleDeselectAll}
+                        activeFilter={activeFilter}
+                      />
+                      <DVHChart
+                        structures={dvhData.structures}
+                        selectedStructures={selectedStructures}
+                        onStructureToggle={handleStructureToggle}
+                        onSelectAll={handleSelectAll}
+                        onDeselectAll={handleDeselectAll}
+                        activeProtocol={activeProtocol}
+                        comparePlans={
+                          comparisonMode === 'comparison' && comparisonPlans.length > 1
+                            ? comparisonPlans.slice(1).map(p => ({
+                                label: p.name || p.patientId,
+                                structures: p.structures,
+                              }))
+                            : undefined
+                        }
+                        mainPlanLabel={
+                          comparisonMode === 'comparison'
+                            ? (comparisonPlans[0]?.name || comparisonPlans[0]?.patientId)
+                            : undefined
+                        }
+                      />
+                      <UnifiedMetricsCalculator
+                        structures={dvhData.structures}
+                        selectedStructures={selectedStructures}
+                      />
+                      <StructureTable
+                        structures={dvhData.structures}
+                        selectedStructures={selectedStructures}
+                        onStructureToggle={handleStructureToggle}
+                        onCategoryChange={handleCategoryChange}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="comparison">
+                      {comparisonMode === 'comparison' && comparisonPlans.length > 0 && (
+                        <PlanComparison plans={comparisonPlans} />
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="evaluation">
+                      <PlanEvaluation
+                        structures={dvhData.structures}
+                        patientId={dvhData.patientId}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </TabsContent>
+
+                {/* TAB VALIDATION */}
+                <TabsContent value="validation" className="mt-4">
+                  <Tabs value={validationSubTab} onValueChange={setValidationSubTab}>
+                    <TabsList className="mb-4">
+                      <TabsTrigger value="validation">Validation Protocole</TabsTrigger>
+                      <TabsTrigger value="protocols">Gérer les protocoles</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="validation">
+                      <ProtocolValidation
+                        structures={dvhData.structures}
+                        patientId={dvhData.patientId}
+                        summationResult={lastSummationResult}
+                        onProtocolChange={setActiveProtocol}
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="protocols">
+                      <ProtocolManager
+                        onProtocolSelect={(p) => {
+                          setActiveProtocol(p);
+                          setValidationSubTab('validation');
+                          toast.success(`Protocole "${p.name}" activé`);
+                        }}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </TabsContent>
+
+                {/* TAB OUTILS */}
+                <TabsContent value="tools" className="mt-4">
+                  <Tabs value={toolsSubTab} onValueChange={setToolsSubTab}>
+                    <TabsList className="mb-4">
+                      <TabsTrigger value="protocols">
+                        <BookOpen className="w-3.5 h-3.5 mr-1.5" />
+                        Protocoles
+                      </TabsTrigger>
+                      <TabsTrigger value="converter">
+                        <FileText className="w-3.5 h-3.5 mr-1.5" />
+                        Convertisseur
+                      </TabsTrigger>
+                      <TabsTrigger value="history">
+                        <History className="w-3.5 h-3.5 mr-1.5" />
+                        Historique
+                      </TabsTrigger>
+                      <TabsTrigger value="help">
+                        <HelpCircle className="w-3.5 h-3.5 mr-1.5" />
+                        Aide
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="protocols">
+                      <ProtocolManager
+                        onProtocolSelect={(p) => {
+                          setActiveProtocol(p);
+                          setMainTab('analyze');
+                          toast.success(`Protocole "${p.name}" activé`, {
+                            description: 'Visible sur les courbes DVH',
+                          });
+                        }}
+                      />
+                    </TabsContent>
+                    <TabsContent value="converter">
+                      <ProtocolDocumentConverter />
+                    </TabsContent>
+                    <TabsContent value="history">
+                      <AnalysisHistory />
+                    </TabsContent>
+                    <TabsContent value="help">
+                      <HelpGuide />
+                    </TabsContent>
+                  </Tabs>
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
 
         </div>
       </main>
