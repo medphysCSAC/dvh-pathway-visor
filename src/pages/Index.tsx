@@ -502,11 +502,28 @@ const Index = () => {
                 <CheckSquare className="w-4 h-4" />
                 Validation
               </TabsTrigger>
-              <TabsTrigger value="tools" className="flex items-center gap-1.5">
+              <TabsTrigger
+                value="tools"
+                className="flex items-center gap-1.5"
+                onClick={() => {
+                  if (mainTab === 'welcome') setToolsSubTab('protocols');
+                }}
+              >
                 <Settings className="w-4 h-4" />
                 Outils
               </TabsTrigger>
             </TabsList>
+
+            {/* ── TAB WELCOME (état invisible — pas de TabsTrigger) ────────── */}
+            <TabsContent value="welcome" className="mt-4">
+              <WelcomeScreen
+                onCsvLoaded={handleFilesUploaded}
+                onDicomLoaded={handleDicomRTLoaded}
+                onPlansLoaded={handlePlansLoaded}
+                onSummationComplete={handleDicomSummationComplete}
+                onSwitchToTools={handleSwitchToTools}
+              />
+            </TabsContent>
 
             {/* ── TAB ANALYSE ──────────────────────────────────────────────── */}
             <TabsContent value="analyze" className="mt-4">
