@@ -163,8 +163,13 @@ export const ProtocolFileExtractor: React.FC<ProtocolFileExtractorProps> = ({
 
     const finalProtocol: TreatmentProtocol = {
       ...extractedProtocol,
+      id: extractedProtocol.id || `file_extracted_${Date.now()}`,
       name: protocolName || extractedProtocol.name,
       location: protocolLocation || extractedProtocol.location,
+      prescriptions: extractedProtocol.prescriptions || [],
+      createdAt: extractedProtocol.createdAt || new Date(),
+      modifiedAt: new Date(),
+      isCustom: true,
       oarConstraints: (extractedProtocol.oarConstraints || []).map((c) => {
         if (c.constraintType === 'Vx') {
           return {
