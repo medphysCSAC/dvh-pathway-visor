@@ -22,17 +22,40 @@ interface ProtocolValidationProps {
   summationResult?: SummedPlanResult | null;
   onProtocolChange?: (protocol: TreatmentProtocol | null) => void;
   onMappingsChange?: (mappings: StructureMappingType[]) => void;
+  // Mode contrôlé : protocole + mappings injectés depuis le parent
+  controlledProtocol?: TreatmentProtocol | null;
+  controlledMappings?: StructureMappingType[];
+  onProtocolConfirmed?: (protocol: TreatmentProtocol, mappings: StructureMappingType[]) => void;
+  onRequestChangeProtocol?: () => void;
 }
 
-export default function ProtocolValidation({ structures, patientId, summationResult, onProtocolChange, onMappingsChange }: ProtocolValidationProps) {
+export default function ProtocolValidation({
+  structures,
+  patientId,
+  summationResult,
+  onProtocolChange,
+  onMappingsChange,
+  controlledProtocol,
+  controlledMappings,
+  onProtocolConfirmed,
+  onRequestChangeProtocol,
+}: ProtocolValidationProps) {
   const { toast } = useToast();
   const { addToHistory } = useAnalysisHistory();
   const [protocols, setProtocols] = useState<TreatmentProtocol[]>([]);
-  const [selectedProtocolId, setSelectedProtocolId] = useState<string>('');
+  const [selectedProtocolId, setSelectedProtocolId] = useState<string>(controlledProtocol?.id ?? '');
   const [report, setReport] = useState<ValidationReport | null>(null);
-  const [mappings, setMappings] = useState<StructureMappingType[]>([]);
+  const [mappings, setMappings] = useState<StructureMappingType[]>(controlledMappings ?? []);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+
+  // Sync prop -> state quand mode contrôlé
+  useEffect(() => {
+    if (controlledProtocol) setSelectedProtocolId(controlledProtocol.id);
+  }, [controlledProtocol]);
+  useEffect(() => {
+    if (controlledMappings) setMappings(controlledMappings);
+  }, [controlledMappings]);
 
   useEffect(() => {
     const loadProtocols = async () => {
