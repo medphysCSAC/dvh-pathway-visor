@@ -185,7 +185,7 @@ export default function ProtocolValidation({
     );
   };
 
-  const selectedProtocol = protocols.find(p => p.id === selectedProtocolId);
+  const selectedProtocol = controlledProtocol ?? protocols.find(p => p.id === selectedProtocolId);
 
   return (
     <div className="space-y-4">
