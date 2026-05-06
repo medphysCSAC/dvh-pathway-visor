@@ -88,7 +88,7 @@ export default function ProtocolValidation({
   };
 
   const handleValidate = () => {
-    const protocol = protocols.find(p => p.id === selectedProtocolId);
+    const protocol = controlledProtocol ?? protocols.find(p => p.id === selectedProtocolId);
     if (!protocol) {
       toast({
         title: 'Erreur',
