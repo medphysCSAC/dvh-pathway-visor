@@ -1,95 +1,70 @@
-# Critique UX & Plan d'amélioration ergonomique
+# Plan — corriger les 3 défauts de sélection / mapping de protocole
 
-## 1. Critique de l'interface actuelle
+## Constat (validé sur le code actuel)
 
-### Ce qui fonctionne bien
-- Séparation claire des deux états (sans plan / avec plan).
-- WelcomeScreen orienté "cas d'usage" plutôt que "type de fichier" — bonne abstraction métier.
-- Barre patient persistante avec infos clés (dose max, structures, protocole actif).
+- `Index.tsx` ne stocke que `activeProtocol` (sans mapping). `ProtocolValidation` gère son propre `selectedProtocolId` et ses propres `mappings` (en silo + localStorage par protocole).
+- `ProtocolSelectorDialog` (utilisé depuis `PatientBar` / `ProtocolPromptBanner`) ferme la boîte dès qu'un protocole est choisi → l'utilisateur n'a aucune occasion de mapper avant l'affichage du DVH.
+- Le composant `StructureMapping` existe, mais il est encapsulé dans `ProtocolValidation` et ne peut pas être réutilisé tel quel après le sélecteur.
+- `findBestStructureMatch` fait déjà une normalisation + recherche partielle, mais il n'a ni table d'alias anatomiques, ni score Levenshtein, ni mémoire utilisateur globale.
 
-### Problèmes identifiés
+## Décisions
 
-**A. WelcomeScreen — surcharge cognitive**
-- 3 cartes d'usage + 4 boutons "Accès direct" + zone d'import dépliée par défaut = trop d'éléments visibles en même temps.
-- Le bouton "Accès direct → Protocoles" déclenche l'affichage d'un `ProtocolManager` complet **sous** le WelcomeScreen → l'utilisateur doit scroller, perd le contexte d'import.
-- Les cartes "Comparer" et "Sommation" embarquent des sous-composants lourds (`MultiFileUpload`, `PlanSummationManager`) directement dans la carte → la page devient très longue dès qu'on clique.
-- Hiérarchie visuelle floue : "le plus fréquent" est annoncé mais les 2 autres cartes sont visuellement aussi proéminentes.
+- Source unique de vérité dans `Index.tsx` : `activeProtocol` + `structureMappings` (typé `StructureMapping[]`). Tous les onglets lisent ce store.
+- Règle absolue : tout choix de protocole passe par `ProtocolSelectorDialog` qui chaîne **automatiquement** une étape mapping avant de fermer (deux étapes internes : *select* → *map*).
+- `ProtocolValidation` devient contrôlé : reçoit `protocol` + `mappings` + `onMappingsChange` au lieu de gérer son propre état.
+- `StructureMapping` existant est réutilisé dans le dialog (pas de duplication).
+- L'algorithme de matching est enrichi par étapes (alias → normalisation forte → Levenshtein) en restant rétro‑compatible.
 
-**B. Navigation à plan chargé — duplication**
-- `ProtocolManager` apparaît dans **deux** onglets différents : "Validation → Gérer les protocoles" ET "Outils → Protocoles". Source de confusion.
-- 3 onglets principaux × sous-onglets = 9 vues à mémoriser. L'utilisateur ne sait jamais où aller pour une tâche donnée.
-- Onglet "Comparaison" toujours visible mais grisé hors mode comparaison → bruit.
+## Étapes
 
-**C. Barre patient — densité**
-- 4 stats + protocole actif + badge mode = ligne dense, peu lisible. Pas de hiérarchie entre infos critiques (patient, dose max) et secondaires (nb sélectionnées).
-- Bouton "Changer de plan" dans le header, déconnecté de la barre patient.
+### 1. État partagé dans `Index.tsx`
+- Ajouter `structureMappings: StructureMapping[]` à côté de `activeProtocol`.
+- Remplacer `handleProtocolPicked(p)` par `handleProtocolConfirmed(p, mappings)` qui set les deux et toaste un récap (`N structures mappées`).
+- `handleChangePlan` : reset aussi `structureMappings` et `activeProtocol`.
 
-**D. Feedback & guidage**
-- Aucun "next step" suggéré après chargement (ex : "Associez un protocole pour valider").
-- Le protocole actif peut être désactivé via un "✕" minuscule et silencieux.
-- `CriticalDoseAlerts` apparaît seulement si protocole + violations → l'utilisateur découvre les alertes sans contexte.
+### 2. `ProtocolSelectorDialog` en deux étapes (select → map)
+- Ajouter un état interne `step: 'select' | 'map'` + `pickedProtocol`.
+- Étape 1 : `ProtocolSelectorStep` → ne ferme plus le dialog, passe à `step='map'`.
+- Étape 2 : autoMap initial via le nouvel utilitaire (cf. étape 4) → afficher le composant `StructureMapping` existant (ou variante simplifiée) avec bouton **Confirmer & analyser**.
+- À la confirmation : appel `onConfirm(protocol, mappings)` + close. Bouton **Retour** pour rechoisir le protocole.
+- Si l'auto‑mapping résout 100 % des structures, on peut afficher un état compact avec un bouton "Tout est correct, confirmer".
 
-**E. État "outils sans plan"**
-- Cliquer "Accès direct" conserve le WelcomeScreen visible au-dessus → mélange import + outils sur la même page. Soit on importe, soit on bricole un protocole. Les deux ensemble sont rares.
+### 3. Brancher tous les consommateurs
+- `Index.tsx` : remplacer `onSelect={handleProtocolPicked}` par `onConfirm={handleProtocolConfirmed}` et passer aussi `initialMappings={structureMappings}` au dialog.
+- `ProtocolValidation` (contrôlé) :
+  - nouvelles props : `controlledProtocol?: TreatmentProtocol | null`, `controlledMappings?: StructureMapping[]`, `onProtocolConfirmed?: (p, m) => void`.
+  - si `controlledProtocol` est défini : pré‑sélectionner, désactiver la sélection (afficher une bannière *Plan chargé : <nom> — N structures mappées ✓ — Modifier*), pré‑remplir les mappings, et propager les changements via `onProtocolConfirmed`.
+  - le bouton "Modifier" rouvre le `ProtocolSelectorDialog` (réutilisation).
+- `ProtocolPromptBanner` continue d'ouvrir le dialog ; aucune duplication.
 
----
+### 4. Améliorer l'auto‑mapping
+- Nouveau fichier `src/utils/structureMappingUtils.ts` avec :
+  - normalisation forte (accents, séparateurs, chiffres, latéralité L/R/G/D).
+  - table `ANATOMICAL_ALIASES` (parotide, moelle, tronc, rectum, vessie, têtes fémorales, poumons, cœur, œsophage, larynx, cochlée…).
+  - distance de Levenshtein + `similarityScore`.
+  - `autoMapStructures(dicomNames, protocolNames): MappingResult[]` avec seuil `AUTO_MATCH_THRESHOLD = 0.72`.
+- `findBestStructureMatch` : déléguer à `similarityScore` en fallback (garder le chemin PTV existant qui fonctionne bien) et conserver la priorité aux mappings manuels.
+- Mémoire utilisateur globale : à la confirmation, écrire les paires `protocolName → dicomName` validées dans `localStorage` (clé `structure-mappings-global`). Au prochain auto‑map, ces paires sont injectées en priorité, tous protocoles confondus. (Conserve aussi la clé existante par protocole pour rétro‑compat.)
 
-## 2. Plan d'amélioration (par ordre d'impact)
+### 5. Garde‑fou
+- Tant que `activeProtocol` est défini mais que `structureMappings` est vide ET qu'il existe au moins une structure non résolue côté protocole, afficher un petit bandeau dans l'onglet *Analyse* invitant à compléter le mapping (ouvre le dialog directement à `step='map'`).
 
-### Étape 1 — Alléger le WelcomeScreen
-- Cartes "Comparer" et "Sommation" : remplacer le déploiement inline par un **Dialog modal** plein écran. La carte devient un simple CTA, la page reste courte.
-- Zone d'import "Analyser un plan" : reste dépliée par défaut (cas dominant), mais carte agrandie et les 2 autres cartes réduites visuellement (icône + titre uniquement, sans description tant qu'on ne survole pas).
-- "Accès direct" : transformer en menu discret en haut à droite (icône engrenage → popover avec les 4 outils) plutôt qu'une rangée de boutons sous les cartes.
+## Détails techniques
 
-### Étape 2 — Outils sans plan dans une page dédiée
-- Cliquer "Protocoles / Convertisseur / Historique / Aide" depuis l'accueil ouvre une **vue plein écran** qui remplace le WelcomeScreen (avec un breadcrumb "← Retour à l'accueil"), au lieu de s'afficher en dessous.
-- Bénéfice : focus, pas de scroll, pas de mélange import/outils.
+- Aucune modif Supabase / RLS / edge function ; purement front.
+- Types : ajouter `MappingResult` dans le nouvel utilitaire ; ne pas toucher `StructureMapping` existant pour éviter la cascade.
+- Tests manuels :
+  1. Importer DICOM, cliquer *Choisir un protocole* → voir étape mapping → confirmer → DVH affiche les contraintes du premier coup.
+  2. Aller dans *Validation* → protocole et mappings déjà sélectionnés, bannière "Plan chargé".
+  3. *Modifier le protocole* → dialog rouvre à l'étape select.
+  4. Changer de plan → tout reset.
+- Performance : Levenshtein O(n·m) sur des noms < 40 chars, négligeable.
 
-### Étape 3 — Simplifier la navigation à plan chargé
-- Passer de **3 onglets + 9 sous-onglets** à **3 onglets simples** :
-  - **Analyse** (DVH + métriques + tableau structures + évaluation, scrollable) — fusionner les sous-onglets actuels en sections.
-  - **Validation** (ProtocolValidation seul ; sélection du protocole se fait via le bouton "Protocole actif" de la barre patient ou un sélecteur en tête de l'onglet).
-  - **Plus** (Outils : Convertisseur, Historique, Aide). Protocoles n'apparaît plus ici.
-- Retirer l'onglet "Comparaison" : afficher les courbes comparées directement dans Analyse (badge "Mode comparaison" déjà en barre patient).
+## Fichiers touchés
 
-### Étape 4 — Barre patient hiérarchisée
-- Ligne 1 (grande) : Patient + Dose max + bouton "Changer de plan".
-- Ligne 2 (petite, muted) : Structures · Sélectionnées · Source (CSV/DICOM) · Protocole actif (cliquable → ouvre sélecteur).
-- Le bouton "Changer de plan" quitte le header global et rejoint la barre patient pour cohérence contextuelle.
-
-### Étape 5 — Guidage post-chargement
-- Si plan chargé sans protocole actif : afficher un **bandeau d'action** discret en haut de l'onglet Analyse : "Associez un protocole pour voir les contraintes de dose sur vos courbes [Choisir un protocole]".
-- Si protocole actif : remplacer le bandeau par un résumé "X structures matchent / Y contraintes évaluées".
-
-### Étape 6 — Sélection du protocole unifiée
-- Un seul point d'entrée : `ProtocolSelectorStep` (déjà existant) ouvert en Dialog depuis :
-  - le bandeau de guidage,
-  - le clic sur le badge "Protocole actif" en barre patient,
-  - le bouton "Choisir un protocole" dans Validation.
-- Supprimer les deux endroits où `ProtocolManager` est inséré dans les onglets.
-
----
-
-## 3. Détails techniques d'implémentation
-
-Fichiers principalement touchés :
-- `src/pages/Index.tsx` — refonte de la structure de rendu (state `mainTab` réduit, suppression `analyzeSubTab`/`validationSubTab`/`toolsSubTab` dupliqués).
-- `src/components/WelcomeScreen.tsx` (à extraire de `Index.tsx` — actuellement défini inline lignes 39-194).
-- Nouveau `src/components/PatientBar.tsx` extrait des lignes 492-536 d'Index.tsx, avec hiérarchie 2 lignes.
-- Nouveau `src/components/ProtocolPromptBanner.tsx` pour le guidage post-chargement.
-- `MultiFileUpload` et `PlanSummationManager` enveloppés dans `Dialog` au lieu d'inline dans les cartes.
-- Pour la "vue outils plein écran sans plan" : nouvel état `toolsView: 'protocols' | 'converter' | 'history' | 'help' | null`. Quand non-null et `!dvhData` → rendre uniquement la vue outil + bouton retour.
-
-Aucune modification de schéma DB, de RLS ou d'edge function n'est nécessaire — purement front-end.
-
----
-
-## 4. Ordre de livraison suggéré
-
-1. Extraire `WelcomeScreen` et `PatientBar` dans leurs propres fichiers (refactor sans changement visuel).
-2. Étape 4 (barre patient hiérarchisée) — gain visuel immédiat, faible risque.
-3. Étape 3 (simplification navigation) — gros gain, suppression de duplications.
-4. Étape 1 + 2 (modals + vue outils plein écran) — refonte WelcomeScreen.
-5. Étape 5 + 6 (bandeau guidage + sélecteur unifié) — polish UX.
-
-Chaque étape est indépendante et peut être validée séparément.
+- `src/pages/Index.tsx` (état + handler + props ProtocolValidation/Dialog)
+- `src/components/ProtocolSelectorDialog.tsx` (machine à 2 étapes)
+- `src/components/ProtocolValidation.tsx` (mode contrôlé + bannière)
+- `src/utils/protocolValidator.ts` (déléguer fallback à similarityScore)
+- `src/utils/structureMappingUtils.ts` (nouveau)
+- éventuellement `src/components/StructureMapping.tsx` (rendre `protocolId` optionnel pour réutilisation hors validation, sinon laisser tel quel)

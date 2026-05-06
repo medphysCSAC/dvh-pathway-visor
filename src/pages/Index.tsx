@@ -19,7 +19,7 @@ import { ProtocolPromptBanner } from '@/components/ProtocolPromptBanner';
 import { ProtocolSelectorDialog } from '@/components/ProtocolSelectorDialog';
 import { ToolsMenu, ToolKey } from '@/components/ToolsMenu';
 import { DVHData, StructureCategory, PlanData } from '@/types/dvh';
-import { TreatmentProtocol } from '@/types/protocol';
+import { TreatmentProtocol, StructureMapping } from '@/types/protocol';
 import type { SummedPlanResult } from '@/utils/planSummationDicom';
 import { summatePlans } from '@/utils/planSummation';
 import { parseTomoTherapyDVH } from '@/utils/dvhParser';
@@ -47,6 +47,7 @@ const Index = () => {
   const [criticalAlerts, setCriticalAlerts] = useState<DoseAlert[]>([]);
   const [lastSummationResult, setLastSummationResult] = useState<SummedPlanResult | null>(null);
   const [activeProtocol, setActiveProtocol] = useState<TreatmentProtocol | null>(null);
+  const [structureMappings, setStructureMappings] = useState<StructureMapping[]>([]);
 
   // Navigation simplifiée — 2 onglets quand un plan est chargé
   const [mainTab, setMainTab] = useState<'analyze' | 'validation'>('analyze');
@@ -210,14 +211,21 @@ const Index = () => {
     setCriticalAlerts([]);
     setLastSummationResult(null);
     setActiveProtocol(null);
+    setStructureMappings([]);
     setToolView(null);
   };
 
-  const handleProtocolPicked = (p: TreatmentProtocol) => {
+  const handleProtocolConfirmed = (p: TreatmentProtocol, mappings: StructureMapping[]) => {
     setActiveProtocol(p);
+    setStructureMappings(mappings);
     toast.success(`Protocole "${p.name}" activé`, {
-      description: 'Visible sur les courbes DVH',
+      description: `${mappings.length} structure(s) associée(s)`,
     });
+  };
+
+  const handleClearProtocol = () => {
+    setActiveProtocol(null);
+    setStructureMappings([]);
   };
 
   // ── Render helpers ─────────────────────────────────────────────────────────
@@ -306,7 +314,7 @@ const Index = () => {
                 comparisonMode={comparisonMode}
                 comparisonPlanCount={comparisonPlans.length}
                 onChangePlan={handleChangePlan}
-                onClearProtocol={() => setActiveProtocol(null)}
+                onClearProtocol={handleClearProtocol}
                 onPickProtocol={() => setProtocolDialogOpen(true)}
               />
 
@@ -382,6 +390,10 @@ const Index = () => {
                     structures={dvhData.structures}
                     patientId={dvhData.patientId}
                     summationResult={lastSummationResult}
+                    controlledProtocol={activeProtocol}
+                    controlledMappings={structureMappings}
+                    onProtocolConfirmed={handleProtocolConfirmed}
+                    onRequestChangeProtocol={() => setProtocolDialogOpen(true)}
                     onProtocolChange={setActiveProtocol}
                   />
                 </TabsContent>
@@ -395,7 +407,9 @@ const Index = () => {
               open={protocolDialogOpen}
               onOpenChange={setProtocolDialogOpen}
               structures={dvhData.structures}
-              onSelect={handleProtocolPicked}
+              initialProtocol={activeProtocol}
+              initialMappings={structureMappings}
+              onConfirm={handleProtocolConfirmed}
             />
           )}
 

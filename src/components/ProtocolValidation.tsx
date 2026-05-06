@@ -22,17 +22,40 @@ interface ProtocolValidationProps {
   summationResult?: SummedPlanResult | null;
   onProtocolChange?: (protocol: TreatmentProtocol | null) => void;
   onMappingsChange?: (mappings: StructureMappingType[]) => void;
+  // Mode contrôlé : protocole + mappings injectés depuis le parent
+  controlledProtocol?: TreatmentProtocol | null;
+  controlledMappings?: StructureMappingType[];
+  onProtocolConfirmed?: (protocol: TreatmentProtocol, mappings: StructureMappingType[]) => void;
+  onRequestChangeProtocol?: () => void;
 }
 
-export default function ProtocolValidation({ structures, patientId, summationResult, onProtocolChange, onMappingsChange }: ProtocolValidationProps) {
+export default function ProtocolValidation({
+  structures,
+  patientId,
+  summationResult,
+  onProtocolChange,
+  onMappingsChange,
+  controlledProtocol,
+  controlledMappings,
+  onProtocolConfirmed,
+  onRequestChangeProtocol,
+}: ProtocolValidationProps) {
   const { toast } = useToast();
   const { addToHistory } = useAnalysisHistory();
   const [protocols, setProtocols] = useState<TreatmentProtocol[]>([]);
-  const [selectedProtocolId, setSelectedProtocolId] = useState<string>('');
+  const [selectedProtocolId, setSelectedProtocolId] = useState<string>(controlledProtocol?.id ?? '');
   const [report, setReport] = useState<ValidationReport | null>(null);
-  const [mappings, setMappings] = useState<StructureMappingType[]>([]);
+  const [mappings, setMappings] = useState<StructureMappingType[]>(controlledMappings ?? []);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+
+  // Sync prop -> state quand mode contrôlé
+  useEffect(() => {
+    if (controlledProtocol) setSelectedProtocolId(controlledProtocol.id);
+  }, [controlledProtocol]);
+  useEffect(() => {
+    if (controlledMappings) setMappings(controlledMappings);
+  }, [controlledMappings]);
 
   useEffect(() => {
     const loadProtocols = async () => {
@@ -59,10 +82,13 @@ export default function ProtocolValidation({ structures, patientId, summationRes
   const handleMappingsChange = (newMappings: StructureMappingType[]) => {
     setMappings(newMappings);
     onMappingsChange?.(newMappings);
+    if (controlledProtocol && onProtocolConfirmed) {
+      onProtocolConfirmed(controlledProtocol, newMappings);
+    }
   };
 
   const handleValidate = () => {
-    const protocol = protocols.find(p => p.id === selectedProtocolId);
+    const protocol = controlledProtocol ?? protocols.find(p => p.id === selectedProtocolId);
     if (!protocol) {
       toast({
         title: 'Erreur',
@@ -159,53 +185,81 @@ export default function ProtocolValidation({ structures, patientId, summationRes
     );
   };
 
-  const selectedProtocol = protocols.find(p => p.id === selectedProtocolId);
+  const selectedProtocol = controlledProtocol ?? protocols.find(p => p.id === selectedProtocolId);
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Validation du Plan de Traitement</CardTitle>
-          <CardDescription>
-            Sélectionnez un protocole pour valider les contraintes de dose selon les standards cliniques
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium mb-2 block">Protocole</label>
-              <Select value={selectedProtocolId} onValueChange={handleProtocolChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un protocole..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {protocols.map(protocol => (
-                    <SelectItem key={protocol.id} value={protocol.id}>
-                      {protocol.name}
-                      {protocol.isCustom && ' (Personnalisé)'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block">Patient ID</label>
-              <div className="h-10 px-3 border rounded-md flex items-center bg-muted">
-                <span className="font-mono">{patientId}</span>
+      {controlledProtocol ? (
+        <Card className="border-success/40 bg-success/5">
+          <CardContent className="p-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">
+                  Protocole actif : {controlledProtocol.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {(controlledMappings ?? []).length} structure(s) associée(s)
+                </p>
               </div>
             </div>
-          </div>
+            <div className="flex gap-2">
+              {onRequestChangeProtocol && (
+                <Button variant="outline" size="sm" onClick={onRequestChangeProtocol}>
+                  Modifier
+                </Button>
+              )}
+              <Button size="sm" onClick={handleValidate}>
+                Lancer la validation
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Validation du Plan de Traitement</CardTitle>
+            <CardDescription>
+              Sélectionnez un protocole pour valider les contraintes de dose selon les standards cliniques
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Protocole</label>
+                <Select value={selectedProtocolId} onValueChange={handleProtocolChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un protocole..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {protocols.map(protocol => (
+                      <SelectItem key={protocol.id} value={protocol.id}>
+                        {protocol.name}
+                        {protocol.isCustom && ' (Personnalisé)'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <Button 
-            onClick={handleValidate} 
-            disabled={!selectedProtocolId}
-            className="w-full"
-          >
-            Lancer la validation
-          </Button>
-        </CardContent>
-      </Card>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Patient ID</label>
+                <div className="h-10 px-3 border rounded-md flex items-center bg-muted">
+                  <span className="font-mono">{patientId}</span>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleValidate}
+              disabled={!selectedProtocolId}
+              className="w-full"
+            >
+              Lancer la validation
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {selectedProtocol && (
         <StructureMapping
