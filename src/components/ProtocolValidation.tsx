@@ -82,6 +82,9 @@ export default function ProtocolValidation({
   const handleMappingsChange = (newMappings: StructureMappingType[]) => {
     setMappings(newMappings);
     onMappingsChange?.(newMappings);
+    if (controlledProtocol && onProtocolConfirmed) {
+      onProtocolConfirmed(controlledProtocol, newMappings);
+    }
   };
 
   const handleValidate = () => {
