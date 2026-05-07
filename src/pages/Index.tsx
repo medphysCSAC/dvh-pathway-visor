@@ -456,6 +456,7 @@ const Index = () => {
           open={protocolSelectorOpen}
           onOpenChange={setProtocolSelectorOpen}
           onSelect={handleProtocolSelected}
+          structures={dvhData.structures}
           currentProtocol={sharedProtocol}
         />
       )}

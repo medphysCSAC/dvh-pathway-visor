@@ -34,7 +34,7 @@ interface ProtocolValidationProps {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const getAllProtocolStructureNames = (protocol: TreatmentProtocol): string[] => {
-  const oar = protocol.oarConstraints.map(c => c.structure);
+  const oar = protocol.oarConstraints.map(c => c.organName);
   const ptv = protocol.prescriptions.map(p => p.ptvName);
   return [...new Set([...oar, ...ptv])];
 };

@@ -115,7 +115,7 @@ export const autoMapStructures = (
   dvhStructures: Structure[],
   protocol: TreatmentProtocol
 ): AutoMappingResult[] => {
-  const oarNames = protocol.oarConstraints.map(c => c.structure);
+  const oarNames = protocol.oarConstraints.map(c => c.organName);
   const ptvNames = protocol.prescriptions.map(p => p.ptvName);
   const allProtocolNames = [...new Set([...oarNames, ...ptvNames])];
   const dvhNames = dvhStructures.map(s => s.name);
