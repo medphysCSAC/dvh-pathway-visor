@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { UnifiedPlanUpload } from '@/components/UnifiedPlanUpload';
+import { MultiFileUpload } from '@/components/MultiFileUpload';
 import { PlanComparison } from '@/components/PlanComparison';
 import { ProtocolDocumentConverter } from '@/components/ProtocolDocumentConverter';
 import { DVHChart } from '@/components/DVHChart';
@@ -12,31 +14,28 @@ import AnalysisHistory from '@/components/AnalysisHistory';
 import HelpGuide from '@/components/HelpGuide';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { InteractiveTour } from '@/components/InteractiveTour';
+import { ContextualHelp } from '@/components/ContextualHelp';
 import { CriticalDoseAlerts } from '@/components/CriticalDoseAlerts';
-import { WelcomeScreen } from '@/components/WelcomeScreen';
-import { PatientBar } from '@/components/PatientBar';
+import DVHComparisonDebug from '@/components/DVHComparisonDebug';
+import DVHSourceComparison from '@/components/DVHSourceComparison';
+import { PlanSummationManager } from '@/components/PlanSummationManager';
+import PatientBar from '@/components/PatientBar';
 import { ProtocolPromptBanner } from '@/components/ProtocolPromptBanner';
 import { ProtocolSelectorDialog } from '@/components/ProtocolSelectorDialog';
-import { ToolsMenu, ToolKey } from '@/components/ToolsMenu';
-import { DVHData, StructureCategory, PlanData } from '@/types/dvh';
-import { TreatmentProtocol, StructureMapping } from '@/types/protocol';
+// FIX BUG 2 : StructureMapping importé ici pour l'afficher dans l'onglet DVH
+import StructureMapping from '@/components/StructureMapping';
 import type { SummedPlanResult } from '@/utils/planSummationDicom';
+import { DVHData, StructureCategory, PlanData, Structure } from '@/types/dvh';
+import { TreatmentProtocol, StructureMapping as StructureMappingType } from '@/types/protocol';
+import { autoMapStructures, toStructureMappings, getUnresolvedStructures } from '@/utils/structureMappingUtils';
 import { summatePlans } from '@/utils/planSummation';
-import { parseTomoTherapyDVH } from '@/utils/dvhParser';
+import { parseTomoTherapyDVH, findMaxDoseAcrossStructures } from '@/utils/dvhParser';
 import { checkCriticalDoses, DoseAlert } from '@/utils/criticalDoseAlerts';
 import { convertDicomDVHToAppFormat } from '@/utils/dicomRTParser';
 import { DicomRTData } from '@/types/dicomRT';
 import { toast } from 'sonner';
-import { Activity, BarChart3, CheckSquare, ArrowLeft } from 'lucide-react';
+import { Activity, Bug } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-
-const TOOL_TITLES: Record<ToolKey, string> = {
-  protocols: 'Gérer les protocoles',
-  converter: 'Convertisseur de documents',
-  history:   'Historique des analyses',
-  help:      'Aide',
-};
 
 const Index = () => {
   const [dvhData, setDvhData] = useState<DVHData | null>(null);
@@ -46,69 +45,161 @@ const Index = () => {
   const [comparisonMode, setComparisonMode] = useState<'summation' | 'comparison' | 'multi-patient' | null>(null);
   const [criticalAlerts, setCriticalAlerts] = useState<DoseAlert[]>([]);
   const [lastSummationResult, setLastSummationResult] = useState<SummedPlanResult | null>(null);
-  const [activeProtocol, setActiveProtocol] = useState<TreatmentProtocol | null>(null);
-  const [structureMappings, setStructureMappings] = useState<StructureMapping[]>([]);
+  const [dvhParserStructures, setDvhParserStructures] = useState<Structure[] | null>(null);
+  const [dicomRTStructures, setDicomRTStructures] = useState<Structure[] | null>(null);
 
-  // Navigation simplifiée — 2 onglets quand un plan est chargé
-  const [mainTab, setMainTab] = useState<'analyze' | 'validation'>('analyze');
+  // ── Store partagé protocole + mapping (source de vérité unique) ───────────
+  const [sharedProtocol, setSharedProtocol] = useState<TreatmentProtocol | null>(null);
+  const [sharedMappings, setSharedMappings] = useState<StructureMappingType[]>([]);
+  const [protocolSelectorOpen, setProtocolSelectorOpen] = useState(false);
 
-  // Vue outil plein écran (sans plan ou en surcouche)
-  const [toolView, setToolView] = useState<ToolKey | null>(null);
+  // Structures non résolues par l'auto-mapping (calculées à partir du store partagé)
+  // Affichées dans l'onglet DVH pour mapping manuel immédiat
+  const unresolvedStructureNames: string[] = sharedProtocol && dvhData
+    ? getUnresolvedStructures(autoMapStructures(dvhData.structures, sharedProtocol))
+      .filter(name => !sharedMappings.some(m => m.protocolStructureName === name))
+    : [];
 
-  // Dialog sélecteur de protocole
-  const [protocolDialogOpen, setProtocolDialogOpen] = useState(false);
-
+  // ── Alertes doses critiques ───────────────────────────────────────────────
   useEffect(() => {
-    if (dvhData) setMainTab('analyze');
-  }, [dvhData]);
-
-  useEffect(() => {
-    if (dvhData?.structures) {
-      const alerts = checkCriticalDoses(dvhData.structures);
-      setCriticalAlerts(alerts);
-      const critical = alerts.filter(a => a.severity === 'critical').length;
-      if (critical > 0) {
-        toast.error(`${critical} dépassement${critical > 1 ? 's' : ''} critique${critical > 1 ? 's' : ''} détecté${critical > 1 ? 's' : ''}`, {
-          description: 'Vérifiez les alertes de dose',
-        });
-      } else if (alerts.length > 0) {
-        toast.warning(`${alerts.length} avertissement${alerts.length > 1 ? 's' : ''} de dose`);
-      }
-    } else {
-      setCriticalAlerts([]);
+    if (!dvhData?.structures) { setCriticalAlerts([]); return; }
+    const alerts = checkCriticalDoses(dvhData.structures);
+    setCriticalAlerts(alerts);
+    const criticalCount = alerts.filter(a => a.severity === 'critical').length;
+    if (criticalCount > 0) {
+      toast.error(`${criticalCount} dépassement${criticalCount > 1 ? 's' : ''} critique${criticalCount > 1 ? 's' : ''} détecté${criticalCount > 1 ? 's' : ''}`, {
+        description: 'Vérifiez les alertes de dose en haut de la page',
+      });
+    } else if (alerts.length > 0) {
+      toast.warning(`${alerts.length} avertissement${alerts.length > 1 ? 's' : ''} de dose`);
     }
   }, [dvhData]);
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Sélection protocole depuis PatientBar / ProtocolPromptBanner ──────────
+  /**
+   * Point d'entrée UNIQUE pour tout changement de protocole.
+   * 1. Lance l'auto-mapping
+   * 2. Met à jour le store partagé
+   * 3. Affiche UN SEUL toast informatif
+   */
+  const handleProtocolSelected = (protocol: TreatmentProtocol) => {
+    if (!dvhData) return;
 
+    const results = autoMapStructures(dvhData.structures, protocol);
+    const autoMappings = toStructureMappings(results);
+    const unresolved = getUnresolvedStructures(results);
+
+    setSharedProtocol(protocol);
+    setSharedMappings(autoMappings);
+    setProtocolSelectorOpen(false);
+
+    // UN SEUL toast — pas de doublon
+    if (unresolved.length === 0) {
+      toast.success(`Protocole "${protocol.name}" associé`, {
+        description: `${autoMappings.length} structures mappées automatiquement ✓`,
+      });
+    } else {
+      toast.info(`Protocole "${protocol.name}" associé`, {
+        description: `${autoMappings.length} structures mappées — ${unresolved.length} à corriger dans le mapping ci-dessous`,
+      });
+    }
+  };
+
+  /** Callback remontant depuis ProtocolValidation si l'utilisateur change de protocole dans cet onglet */
+  const handleProtocolConfirmedFromValidation = (
+    protocol: TreatmentProtocol,
+    mappings: StructureMappingType[]
+  ) => {
+    setSharedProtocol(protocol);
+    setSharedMappings(mappings);
+    // Pas de toast : ProtocolValidation gère son propre retour visuel (bandeau)
+  };
+
+  const handleClearProtocol = () => {
+    setSharedProtocol(null);
+    setSharedMappings([]);
+  };
+
+  // ── Reset quand un nouveau plan est chargé ────────────────────────────────
+  const resetSession = () => {
+    setSharedProtocol(null);
+    setSharedMappings([]);
+    setLastSummationResult(null);
+  };
+
+  // ── Handlers fichiers ─────────────────────────────────────────────────────
   const handleFilesUploaded = async (relFile: File, absFile?: File) => {
     try {
       const relContent = await relFile.text();
       const absContent = absFile ? await absFile.text() : undefined;
       const data = parseTomoTherapyDVH(relContent, absContent);
-      const match = relFile.name.match(/(\d+-\d+)/);
-      if (match) data.patientId = match[1];
+      const patientIdMatch = relFile.name.match(/(\d+-\d+)/);
+      if (patientIdMatch) data.patientId = patientIdMatch[1];
       setDvhData(data);
       setSelectedStructures([]);
+      setDvhParserStructures(data.structures);
+      resetSession();
       toast.success('Fichiers DVH chargés', {
         description: `${data.structures.length} structures détectées`,
       });
       if (!absFile) {
         toast.warning('DVH ABS non fourni', {
-          description: 'Certaines métriques en cc nécessitent le fichier ABS',
+          description: 'Certaines métriques en cc nécessiteront le fichier ABS.',
         });
       }
-    } catch {
-      toast.error('Erreur de chargement', { description: 'Vérifiez le format des fichiers DVH' });
+    } catch (error) {
+      console.error('Error parsing DVH files:', error);
+      toast.error('Erreur lors du chargement', { description: 'Vérifiez le format des fichiers DVH' });
     }
   };
 
-  const handleDicomRTLoaded = (data: DicomRTData, protocol?: TreatmentProtocol) => {
+  const handleStructureToggle = (structureName: string) => {
+    setSelectedStructures(prev =>
+      prev.includes(structureName) ? prev.filter(n => n !== structureName) : [...prev, structureName]
+    );
+  };
+
+  const handleFilterChange = (category: StructureCategory | 'ALL') => {
+    setActiveFilter(category);
+    if (!dvhData) return;
+    setSelectedStructures(
+      category === 'ALL' ? [] : dvhData.structures.filter(s => s.category === category).map(s => s.name)
+    );
+  };
+
+  const handleSelectAll = () => { if (dvhData) setSelectedStructures(dvhData.structures.map(s => s.name)); };
+  const handleDeselectAll = () => setSelectedStructures([]);
+
+  const handleCategoryChange = (structureName: string, newCategory: StructureCategory) => {
+    if (!dvhData) return;
+    setDvhData({
+      ...dvhData,
+      structures: dvhData.structures.map(s =>
+        s.name === structureName ? { ...s, category: newCategory } : s
+      ),
+    });
+  };
+
+  const handlePlansLoaded = (plans: PlanData[], mode: 'summation' | 'comparison' | 'multi-patient') => {
+    setComparisonPlans(plans);
+    setComparisonMode(mode);
+    resetSession();
+    if (mode === 'summation') {
+      const summatedPlan = summatePlans(plans);
+      setDvhData({ patientId: summatedPlan.patientId, structures: summatedPlan.structures });
+      setSelectedStructures([]);
+    } else if (mode === 'comparison') {
+      setDvhData({ patientId: plans[0].patientId, structures: plans[0].structures });
+      setSelectedStructures([]);
+    }
+  };
+
+  const handleDicomRTLoaded = (data: DicomRTData) => {
     if (data.structures && data.dose?.dvhs) {
       const convertedDVH = convertDicomDVHToAppFormat(data.structures, data.dose.dvhs);
       const newDvhData: DVHData = {
         patientId: data.patientId || 'DICOM Patient',
-        structures: convertedDVH.map((dvh) => {
+        structures: convertedDVH.map(dvh => {
           const totalVol = dvh.absoluteVolume || 0;
           const absoluteCumulative = totalVol > 0
             ? dvh.relativeVolume.map(p => ({ dose: p.dose, volume: (p.volume / 100) * totalVol }))
@@ -127,216 +218,179 @@ const Index = () => {
       };
       setDvhData(newDvhData);
       setSelectedStructures([]);
-      if (protocol) {
-        setActiveProtocol(protocol);
-        toast.success(`Protocole "${protocol.name}" associé`, {
-          description: 'Les contraintes sont visibles sur les courbes DVH',
-        });
-      } else {
-        toast.success('DICOM RT importé', {
-          description: `${newDvhData.structures.length} structures chargées`,
-        });
-      }
+      setDicomRTStructures(newDvhData.structures);
+      resetSession();
+      toast.success('DICOM RT importé', { description: `${newDvhData.structures.length} structures chargées` });
     } else if (data.structures) {
       toast.info('Structures détectées sans DVH', {
-        description: 'Chargez un fichier RTDOSE pour les courbes',
+        description: `${data.structures.length} structures. Chargez un fichier RTDOSE.`,
       });
-    }
-  };
-
-  const handlePlansLoaded = (
-    plans: PlanData[],
-    mode: 'summation' | 'comparison' | 'multi-patient'
-  ) => {
-    setComparisonPlans(plans);
-    setComparisonMode(mode);
-    if (mode === 'summation') {
-      const summated = summatePlans(plans);
-      setDvhData({ patientId: summated.patientId, structures: summated.structures });
-      setSelectedStructures([]);
-    } else if (mode === 'comparison') {
-      setDvhData({ patientId: plans[0].patientId, structures: plans[0].structures });
-      const common = plans[0].structures
-        .map(s => s.name)
-        .filter(name => plans.every(p => p.structures.some(s => s.name === name)));
-      setSelectedStructures(common);
-      if (common.length === 0) {
-        toast.warning('Aucune structure commune', {
-          description: 'Sélectionnez les structures manuellement',
-        });
-      }
     }
   };
 
   const handleDicomSummationComplete = (data: DVHData, result?: SummedPlanResult) => {
     setDvhData(data);
     setSelectedStructures([]);
+    setDicomRTStructures(data.structures);
     setLastSummationResult(result ?? null);
-    toast.success('Sommation DICOM appliquée', {
-      description: `${data.structures.length} structures sommées`,
-    });
+    resetSession();
+    toast.success('Sommation DICOM appliquée', { description: `${data.structures.length} structures sommées` });
   };
 
-  const handleStructureToggle = (name: string) =>
-    setSelectedStructures(prev =>
-      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
-    );
-
-  const handleFilterChange = (category: StructureCategory | 'ALL') => {
-    setActiveFilter(category);
-    if (!dvhData) return;
-    setSelectedStructures(
-      category === 'ALL' ? [] : dvhData.structures.filter(s => s.category === category).map(s => s.name)
-    );
-  };
-
-  const handleSelectAll = () => dvhData && setSelectedStructures(dvhData.structures.map(s => s.name));
-  const handleDeselectAll = () => setSelectedStructures([]);
-
-  const handleCategoryChange = (structureName: string, newCategory: StructureCategory) => {
-    if (!dvhData) return;
-    setDvhData({
-      ...dvhData,
-      structures: dvhData.structures.map(s =>
-        s.name === structureName ? { ...s, category: newCategory } : s
-      ),
-    });
-  };
-
-  const handleChangePlan = () => {
-    setDvhData(null);
-    setSelectedStructures([]);
-    setComparisonPlans([]);
-    setComparisonMode(null);
-    setCriticalAlerts([]);
-    setLastSummationResult(null);
-    setActiveProtocol(null);
-    setStructureMappings([]);
-    setToolView(null);
-  };
-
-  const handleProtocolConfirmed = (p: TreatmentProtocol, mappings: StructureMapping[]) => {
-    setActiveProtocol(p);
-    setStructureMappings(mappings);
-    toast.success(`Protocole "${p.name}" activé`, {
-      description: `${mappings.length} structure(s) associée(s)`,
-    });
-  };
-
-  const handleClearProtocol = () => {
-    setActiveProtocol(null);
-    setStructureMappings([]);
-  };
-
-  // ── Render helpers ─────────────────────────────────────────────────────────
-
-  const renderToolView = () => {
-    if (!toolView) return null;
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => setToolView(null)} className="gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              Retour
-            </Button>
-            <h2 className="text-lg font-semibold">{TOOL_TITLES[toolView]}</h2>
-          </div>
-        </div>
-        {toolView === 'protocols' && (
-          <ProtocolManager
-            onProtocolSelect={(p) => {
-              setActiveProtocol(p);
-              toast.success(`Protocole "${p.name}" sélectionné`);
-              setToolView(null);
-            }}
-          />
-        )}
-        {toolView === 'converter' && <ProtocolDocumentConverter />}
-        {toolView === 'history'   && <AnalysisHistory />}
-        {toolView === 'help'      && <HelpGuide />}
-      </div>
-    );
-  };
-
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Rendu ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       <InteractiveTour />
 
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-gradient-to-br from-primary to-accent p-2.5">
                 <Activity className="w-6 h-6 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  DVH Analyzer
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  DVH Analyzer & Tomo-Plan validation tool
                 </h1>
-                <p className="text-xs text-muted-foreground">
-                  Analyse DVH & Validation des plans — Centre Sidi Abdellah de Cancérologie d'Alger
+                <p className="text-sm text-muted-foreground">
+                  Analyse des courbes Dose-Volume-Histogrames et validation des plans pour tomotherapy
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-1">
-              <ToolsMenu onSelect={(t) => setToolView(t)} />
-              <ThemeToggle />
-            </div>
+            <div data-tour="theme-toggle"><ThemeToggle /></div>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <div className="space-y-6">
+        <div className="space-y-8">
 
-          {/* Vue outil plein écran (prioritaire) */}
-          {toolView && renderToolView()}
-
-          {/* État 1 : aucun plan, aucune vue outil → WelcomeScreen */}
-          {!toolView && !dvhData && (
-            <WelcomeScreen
-              onCsvLoaded={handleFilesUploaded}
-              onDicomLoaded={handleDicomRTLoaded}
-              onPlansLoaded={handlePlansLoaded}
-              onSummationComplete={handleDicomSummationComplete}
-            />
+          {/* Upload — affiché uniquement sans données */}
+          {!dvhData && (
+            <div className="max-w-5xl mx-auto space-y-6">
+              <Tabs defaultValue="upload" className="w-full">
+                <TabsList className="grid w-full grid-cols-5">
+                  <TabsTrigger value="upload">Charger un plan</TabsTrigger>
+                  <TabsTrigger value="debug-compare" className="text-amber-600">
+                    <Bug className="w-4 h-4 mr-1" />Debug Comparaison
+                  </TabsTrigger>
+                  <TabsTrigger value="multi">Comparer plans</TabsTrigger>
+                  <TabsTrigger value="dicom-sum">Sommation DICOM</TabsTrigger>
+                  <TabsTrigger value="converter">Convertisseur</TabsTrigger>
+                </TabsList>
+                <TabsContent value="upload" className="mt-6">
+                  <div data-tour="file-upload">
+                    <UnifiedPlanUpload onCsvLoaded={handleFilesUploaded} onDicomLoaded={handleDicomRTLoaded} />
+                  </div>
+                </TabsContent>
+                <TabsContent value="debug-compare" className="mt-6 space-y-6">
+                  <DVHSourceComparison
+                    onDvhParserLoaded={s => setDvhParserStructures(s.length > 0 ? s : null)}
+                    onDicomRTLoaded={s => setDicomRTStructures(s.length > 0 ? s : null)}
+                    dvhParserStructures={dvhParserStructures}
+                    dicomRTStructures={dicomRTStructures}
+                  />
+                  {(dvhParserStructures || dicomRTStructures) && (
+                    <DVHComparisonDebug dvhParserStructures={dvhParserStructures} dicomRTStructures={dicomRTStructures} />
+                  )}
+                </TabsContent>
+                <TabsContent value="multi" className="mt-6">
+                  <MultiFileUpload onPlansLoaded={handlePlansLoaded} />
+                </TabsContent>
+                <TabsContent value="dicom-sum" className="mt-6">
+                  <PlanSummationManager onSummationComplete={handleDicomSummationComplete} />
+                </TabsContent>
+                <TabsContent value="converter" className="mt-6">
+                  <ProtocolDocumentConverter />
+                </TabsContent>
+              </Tabs>
+            </div>
           )}
 
-          {/* État 2 : plan chargé */}
-          {!toolView && dvhData && (
-            <>
-              <PatientBar
-                dvhData={dvhData}
-                selectedCount={selectedStructures.length}
-                activeProtocol={activeProtocol}
-                comparisonMode={comparisonMode}
-                comparisonPlanCount={comparisonPlans.length}
-                onChangePlan={handleChangePlan}
-                onClearProtocol={handleClearProtocol}
-                onPickProtocol={() => setProtocolDialogOpen(true)}
-              />
+          {/* Tabs principales */}
+          <Tabs
+            defaultValue={dvhData && comparisonMode === 'comparison' ? 'comparison' : dvhData ? 'dvh' : 'protocols'}
+            className="w-full"
+          >
+            <TabsList data-tour="tabs" className="grid w-full max-w-6xl mx-auto grid-cols-8">
+              <TabsTrigger value="dvh" disabled={!dvhData} className="flex items-center gap-1">
+                Analyse DVH
+                <ContextualHelp content="Visualisez et analysez les courbes dose-volume." side="bottom" />
+              </TabsTrigger>
+              <TabsTrigger value="comparison" disabled={comparisonMode !== 'comparison'} className="flex items-center gap-1">
+                Comparaison
+              </TabsTrigger>
+              <TabsTrigger value="evaluation" disabled={!dvhData} className="flex items-center gap-1">
+                Évaluation de plan
+              </TabsTrigger>
+              <TabsTrigger value="validation" disabled={!dvhData} className="flex items-center gap-1">
+                Validation Protocole
+                {/* Indicateur visuel : protocole actif */}
+                {sharedProtocol && (
+                  <span className="ml-1 h-2 w-2 rounded-full bg-success inline-block" title={`Protocole : ${sharedProtocol.name}`} />
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="protocols" data-tour="protocols">Gestion Protocoles</TabsTrigger>
+              <TabsTrigger value="converter" data-tour="converter">Convertisseur</TabsTrigger>
+              <TabsTrigger value="history" data-tour="history">Historique</TabsTrigger>
+              <TabsTrigger value="help" data-tour="help">Aide</TabsTrigger>
+            </TabsList>
 
-              <CriticalDoseAlerts alerts={criticalAlerts} />
+            {dvhData && (
+              <>
+                <CriticalDoseAlerts alerts={criticalAlerts} />
+                {(dvhParserStructures || dicomRTStructures) && (
+                  <DVHComparisonDebug dvhParserStructures={dvhParserStructures} dicomRTStructures={dicomRTStructures} />
+                )}
 
-              {!activeProtocol && (
-                <ProtocolPromptBanner onPickProtocol={() => setProtocolDialogOpen(true)} />
-              )}
+                {/* ── PatientBar — avec protocole actif et bouton pick ── */}
+                <PatientBar
+                  dvhData={dvhData}
+                  selectedCount={selectedStructures.length}
+                  activeProtocol={sharedProtocol}
+                  comparisonMode={comparisonMode}
+                  comparisonPlanCount={comparisonPlans.length}
+                  onChangePlan={() => { setDvhData(null); resetSession(); }}
+                  onClearProtocol={handleClearProtocol}
+                  onPickProtocol={() => setProtocolSelectorOpen(true)}
+                />
 
-              <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as 'analyze' | 'validation')} className="w-full">
-                <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
-                  <TabsTrigger value="analyze" className="flex items-center gap-1.5">
-                    <BarChart3 className="w-4 h-4" />
-                    Analyse
-                  </TabsTrigger>
-                  <TabsTrigger value="validation" className="flex items-center gap-1.5">
-                    <CheckSquare className="w-4 h-4" />
-                    Validation
-                  </TabsTrigger>
-                </TabsList>
+                {/* ── Analyse DVH ── */}
+                <TabsContent value="dvh" className="space-y-6">
 
-                <TabsContent value="analyze" className="mt-4 space-y-6">
+                  {/* Bannière invitation protocole (si aucun protocole actif) */}
+                  {!sharedProtocol && (
+                    <ProtocolPromptBanner onPickProtocol={() => setProtocolSelectorOpen(true)} />
+                  )}
+
+                  {/* ─── FIX BUG 2 : Mapping affiché ICI, dans l'onglet DVH ────────────
+                      Dès qu'un protocole est sélectionné, le mapping apparaît dans l'onglet
+                      DVH AVANT que l'utilisateur aille dans Validation.
+                      Le composant StructureMapping se masque automatiquement si tout est résolu.
+                  ──────────────────────────────────────────────────────────────────── */}
+                  {sharedProtocol && (
+                    <StructureMapping
+                      unmatchedStructures={unresolvedStructureNames}
+                      availableStructures={dvhData.structures}
+                      onMappingsChange={newMappings => {
+                        // Fusion avec les mappings auto existants
+                        setSharedMappings(prev => {
+                          const merged = [...prev];
+                          for (const m of newMappings) {
+                            const idx = merged.findIndex(x => x.protocolStructureName === m.protocolStructureName);
+                            if (idx >= 0) merged[idx] = m;
+                            else merged.push(m);
+                          }
+                          return merged;
+                        });
+                      }}
+                      protocolId={sharedProtocol.id}
+                      protocol={sharedProtocol}
+                      currentMappings={sharedMappings}
+                    />
+                  )}
+
                   <FilterBar
                     structures={dvhData.structures}
                     selectedStructures={selectedStructures}
@@ -351,74 +405,65 @@ const Index = () => {
                     onStructureToggle={handleStructureToggle}
                     onSelectAll={handleSelectAll}
                     onDeselectAll={handleDeselectAll}
-                    activeProtocol={activeProtocol}
-                    comparePlans={
-                      comparisonMode === 'comparison' && comparisonPlans.length > 1
-                        ? comparisonPlans.slice(1).map(p => ({
-                            label: p.name || p.patientId,
-                            structures: p.structures,
-                          }))
-                        : undefined
-                    }
-                    mainPlanLabel={
-                      comparisonMode === 'comparison'
-                        ? (comparisonPlans[0]?.name || comparisonPlans[0]?.patientId)
-                        : undefined
-                    }
                   />
-                  <UnifiedMetricsCalculator
-                    structures={dvhData.structures}
-                    selectedStructures={selectedStructures}
-                  />
-                  {comparisonMode === 'comparison' && comparisonPlans.length > 1 && (
-                    <PlanComparison plans={comparisonPlans} />
-                  )}
+                  <UnifiedMetricsCalculator structures={dvhData.structures} selectedStructures={selectedStructures} />
                   <StructureTable
                     structures={dvhData.structures}
                     selectedStructures={selectedStructures}
                     onStructureToggle={handleStructureToggle}
                     onCategoryChange={handleCategoryChange}
                   />
-                  <PlanEvaluation
-                    structures={dvhData.structures}
-                    patientId={dvhData.patientId}
-                  />
                 </TabsContent>
 
-                <TabsContent value="validation" className="mt-4">
+                <TabsContent value="comparison">
+                  {comparisonMode === 'comparison' && comparisonPlans.length > 0 && (
+                    <PlanComparison plans={comparisonPlans} />
+                  )}
+                </TabsContent>
+
+                <TabsContent value="evaluation">
+                  <PlanEvaluation structures={dvhData.structures} patientId={dvhData.patientId} />
+                </TabsContent>
+
+                {/* ── Validation : reçoit le protocole + mapping déjà établis ── */}
+                <TabsContent value="validation">
                   <ProtocolValidation
                     structures={dvhData.structures}
                     patientId={dvhData.patientId}
                     summationResult={lastSummationResult}
-                    controlledProtocol={activeProtocol}
-                    controlledMappings={structureMappings}
-                    onProtocolConfirmed={handleProtocolConfirmed}
-                    onRequestChangeProtocol={() => setProtocolDialogOpen(true)}
-                    onProtocolChange={setActiveProtocol}
+                    preselectedProtocol={sharedProtocol}
+                    preselectedMapping={sharedMappings}
+                    onProtocolConfirmed={handleProtocolConfirmedFromValidation}
                   />
                 </TabsContent>
-              </Tabs>
-            </>
-          )}
 
-          {/* Sélecteur de protocole — Dialog unifié (utilisable quand plan chargé) */}
-          {dvhData && (
-            <ProtocolSelectorDialog
-              open={protocolDialogOpen}
-              onOpenChange={setProtocolDialogOpen}
-              structures={dvhData.structures}
-              initialProtocol={activeProtocol}
-              initialMappings={structureMappings}
-              onConfirm={handleProtocolConfirmed}
-            />
-          )}
+                <TabsContent value="protocols"><ProtocolManager /></TabsContent>
+                <TabsContent value="converter"><ProtocolDocumentConverter /></TabsContent>
+              </>
+            )}
 
+            <TabsContent value="protocols"><ProtocolManager /></TabsContent>
+            <TabsContent value="converter"><ProtocolDocumentConverter /></TabsContent>
+            <TabsContent value="history"><AnalysisHistory /></TabsContent>
+            <TabsContent value="help"><HelpGuide /></TabsContent>
+          </Tabs>
         </div>
       </main>
 
-      <footer className="border-t mt-16 py-4 bg-card/30">
-        <div className="container mx-auto px-4 text-center text-xs text-muted-foreground">
-          DVH Analyzer — Centre Sidi Abdellah de Cancérologie d'Alger
+      {/* Dialog sélection protocole — accessible depuis PatientBar + ProtocolPromptBanner */}
+      {dvhData && (
+        <ProtocolSelectorDialog
+          open={protocolSelectorOpen}
+          onOpenChange={setProtocolSelectorOpen}
+          onSelect={handleProtocolSelected}
+          structures={dvhData.structures}
+          currentProtocol={sharedProtocol}
+        />
+      )}
+
+      <footer className="border-t mt-16 py-6 bg-card/30">
+        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
+          <p>DVH Analyzer - Outil d'analyse pour plans de traitement de tomotherapy_ Centre Sidi Abdellah de Cancérologie d'Alger</p>
         </div>
       </footer>
     </div>

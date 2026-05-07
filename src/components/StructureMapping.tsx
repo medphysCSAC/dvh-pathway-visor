@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Structure } from '@/types/dvh';
 import { StructureMapping as StructureMappingType, TreatmentProtocol } from '@/types/protocol';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Save, RotateCcw, AlertCircle, Target } from 'lucide-react';
+import { Save, RotateCcw, AlertCircle, Target, CheckCircle2 } from 'lucide-react';
 import { findBestStructureMatch } from '@/utils/protocolValidator';
 
 interface StructureMappingProps {
@@ -20,21 +20,27 @@ interface StructureMappingProps {
 
 const STORAGE_KEY = 'structure-mappings';
 
-/**
- * Composant pour le mapping manuel des structures du protocole vers les structures DVH
- */
 export default function StructureMapping({
   unmatchedStructures,
   availableStructures,
   onMappingsChange,
   protocolId,
   protocol,
-  currentMappings = []
+  currentMappings = [],
 }: StructureMappingProps) {
   const { toast } = useToast();
   const [mappings, setMappings] = useState<Map<string, string>>(new Map());
 
-  // Charger les mappings sauvegardés pour ce protocole
+  // ── CORRECTION BUG BOUCLE ────────────────────────────────────────────────
+  // onMappingsChange NE doit PAS être dans les deps du useEffect.
+  // Si on l'inclut, chaque re-render de ProtocolValidation recrée la référence
+  // de la prop → l'effet se relance → appelle onMappingsChange → re-render → boucle.
+  // Solution : stocker la référence dans un ref (toujours à jour, jamais dans les deps).
+  const onMappingsChangeRef = useRef(onMappingsChange);
+  onMappingsChangeRef.current = onMappingsChange;
+
+  // Charger les mappings sauvegardés quand le protocole change
+  // Dépendance : protocolId UNIQUEMENT (pas onMappingsChange)
   useEffect(() => {
     try {
       const stored = localStorage.getItem(`${STORAGE_KEY}-${protocolId}`);
@@ -44,12 +50,16 @@ export default function StructureMapping({
           savedMappings.map(m => [m.protocolStructureName, m.dvhStructureName])
         );
         setMappings(mappingMap);
-        onMappingsChange(savedMappings);
+        // Utilise le ref → jamais dans les deps → pas de boucle
+        onMappingsChangeRef.current(savedMappings);
+      } else {
+        // Pas de mapping sauvegardé pour ce protocole → reset propre
+        setMappings(new Map());
       }
     } catch (error) {
       console.error('Erreur lors du chargement des mappings:', error);
     }
-  }, [protocolId, onMappingsChange]);
+  }, [protocolId]); // ← protocolId UNIQUEMENT
 
   const handleMappingChange = (protocolStructure: string, dvhStructure: string) => {
     setMappings(prev => {
@@ -67,59 +77,54 @@ export default function StructureMapping({
     const mappingArray: StructureMappingType[] = Array.from(mappings.entries()).map(
       ([protocolStructureName, dvhStructureName]) => ({
         protocolStructureName,
-        dvhStructureName
+        dvhStructureName,
       })
     );
 
-    // Sauvegarder dans localStorage
     localStorage.setItem(`${STORAGE_KEY}-${protocolId}`, JSON.stringify(mappingArray));
 
-    // Notifier le parent
-    onMappingsChange(mappingArray);
+    // Notifier le parent via le ref → pas de re-render en boucle
+    onMappingsChangeRef.current(mappingArray);
 
     toast({
-      title: 'Mappings sauvegardés',
-      description: `${mappingArray.length} correspondance(s) de structures enregistrée(s)`,
+      title: 'Mapping sauvegardé',
+      description: `${mappingArray.length} correspondance(s) enregistrée(s)`,
     });
   };
 
   const handleReset = () => {
     setMappings(new Map());
     localStorage.removeItem(`${STORAGE_KEY}-${protocolId}`);
-    onMappingsChange([]);
-    
+    onMappingsChangeRef.current([]);
     toast({
-      title: 'Mappings réinitialisés',
+      title: 'Mapping réinitialisé',
       description: 'Toutes les correspondances ont été supprimées',
     });
   };
 
-  // Collecter tous les PTVs du protocole pour permettre le mapping manuel
-  const allProtocolPTVs = protocol?.prescriptions.map(p => p.ptvName) || [];
-  const allProtocolOARs = protocol?.oarConstraints.map(c => c.organName) || [];
+  // ── Construction de la liste des structures à afficher ───────────────────
+  const allProtocolPTVs  = protocol?.prescriptions.map(p => p.ptvName) || [];
+  const allProtocolOARs  = protocol?.oarConstraints.map(c => c.organName) || [];
   const allProtocolStructures = [...new Set([...allProtocolPTVs, ...allProtocolOARs])];
 
-  // Vérifier quelles structures sont correctement matchées
-  const structureStatus = allProtocolStructures.map(protocolName => {
-    const matched = findBestStructureMatch(protocolName, availableStructures, currentMappings);
-    return {
-      protocolName,
-      matched,
-      isUnmatched: unmatchedStructures.includes(protocolName),
-      isPTV: allProtocolPTVs.includes(protocolName)
-    };
-  });
+  const structureStatus = allProtocolStructures.map(protocolName => ({
+    protocolName,
+    matched: findBestStructureMatch(protocolName, availableStructures, currentMappings),
+    isUnmatched: unmatchedStructures.includes(protocolName),
+    isPTV: allProtocolPTVs.includes(protocolName),
+  }));
 
   const unmatchedPTVs = structureStatus.filter(s => s.isPTV && !s.matched);
-  const hasUnmatchedStructures = unmatchedStructures.length > 0;
+  const hasUnmatchedOARs = unmatchedStructures.filter(s => !allProtocolPTVs.includes(s)).length > 0;
 
-  if (!hasUnmatchedStructures && unmatchedPTVs.length === 0) {
-    return null; // Pas besoin d'afficher le composant
+  // Si tout est résolu → ne pas afficher le composant
+  if (unmatchedStructures.length === 0 && unmatchedPTVs.length === 0) {
+    return null;
   }
 
   return (
     <>
-      {/* Section PTVs - toujours visible si le protocole a des PTVs */}
+      {/* ── Section PTVs ── */}
       {allProtocolPTVs.length > 0 && (
         <Card>
           <CardHeader>
@@ -128,41 +133,42 @@ export default function StructureMapping({
               Mapping des PTVs
             </CardTitle>
             <CardDescription>
-              Vérifiez et corrigez si nécessaire la correspondance entre les PTVs du protocole et les structures DVH
+              Vérifiez la correspondance entre les PTVs du protocole et les structures DVH
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
               {allProtocolPTVs.map(ptvName => {
-                const autoMatched = findBestStructureMatch(ptvName, availableStructures, currentMappings);
+                const autoMatched  = findBestStructureMatch(ptvName, availableStructures, currentMappings);
                 const manualMapping = mappings.get(ptvName);
-                const currentValue = manualMapping || autoMatched?.name || 'none';
-                
+                const currentValue  = manualMapping || autoMatched?.name || 'none';
+                const isResolved    = currentValue !== 'none';
+
                 return (
-                  <div key={ptvName} className="flex items-center gap-3 p-3 border rounded-lg bg-card">
+                  <div
+                    key={ptvName}
+                    className={`flex items-center gap-3 p-3 border rounded-lg bg-card ${
+                      isResolved ? 'border-success/40' : 'border-destructive/40'
+                    }`}
+                  >
                     <div className="flex-1">
-                      <div className="font-medium text-sm mb-1">
-                        PTV du protocole :
-                      </div>
-                      <Badge variant="default" className="font-mono">
-                        {ptvName}
-                      </Badge>
+                      <div className="font-medium text-sm mb-1">PTV du protocole :</div>
+                      <Badge variant="default" className="font-mono">{ptvName}</Badge>
                       {autoMatched && !manualMapping && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          ✓ Auto-détecté : {autoMatched.name}
+                        <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-success" />
+                          Auto-détecté : {autoMatched.name}
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="flex-1">
-                      <div className="text-sm text-muted-foreground mb-1">
-                        Correspond à :
-                      </div>
+                      <div className="text-sm text-muted-foreground mb-1">Correspond à :</div>
                       <Select
                         value={currentValue}
-                        onValueChange={(value) => handleMappingChange(ptvName, value)}
+                        onValueChange={value => handleMappingChange(ptvName, value)}
                       >
-                        <SelectTrigger className={!autoMatched && currentValue === 'none' ? 'border-destructive' : ''}>
+                        <SelectTrigger className={!isResolved ? 'border-destructive' : ''}>
                           <SelectValue placeholder="Sélectionner une structure..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -174,9 +180,7 @@ export default function StructureMapping({
                             .map(structure => (
                               <SelectItem key={structure.name} value={structure.name}>
                                 <div className="flex items-center gap-2">
-                                  <Badge variant="default" className="text-xs">
-                                    PTV
-                                  </Badge>
+                                  <Badge variant="default" className="text-xs">PTV</Badge>
                                   <span className="font-mono text-sm">{structure.name}</span>
                                 </div>
                               </SelectItem>
@@ -203,8 +207,8 @@ export default function StructureMapping({
         </Card>
       )}
 
-      {/* Section OARs non matchés */}
-      {unmatchedStructures.filter(s => !allProtocolPTVs.includes(s)).length > 0 && (
+      {/* ── Section OARs non résolus ── */}
+      {hasUnmatchedOARs && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -212,57 +216,56 @@ export default function StructureMapping({
               Mapping des OARs non trouvés
             </CardTitle>
             <CardDescription>
-              Certains organes à risque (OAR) du protocole n'ont pas été trouvés automatiquement
+              Ces organes à risque n'ont pas été trouvés automatiquement dans les structures DVH
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
               {unmatchedStructures
                 .filter(s => !allProtocolPTVs.includes(s))
-                .map(protocolStructure => (
-                  <div key={protocolStructure} className="flex items-center gap-3 p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="font-medium text-sm mb-1">
-                        Structure du protocole :
+                .map(protocolStructure => {
+                  const val = mappings.get(protocolStructure) || 'none';
+                  return (
+                    <div key={protocolStructure} className="flex items-center gap-3 p-3 border rounded-lg">
+                      <div className="flex-1">
+                        <div className="font-medium text-sm mb-1">Structure du protocole :</div>
+                        <Badge variant="outline" className="font-mono">{protocolStructure}</Badge>
                       </div>
-                      <Badge variant="outline" className="font-mono">
-                        {protocolStructure}
-                      </Badge>
-                    </div>
-                    
-                    <div className="flex-1">
-                      <div className="text-sm text-muted-foreground mb-1">
-                        Correspond à :
-                      </div>
-                      <Select
-                        value={mappings.get(protocolStructure) || 'none'}
-                        onValueChange={(value) => handleMappingChange(protocolStructure, value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner une structure..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">
-                            <span className="text-muted-foreground">-- Aucune correspondance --</span>
-                          </SelectItem>
-                          {availableStructures.map(structure => (
-                            <SelectItem key={structure.name} value={structure.name}>
-                              <div className="flex items-center gap-2">
-                                <Badge 
-                                  variant={structure.category === 'PTV' ? 'default' : structure.category === 'OAR' ? 'destructive' : 'secondary'}
-                                  className="text-xs"
-                                >
-                                  {structure.category}
-                                </Badge>
-                                <span className="font-mono text-sm">{structure.name}</span>
-                              </div>
+                      <div className="flex-1">
+                        <div className="text-sm text-muted-foreground mb-1">Correspond à :</div>
+                        <Select
+                          value={val}
+                          onValueChange={value => handleMappingChange(protocolStructure, value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Sélectionner une structure..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">
+                              <span className="text-muted-foreground">-- Aucune correspondance --</span>
                             </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                            {availableStructures.map(structure => (
+                              <SelectItem key={structure.name} value={structure.name}>
+                                <div className="flex items-center gap-2">
+                                  <Badge
+                                    variant={
+                                      structure.category === 'PTV' ? 'default' :
+                                      structure.category === 'OAR' ? 'destructive' : 'secondary'
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {structure.category}
+                                  </Badge>
+                                  <span className="font-mono text-sm">{structure.name}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
 
             <div className="flex gap-2 pt-4 border-t">
@@ -277,8 +280,7 @@ export default function StructureMapping({
             </div>
 
             <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
-              💡 <strong>Astuce :</strong> Les correspondances sont sauvegardées automatiquement pour ce protocole.
-              Vous n'aurez pas besoin de les refaire lors de la prochaine validation.
+              💡 Les correspondances sont mémorisées pour ce protocole — vous n'aurez pas à les refaire.
             </div>
           </CardContent>
         </Card>
