@@ -24,6 +24,7 @@ import { ProtocolPromptBanner } from '@/components/ProtocolPromptBanner';
 import { ProtocolSelectorDialog } from '@/components/ProtocolSelectorDialog';
 // FIX BUG 2 : StructureMapping importé ici pour l'afficher dans l'onglet DVH
 import StructureMapping from '@/components/StructureMapping';
+import NTCPTCPAnalysis from '@/components/NTCPTCPAnalysis';
 import type { SummedPlanResult } from '@/utils/planSummationDicom';
 import { DVHData, StructureCategory, PlanData, Structure } from '@/types/dvh';
 import { TreatmentProtocol, StructureMapping as StructureMappingType } from '@/types/protocol';
@@ -313,7 +314,7 @@ const Index = () => {
             defaultValue={dvhData && comparisonMode === 'comparison' ? 'comparison' : dvhData ? 'dvh' : 'protocols'}
             className="w-full"
           >
-            <TabsList data-tour="tabs" className="grid w-full max-w-6xl mx-auto grid-cols-8">
+            <TabsList data-tour="tabs" className="grid w-full max-w-6xl mx-auto grid-cols-9">
               <TabsTrigger value="dvh" disabled={!dvhData} className="flex items-center gap-1">
                 Analyse DVH
                 <ContextualHelp content="Visualisez et analysez les courbes dose-volume." side="bottom" />
@@ -323,6 +324,9 @@ const Index = () => {
               </TabsTrigger>
               <TabsTrigger value="evaluation" disabled={!dvhData} className="flex items-center gap-1">
                 Évaluation de plan
+              </TabsTrigger>
+              <TabsTrigger value="ntcp" disabled={!dvhData} className="flex items-center gap-1">
+                NTCP / TCP
               </TabsTrigger>
               <TabsTrigger value="validation" disabled={!dvhData} className="flex items-center gap-1">
                 Validation Protocole
@@ -423,6 +427,15 @@ const Index = () => {
 
                 <TabsContent value="evaluation">
                   <PlanEvaluation structures={dvhData.structures} patientId={dvhData.patientId} />
+                </TabsContent>
+
+                <TabsContent value="ntcp">
+                  <NTCPTCPAnalysis
+                    structures={dvhData.structures}
+                    protocol={sharedProtocol}
+                    mappings={sharedMappings}
+                    onPickProtocol={() => setProtocolSelectorOpen(true)}
+                  />
                 </TabsContent>
 
                 {/* ── Validation : reçoit le protocole + mapping déjà établis ── */}
