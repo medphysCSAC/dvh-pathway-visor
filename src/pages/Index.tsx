@@ -22,6 +22,7 @@ import { PlanSummationManager } from '@/components/PlanSummationManager';
 import PatientBar from '@/components/PatientBar';
 import { ProtocolPromptBanner } from '@/components/ProtocolPromptBanner';
 import { ProtocolSelectorDialog } from '@/components/ProtocolSelectorDialog';
+import { WelcomeScreen } from '@/components/WelcomeScreen';
 // FIX BUG 2 : StructureMapping importé ici pour l'afficher dans l'onglet DVH
 import StructureMapping from '@/components/StructureMapping';
 import NTCPTCPAnalysis from '@/components/NTCPTCPAnalysis';
