@@ -22,6 +22,7 @@ import { PlanSummationManager } from '@/components/PlanSummationManager';
 import PatientBar from '@/components/PatientBar';
 import { ProtocolPromptBanner } from '@/components/ProtocolPromptBanner';
 import { ProtocolSelectorDialog } from '@/components/ProtocolSelectorDialog';
+import { WelcomeScreen } from '@/components/WelcomeScreen';
 // FIX BUG 2 : StructureMapping importé ici pour l'afficher dans l'onglet DVH
 import StructureMapping from '@/components/StructureMapping';
 import NTCPTCPAnalysis from '@/components/NTCPTCPAnalysis';
@@ -269,44 +270,12 @@ const Index = () => {
 
           {/* Upload — affiché uniquement sans données */}
           {!dvhData && (
-            <div className="max-w-5xl mx-auto space-y-6">
-              <Tabs defaultValue="upload" className="w-full">
-                <TabsList className="grid w-full grid-cols-5">
-                  <TabsTrigger value="upload">Charger un plan</TabsTrigger>
-                  <TabsTrigger value="debug-compare" className="text-amber-600">
-                    <Bug className="w-4 h-4 mr-1" />Debug Comparaison
-                  </TabsTrigger>
-                  <TabsTrigger value="multi">Comparer plans</TabsTrigger>
-                  <TabsTrigger value="dicom-sum">Sommation DICOM</TabsTrigger>
-                  <TabsTrigger value="converter">Convertisseur</TabsTrigger>
-                </TabsList>
-                <TabsContent value="upload" className="mt-6">
-                  <div data-tour="file-upload">
-                    <UnifiedPlanUpload onCsvLoaded={handleFilesUploaded} onDicomLoaded={handleDicomRTLoaded} />
-                  </div>
-                </TabsContent>
-                <TabsContent value="debug-compare" className="mt-6 space-y-6">
-                  <DVHSourceComparison
-                    onDvhParserLoaded={s => setDvhParserStructures(s.length > 0 ? s : null)}
-                    onDicomRTLoaded={s => setDicomRTStructures(s.length > 0 ? s : null)}
-                    dvhParserStructures={dvhParserStructures}
-                    dicomRTStructures={dicomRTStructures}
-                  />
-                  {(dvhParserStructures || dicomRTStructures) && (
-                    <DVHComparisonDebug dvhParserStructures={dvhParserStructures} dicomRTStructures={dicomRTStructures} />
-                  )}
-                </TabsContent>
-                <TabsContent value="multi" className="mt-6">
-                  <MultiFileUpload onPlansLoaded={handlePlansLoaded} />
-                </TabsContent>
-                <TabsContent value="dicom-sum" className="mt-6">
-                  <PlanSummationManager onSummationComplete={handleDicomSummationComplete} />
-                </TabsContent>
-                <TabsContent value="converter" className="mt-6">
-                  <ProtocolDocumentConverter />
-                </TabsContent>
-              </Tabs>
-            </div>
+            <WelcomeScreen
+              onCsvLoaded={handleFilesUploaded}
+              onDicomLoaded={handleDicomRTLoaded}
+              onPlansLoaded={handlePlansLoaded}
+              onSummationComplete={handleDicomSummationComplete}
+            />
           )}
 
           {/* Tabs principales */}
